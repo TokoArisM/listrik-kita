@@ -840,8 +840,16 @@
         refreshIcon.classList.add("animate-spin");
         document.getElementById("syncStatusText").textContent = "Sinkronisasi Google Sheets...";
 
+        // Tambahkan timeout 15 detik agar tidak muter selamanya jika URL salah
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
         try {
-          const res = await fetch(State.gasUrl, { method: "GET" });
+          const res = await fetch(State.gasUrl, { 
+            method: "GET",
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
           const json = await res.json();
 
           if (json.status === "success" && Array.isArray(json.data) && json.data.length > 0) {
@@ -855,9 +863,14 @@
             throw new Error(json.message || "Format data produk tidak sesuai.");
           }
         } catch (err) {
+          clearTimeout(timeoutId);
           console.error("Sync Error:", err);
           document.getElementById("syncStatusText").textContent = "Mode Offline (Data Lokal)";
-          if (notify) UI.toast("Gagal sinkronisasi Sheets: " + err.message, "error");
+          if (err.name === 'AbortError') {
+            if (notify) UI.toast("Koneksi timeout (15 detik). Pastikan URL berakhiran /exec dan akses 'Anyone'", "error");
+          } else {
+            if (notify) UI.toast("Gagal sinkron: " + err.message, "error");
+          }
         } finally {
           refreshIcon.classList.remove("animate-spin");
         }
