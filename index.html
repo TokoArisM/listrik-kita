@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1e3a8a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="Aplikasi POS Kasir Toko Alat Listrik KITA - 100% Bebas Server" />
+  <title>LISTRIK KITA - POS Kasir</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Styling scrollbar & touch */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    .tap-highlight-none {
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased font-sans flex flex-col h-screen overflow-hidden">
+
+  <!-- TOP NAVBAR -->
+  <header class="bg-blue-900 text-white shadow-md flex-none z-20">
+    <div class="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-2">
+      <!-- Brand & Status -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-400 text-blue-950 flex items-center justify-center font-black text-xl shadow">
+          ⚡
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight leading-tight flex items-center gap-2">
+            LISTRIK KITA
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-700 text-blue-100 font-semibold uppercase tracking-wider">POS PWA</span>
+          </h1>
+          <p class="text-xs text-blue-200" id="syncStatusText">Data Lokal Siap</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons (Bluetooth, Settings, Mobile Cart Badge) -->
+      <div class="flex items-center gap-2">
+        <!-- Bluetooth Button -->
+        <button id="btnConnectBT" onclick="PrinterService.toggleConnect()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-800 hover:bg-blue-700 border border-blue-600 transition tap-highlight-none">
+          <i data-lucide="bluetooth" class="w-4 h-4 text-blue-300" id="btIcon"></i>
+          <span id="btStatusLabel" class="hidden sm:inline">Hubungkan Printer</span>
+        </button>
+
+        <!-- Google Apps Script URL Config -->
+        <button onclick="UI.openSettingsModal()" class="p-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-blue-200 border border-blue-600 transition" title="Pengaturan Server">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+        </button>
+
+        <!-- Refresh Products Button -->
+        <button onclick="App.syncProducts()" class="p-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-blue-200 border border-blue-600 transition" title="Sinkronkan Produk dari Cloud">
+          <i data-lucide="refresh-cw" class="w-4 h-4" id="refreshIcon"></i>
+        </button>
+
+        <!-- Mobile Cart Toggle Button -->
+        <button onclick="UI.toggleMobileCart()" class="lg:hidden relative p-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-blue-950 font-bold transition">
+          <i data-lucide="shopping-cart" class="w-4 h-4"></i>
+          <span id="mobileCartCount" class="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER (GRID PRODUK & KERANJANG) -->
+  <div class="flex-1 flex overflow-hidden max-w-7xl w-full mx-auto p-2 sm:p-4 gap-4">
+    
+    <!-- LEFT PANEL: KATALOG & FILTER PRODUK -->
+    <main class="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+      <!-- Search & Category Filters -->
+      <div class="p-3 sm:p-4 border-b border-slate-100 flex flex-col gap-3 flex-none bg-white">
+        <!-- Search Bar -->
+        <div class="relative">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-400"></i>
+          <input 
+            type="text" 
+            id="searchInput" 
+            oninput="App.handleSearch()" 
+            placeholder="Cari alat listrik (lampu, kabel, saklar, MCB)..." 
+            class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+          />
+        </div>
+
+        <!-- Category Pills -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs" id="categoryFilterContainer">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- Product Cards Grid -->
+      <div class="flex-1 overflow-y-auto p-3 sm:p-4">
+        <div id="productGrid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+          <!-- Rendered via JS -->
+        </div>
+        <div id="emptyProductState" class="hidden h-full flex-col items-center justify-center text-center p-8 text-slate-400">
+          <i data-lucide="package-x" class="w-12 h-12 mb-2 stroke-1"></i>
+          <p class="text-sm font-medium">Tidak ada produk ditemukan</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- RIGHT PANEL: KERANJANG BELANJA (DESKTOP & MOBILE DRAWER) -->
+    <aside id="cartAside" class="fixed inset-y-0 right-0 z-30 w-full sm:w-96 bg-white shadow-2xl lg:shadow-sm lg:border lg:border-slate-200/80 lg:rounded-2xl lg:static flex flex-col translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
+      
+      <!-- Cart Header -->
+      <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 lg:rounded-t-2xl flex-none">
+        <div class="flex items-center gap-2">
+          <i data-lucide="shopping-bag" class="w-5 h-5 text-blue-700"></i>
+          <h2 class="font-bold text-base text-slate-800">Keranjang Kasir</h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="Cart.clear()" class="text-xs text-red-500 hover:text-red-700 font-semibold px-2 py-1 rounded hover:bg-red-50 transition" title="Hapus semua item">
+            Kosongkan
+          </button>
+          <button onclick="UI.toggleMobileCart()" class="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Cart Item List -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-3" id="cartItemList">
+        <!-- Rendered via JS -->
+      </div>
+
+      <!-- Empty Cart Notice -->
+      <div id="emptyCartNotice" class="hidden flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-400">
+        <i data-lucide="shopping-cart" class="w-12 h-12 mb-2 stroke-1"></i>
+        <p class="text-sm font-medium">Keranjang masih kosong</p>
+        <p class="text-xs text-slate-400 mt-1">Pilih produk di katalog untuk menambahkan.</p>
+      </div>
+
+      <!-- Cart Summary & Checkout -->
+      <div class="p-4 border-t border-slate-100 bg-slate-50/80 lg:rounded-b-2xl flex-none space-y-3">
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between text-slate-500">
+            <span>Jumlah Item:</span>
+            <span id="cartTotalItems" class="font-medium">0 pcs</span>
+          </div>
+          <div class="flex justify-between text-base font-black text-slate-900 pt-1 border-t border-slate-200">
+            <span>Total Bayar:</span>
+            <span id="cartTotalPrice" class="text-blue-700 text-lg">Rp 0</span>
+          </div>
+        </div>
+
+        <button 
+          id="btnCheckout" 
+          onclick="UI.openPaymentModal()" 
+          disabled
+          class="w-full py-3 px-4 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed transition flex items-center justify-center gap-2 tap-highlight-none">
+          <i data-lucide="banknote" class="w-4 h-4"></i>
+          Bayar / Selesaikan (F2)
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- MODAL: PEMBAYARAN KASIR -->
+  <div id="paymentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+      <div class="bg-blue-900 text-white px-5 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="receipt" class="w-5 h-5 text-amber-400"></i>
+          <h3 class="font-bold text-base">Pembayaran Transaksi</h3>
+        </div>
+        <button onclick="UI.closePaymentModal()" class="text-blue-300 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <!-- Total Tagihan -->
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+          <span class="text-xs uppercase font-bold text-blue-600 tracking-wider">Total Tagihan</span>
+          <div class="text-2xl font-black text-blue-950 mt-0.5" id="modalBillAmount">Rp 0</div>
+        </div>
+
+        <!-- Input Uang Diterima -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Nominal Uang Diterima (Rp)</label>
+          <div class="relative">
+            <span class="absolute left-3 top-2.5 text-slate-400 font-bold text-sm">Rp</span>
+            <input 
+              type="number" 
+              id="cashGivenInput" 
+              oninput="UI.calculateChange()" 
+              placeholder="0" 
+              class="w-full pl-10 pr-4 py-2.5 text-lg font-bold bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:bg-white outline-none"
+            />
+          </div>
+        </div>
+
+        <!-- Quick Cash Buttons -->
+        <div class="grid grid-cols-4 gap-1.5 text-xs font-semibold">
+          <button type="button" onclick="UI.setQuickCash('pas')" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border">Uang Pas</button>
+          <button type="button" onclick="UI.setQuickCash(50000)" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border">50k</button>
+          <button type="button" onclick="UI.setQuickCash(100000)" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border">100k</button>
+          <button type="button" onclick="UI.setQuickCash(200000)" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border">200k</button>
+        </div>
+
+        <!-- Kembalian -->
+        <div class="flex justify-between items-center p-3 bg-slate-100 rounded-xl border border-slate-200">
+          <span class="text-xs font-bold text-slate-600">Kembalian:</span>
+          <span class="text-lg font-black text-emerald-600" id="modalChangeAmount">Rp 0</span>
+        </div>
+
+        <!-- Checkbox Hardware Trigger -->
+        <div class="space-y-2 pt-1 border-t border-slate-100 text-xs">
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="chkPrintReceipt" checked class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
+            <span class="font-medium text-slate-700">Cetak Struk Thermal (58mm)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer select-none text-slate-500">
+            <input type="checkbox" id="chkKickDrawer" checked class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
+            <span>Kirim Sinyal Buka Laci Kasir RJ11 <code class="bg-slate-200 px-1 py-0.5 rounded text-[10px]">[ESC p 0 25 250]</code></span>
+          </label>
+        </div>
+
+        <!-- Action Button -->
+        <div class="pt-2">
+          <button 
+            id="btnProcessPayment" 
+            onclick="App.processTransaction()" 
+            class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2">
+            <i data-lucide="check-circle" class="w-4 h-4"></i>
+            Konfirmasi & Cetak Struk
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SETTINGS (GOOGLE APPS SCRIPT URL) -->
+  <div id="settingsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col animate-in fade-in duration-150">
+      <div class="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+        <h3 class="font-bold text-base flex items-center gap-2">
+          <i data-lucide="database" class="w-4 h-4 text-amber-400"></i>
+          Pengaturan Google Apps Script
+        </h3>
+        <button onclick="UI.closeSettingsModal()" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-5 space-y-4 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Web App Deployment URL:</label>
+          <input 
+            type="url" 
+            id="gasUrlInput" 
+            placeholder="https://script.google.com/macros/s/.../exec" 
+            class="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+          <p class="text-slate-400 mt-1">Dapatkan URL ini setelah melakukan Deploy -> Web App di Google Sheets.</p>
+        </div>
+
+        <div class="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-xl space-y-1">
+          <div class="font-bold flex items-center gap-1.5">
+            <i data-lucide="info" class="w-4 h-4 text-amber-600"></i> Mode Serverless 100% Gratis
+          </div>
+          <p class="text-[11px] leading-relaxed">
+            Jika URL belum diisi, aplikasi akan menggunakan katalog demo lokal toko listrik agar kasir tetap dapat ditest secara offline.
+          </p>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button onclick="UI.closeSettingsModal()" class="px-4 py-2 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Tutup</button>
+          <button onclick="App.saveGasUrl()" class="px-4 py-2 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white">Simpan & Sinkronkan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- SCRIPT LOGIKA APLIKASI -->
+  <script>
+    /**
+     * =========================================================================
+     * 1. CONFIG & DEMO PRODUCTS
+     * =========================================================================
+     */
+    const CONFIG = {
+      STORE_NAME: "TOKO LISTRIK KITA",
+      STORE_ADDR: "Jl. Raya Listrik No. 88, Cibinong",
+      STORE_PHONE: "0812-3456-7890",
+      STORAGE_KEY_GAS: "lk_gas_url",
+      STORAGE_KEY_PRODUCTS: "lk_products_cache"
+    };
+
+    // Default sample products jika Google Sheets belum dikonfigurasi
+    const DEFAULT_PRODUCTS = [
+      { id: "P001", nama: "Lampu LED Philips 10W Putih", kategori: "Lampu", harga: 35000, stok: 50, satuan: "pcs" },
+      { id: "P002", nama: "Stop Kontak Broco 4L + Kabel 3M", kategori: "Kabel & Stopkontak", harga: 65000, stok: 20, satuan: "pcs" },
+      { id: "P003", nama: "Kabel NYM Eterna 2x1.5mm (Meter)", kategori: "Kabel & Stopkontak", harga: 12000, stok: 100, satuan: "meter" },
+      { id: "P004", nama: "MCB Schneider 10A 1 Phase", kategori: "MCB & Box", harga: 55000, stok: 15, satuan: "pcs" },
+      { id: "P005", nama: "Saklar Ganda Panasonic Seri WESJ", kategori: "Saklar", harga: 38000, stok: 30, satuan: "pcs" },
+      { id: "P006", nama: "Isolasi Listrik Unibell Hitam", kategori: "Aksesoris", harga: 7000, stok: 80, satuan: "roll" },
+      { id: "P007", nama: "Fitting Lampu Plafon Broco Standard", kategori: "Lampu", harga: 15000, stok: 45, satuan: "pcs" },
+      { id: "P008", nama: "Tespen Listrik Obeng Bolak Balik", kategori: "Alat & Tool", harga: 18000, stok: 25, satuan: "pcs" },
+      { id: "P009", nama: "Steker Arde Broco Putih", kategori: "Aksesoris", harga: 12000, stok: 60, satuan: "pcs" },
+      { id: "P010", nama: "Lampu LED Hannochs 15W Putih", kategori: "Lampu", harga: 42000, stok: 35, satuan: "pcs" }
+    ];
+
+    /**
+     * =========================================================================
+     * 2. WEB BLUETOOTH THERMAL PRINTER SERVICE (58mm ESC/POS + CASH DRAWER)
+     * =========================================================================
+     */
+    const PrinterService = {
+      device: null,
+      characteristic: null,
+      isConnected: false,
+
+      // Standar UUID untuk Printer Thermal Bluetooth BLE & SPP over BLE
+      PRINTER_SERVICES: [
+        '000018f0-0000-1000-8000-00805f9b34fb', // Standard Print Service
+        '49535343-fe7d-41aa-8d12-3d6872d57582', // ISSC Transparent TX/RX
+        'e7810a71-73ae-499d-8c15-faa9aef0c3f2', // Generic POS BLE
+        '0000ae00-0000-1000-8000-00805f9b34fb',
+        '0000af00-0000-1000-8000-00805f9b34fb'
+      ],
+
+      async toggleConnect() {
+        if (this.isConnected) {
+          this.disconnect();
+          return;
+        }
+
+        if (!navigator.bluetooth) {
+          UI.toast("Browser tidak mendukung Web Bluetooth API. Gunakan Chrome di Android/PC via HTTPS.", "error");
+          return;
+        }
+
+        try {
+          UI.toast("Memindai printer bluetooth...", "info");
+          
+          // Request device bluetooth printer
+          this.device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: this.PRINTER_SERVICES
+          });
+
+          this.device.addEventListener('gattserverdisconnected', () => {
+            this.handleDisconnected();
+          });
+
+          UI.toast("Menghubungkan ke " + (this.device.name || "Printer") + "...", "info");
+          const server = await this.device.gatt.connect();
+
+          // Cari characteristic yang mendukung 'write' atau 'writeWithoutResponse'
+          let foundChar = null;
+          for (const serviceUuid of this.PRINTER_SERVICES) {
+            try {
+              const service = await server.getPrimaryService(serviceUuid);
+              const characteristics = await service.getCharacteristics();
+              for (const c of characteristics) {
+                if (c.properties.write || c.properties.writeWithoutResponse) {
+                  foundChar = c;
+                  break;
+                }
+              }
+              if (foundChar) break;
+            } catch (e) {
+              // Service not on this device, continue
+            }
+          }
+
+          // Fallback jika tidak terdaftar di daftar di atas: cari dari semua services
+          if (!foundChar) {
+            try {
+              const services = await server.getPrimaryServices();
+              for (const s of services) {
+                const chars = await s.getCharacteristics();
+                for (const c of chars) {
+                  if (c.properties.write || c.properties.writeWithoutResponse) {
+                    foundChar = c;
+                    break;
+                  }
+                }
+                if (foundChar) break;
+              }
+            } catch (err) {}
+          }
+
+          if (!foundChar) {
+            throw new Error("Karakteristik Write printer tidak ditemukan.");
+          }
+
+          this.characteristic = foundChar;
+          this.isConnected = true;
+          this.updateUI(true);
+          UI.toast("Printer berhasil terhubung: " + (this.device.name || "58mm Printer"), "success");
+
+        } catch (error) {
+          console.error("Bluetooth Connect Error:", error);
+          this.isConnected = false;
+          this.updateUI(false);
+          if (error.name !== 'NotFoundError') {
+            UI.toast("Gagal konek printer: " + error.message, "error");
+          }
+        }
+      },
+
+      disconnect() {
+        if (this.device && this.device.gatt.connected) {
+          this.device.gatt.disconnect();
+        }
+        this.handleDisconnected();
+      },
+
+      handleDisconnected() {
+        this.isConnected = false;
+        this.characteristic = null;
+        this.updateUI(false);
+        UI.toast("Printer terputus", "info");
+      },
+
+      updateUI(connected) {
+        const btn = document.getElementById("btnConnectBT");
+        const icon = document.getElementById("btIcon");
+        const label = document.getElementById("btStatusLabel");
+        
+        if (connected) {
+          btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition tap-highlight-none";
+          label.textContent = this.device?.name || "Printer Terhubung";
+        } else {
+          btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-800 hover:bg-blue-700 border border-blue-600 transition tap-highlight-none";
+          label.textContent = "Hubungkan Printer";
+        }
+      },
+
+      /**
+       * Kirim byte array ke printer secara chunking (50 byte per pengiriman)
+       * untuk mencegah GATT buffer overflow pada smartphone Android.
+       */
+      async sendBytes(byteArray) {
+        if (!this.isConnected || !this.characteristic) {
+          throw new Error("Printer belum terhubung via Bluetooth.");
+        }
+
+        const CHUNK_SIZE = 50;
+        for (let i = 0; i < byteArray.length; i += CHUNK_SIZE) {
+          const chunk = byteArray.slice(i, i + CHUNK_SIZE);
+          const buffer = new Uint8Array(chunk);
+          if (this.characteristic.properties.writeWithoutResponse) {
+            await this.characteristic.writeValueWithoutResponse(buffer);
+          } else {
+            await this.characteristic.writeValue(buffer);
+          }
+          // Delay kecil antar chunk untuk stabilitas printer
+          await new Promise(r => setTimeout(r, 25));
+        }
+      },
+
+      /**
+       * Format ESC/POS Generator untuk Kertas 58mm (32 Kolom)
+       */
+      buildReceiptBytes(orderData, triggerDrawer = true) {
+        const encoder = new TextEncoder();
+        const bytes = [];
+
+        const append = (...arr) => bytes.push(...arr);
+        const appendText = (text) => {
+          const encoded = encoder.encode(text);
+          for (let b of encoded) bytes.push(b);
+        };
+
+        // 1. Inisialisasi Printer: ESC @
+        append(27, 64);
+
+        // 2. Alignment Tengah: ESC a 1
+        append(27, 97, 1);
+        // Bold ON: ESC E 1
+        append(27, 69, 1);
+        appendText(CONFIG.STORE_NAME + "\n");
+        append(27, 69, 0); // Bold OFF
+        appendText(CONFIG.STORE_ADDR + "\n");
+        appendText("Telp: " + CONFIG.STORE_PHONE + "\n");
+        appendText("================================\n"); // 32 chars
+
+        // 3. Info Transaksi (Kiri): ESC a 0
+        append(27, 97, 0);
+        appendText("No. Trx : " + orderData.transactionId + "\n");
+        appendText("Tanggal : " + orderData.datetime + "\n");
+        appendText("Kasir   : Admin Kasir\n");
+        appendText("--------------------------------\n");
+
+        // 4. Baris Produk (Format 32 Karakter)
+        // Format:
+        // Nama Produk
+        //   2 x 35.000             70.000
+        orderData.items.forEach(item => {
+          appendText(item.nama + "\n");
+          const qtyPrice = `  ${item.qty} x ${item.harga.toLocaleString('id-ID')}`;
+          const subtotal = (item.qty * item.harga).toLocaleString('id-ID');
+          
+          // Hitung spasi pemisah agar panjang pas 32 karakter
+          const spacesCount = Math.max(1, 32 - qtyPrice.length - subtotal.length);
+          const spaces = " ".repeat(spacesCount);
+          appendText(qtyPrice + spaces + subtotal + "\n");
+        });
+
+        appendText("--------------------------------\n");
+
+        // 5. Total, Bayar, Kembalian
+        const formatRow = (label, value) => {
+          const valStr = "Rp " + Number(value).toLocaleString('id-ID');
+          const spacesCount = Math.max(1, 32 - label.length - valStr.length);
+          return label + " ".repeat(spacesCount) + valStr + "\n";
+        };
+
+        append(27, 69, 1); // Bold ON
+        appendText(formatRow("TOTAL", orderData.total));
+        append(27, 69, 0); // Bold OFF
+        appendText(formatRow("BAYAR (TUNAI)", orderData.bayar));
+        appendText(formatRow("KEMBALIAN", orderData.kembalian));
+        appendText("================================\n");
+
+        // 6. Footer Struk (Center)
+        append(27, 97, 1);
+        appendText("Terima Kasih Atas Kunjungan Anda\n");
+        appendText("Barang yang dibeli tidak dapat\n");
+        appendText("ditukar / dikembalikan.\n\n");
+
+        // 7. Feed paper 3 baris
+        append(10, 10, 10);
+
+        // 8. KRUSIAL: TRIGGER KICK LACI KASIR (CASH DRAWER RJ11)
+        // Standar Bytes ESC/POS: ESC p m t1 t2 -> [27, 112, 0, 25, 250]
+        if (triggerDrawer) {
+          append(27, 112, 0, 25, 250);
+        }
+
+        return new Uint8Array(bytes);
+      }
+    };
+
+    /**
+     * =========================================================================
+     * 3. STATE MANAJEMEN APLIKASI
+     * =========================================================================
+     */
+    const State = {
+      products: [],
+      filteredProducts: [],
+      selectedCategory: "Semua",
+      searchQuery: "",
+      cart: [], // { id, nama, harga, qty, stok }
+      gasUrl: localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || ""
+    };
+
+    /**
+     * =========================================================================
+     * 4. CART CONTROLLER
+     * =========================================================================
+     */
+    const Cart = {
+      addItem(productId) {
+        const product = State.products.find(p => p.id === productId);
+        if (!product) return;
+
+        if (product.stok <= 0) {
+          UI.toast("Stok produk habis!", "error");
+          return;
+        }
+
+        const existing = State.cart.find(c => c.id === productId);
+        if (existing) {
+          if (existing.qty >= product.stok) {
+            UI.toast(`Jumlah melebihi stok tersedia (${product.stok})`, "error");
+            return;
+          }
+          existing.qty += 1;
+        } else {
+          State.cart.push({
+            id: product.id,
+            nama: product.nama,
+            harga: product.harga,
+            stok: product.stok,
+            qty: 1
+          });
+        }
+
+        UI.toast(`Ditambahkan: ${product.nama}`, "info");
+        this.render();
+      },
+
+      changeQty(productId, delta) {
+        const item = State.cart.find(c => c.id === productId);
+        if (!item) return;
+
+        const newQty = item.qty + delta;
+        if (newQty <= 0) {
+          this.removeItem(productId);
+          return;
+        }
+
+        if (newQty > item.stok) {
+          UI.toast(`Maksimal stok: ${item.stok}`, "error");
+          return;
+        }
+
+        item.qty = newQty;
+        this.render();
+      },
+
+      removeItem(productId) {
+        State.cart = State.cart.filter(c => c.id !== productId);
+        this.render();
+      },
+
+      clear() {
+        if (!State.cart.length) return;
+        if (confirm("Kosongkan semua item di keranjang?")) {
+          State.cart = [];
+          this.render();
+        }
+      },
+
+      getTotal() {
+        return State.cart.reduce((sum, it) => sum + (it.harga * it.qty), 0);
+      },
+
+      getTotalQty() {
+        return State.cart.reduce((sum, it) => sum + it.qty, 0);
+      },
+
+      render() {
+        const listEl = document.getElementById("cartItemList");
+        const emptyNotice = document.getElementById("emptyCartNotice");
+        const checkoutBtn = document.getElementById("btnCheckout");
+        const totalItemsEl = document.getElementById("cartTotalItems");
+        const totalPriceEl = document.getElementById("cartTotalPrice");
+        const mobileBadge = document.getElementById("mobileCartCount");
+
+        const totalQty = this.getTotalQty();
+        const totalAmount = this.getTotal();
+
+        totalItemsEl.textContent = `${totalQty} pcs`;
+        totalPriceEl.textContent = `Rp ${totalAmount.toLocaleString('id-ID')}`;
+        mobileBadge.textContent = totalQty;
+
+        if (State.cart.length === 0) {
+          listEl.innerHTML = "";
+          emptyNotice.classList.remove("hidden");
+          checkoutBtn.disabled = true;
+          return;
+        }
+
+        emptyNotice.classList.add("hidden");
+        checkoutBtn.disabled = false;
+
+        listEl.innerHTML = State.cart.map(item => `
+          <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex flex-col gap-2">
+            <div class="flex justify-between items-start gap-2">
+              <span class="font-bold text-xs text-slate-800 leading-snug">${item.nama}</span>
+              <button onclick="Cart.removeItem('${item.id}')" class="text-slate-400 hover:text-red-600 transition">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+            <div class="flex justify-between items-center text-xs">
+              <span class="text-slate-500 font-medium">Rp ${item.harga.toLocaleString('id-ID')}</span>
+              <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-1.5 py-0.5 shadow-sm">
+                <button onclick="Cart.changeQty('${item.id}', -1)" class="w-5 h-5 flex items-center justify-center font-bold text-slate-600 hover:text-blue-600">-</button>
+                <span class="font-bold text-slate-800 w-5 text-center">${item.qty}</span>
+                <button onclick="Cart.changeQty('${item.id}', 1)" class="w-5 h-5 flex items-center justify-center font-bold text-slate-600 hover:text-blue-600">+</button>
+              </div>
+              <span class="font-bold text-blue-700">Rp ${(item.qty * item.harga).toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+        `).join("");
+
+        lucide.createIcons();
+      }
+    };
+
+    /**
+     * =========================================================================
+     * 5. UI CONTROLLER & MODAL
+     * =========================================================================
+     */
+    const UI = {
+      toggleMobileCart() {
+        const aside = document.getElementById("cartAside");
+        aside.classList.toggle("translate-x-full");
+      },
+
+      openPaymentModal() {
+        const total = Cart.getTotal();
+        if (total <= 0) return;
+
+        document.getElementById("modalBillAmount").textContent = `Rp ${total.toLocaleString('id-ID')}`;
+        document.getElementById("cashGivenInput").value = total;
+        this.calculateChange();
+        document.getElementById("paymentModal").classList.remove("hidden");
+        document.getElementById("cashGivenInput").focus();
+      },
+
+      closePaymentModal() {
+        document.getElementById("paymentModal").classList.add("hidden");
+      },
+
+      setQuickCash(val) {
+        const total = Cart.getTotal();
+        const input = document.getElementById("cashGivenInput");
+        if (val === 'pas') {
+          input.value = total;
+        } else {
+          input.value = val;
+        }
+        this.calculateChange();
+      },
+
+      calculateChange() {
+        const total = Cart.getTotal();
+        const cash = Number(document.getElementById("cashGivenInput").value) || 0;
+        const change = cash - total;
+        const changeEl = document.getElementById("modalChangeAmount");
+        const btnProcess = document.getElementById("btnProcessPayment");
+
+        if (change < 0) {
+          changeEl.textContent = `Kurang Rp ${Math.abs(change).toLocaleString('id-ID')}`;
+          changeEl.className = "text-lg font-black text-red-600";
+          btnProcess.disabled = true;
+          btnProcess.classList.add("opacity-50", "cursor-not-allowed");
+        } else {
+          changeEl.textContent = `Rp ${change.toLocaleString('id-ID')}`;
+          changeEl.className = "text-lg font-black text-emerald-600";
+          btnProcess.disabled = false;
+          btnProcess.classList.remove("opacity-50", "cursor-not-allowed");
+        }
+      },
+
+      openSettingsModal() {
+        document.getElementById("gasUrlInput").value = State.gasUrl;
+        document.getElementById("settingsModal").classList.remove("hidden");
+      },
+
+      closeSettingsModal() {
+        document.getElementById("settingsModal").classList.add("hidden");
+      },
+
+      toast(msg, type = "info") {
+        const container = document.getElementById("toastContainer");
+        const toast = document.createElement("div");
+        const bgColors = {
+          info: "bg-slate-800 text-white",
+          success: "bg-emerald-600 text-white",
+          error: "bg-red-600 text-white"
+        };
+        toast.className = `px-4 py-2 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 pointer-events-auto transition-all duration-300 transform translate-y-4 opacity-0 ${bgColors[type] || bgColors.info}`;
+        toast.textContent = msg;
+        container.appendChild(toast);
+
+        requestAnimationFrame(() => {
+          toast.classList.remove("translate-y-4", "opacity-0");
+        });
+
+        setTimeout(() => {
+          toast.classList.add("opacity-0", "translate-y-2");
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
+    };
+
+    /**
+     * =========================================================================
+     * 6. APP CONTROLLER (INIT, SYNC, PROCESS)
+     * =========================================================================
+     */
+    const App = {
+      async init() {
+        // Load cached products or defaults
+        const cached = localStorage.getItem(CONFIG.STORAGE_KEY_PRODUCTS);
+        if (cached) {
+          try {
+            State.products = JSON.parse(cached);
+          } catch (e) {
+            State.products = [...DEFAULT_PRODUCTS];
+          }
+        } else {
+          State.products = [...DEFAULT_PRODUCTS];
+        }
+
+        this.renderCategories();
+        this.filterAndRenderProducts();
+        Cart.render();
+
+        // Auto sync jika URL Apps Script sudah diatur
+        if (State.gasUrl) {
+          this.syncProducts(false);
+        }
+
+        // Shortcut keyboard F2 untuk Checkout
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'F2') {
+            e.preventDefault();
+            UI.openPaymentModal();
+          }
+        });
+      },
+
+      saveGasUrl() {
+        const val = document.getElementById("gasUrlInput").value.trim();
+        State.gasUrl = val;
+        localStorage.setItem(CONFIG.STORAGE_KEY_GAS, val);
+        UI.closeSettingsModal();
+        UI.toast("URL Google Apps Script disimpan", "success");
+        this.syncProducts(true);
+      },
+
+      async syncProducts(notify = true) {
+        if (!State.gasUrl) {
+          if (notify) UI.toast("Masukkan URL Web App Google Apps Script di menu pengaturan.", "info");
+          return;
+        }
+
+        const refreshIcon = document.getElementById("refreshIcon");
+        refreshIcon.classList.add("animate-spin");
+        document.getElementById("syncStatusText").textContent = "Sinkronisasi Google Sheets...";
+
+        try {
+          const res = await fetch(State.gasUrl, { method: "GET" });
+          const json = await res.json();
+
+          if (json.status === "success" && Array.isArray(json.data) && json.data.length > 0) {
+            State.products = json.data;
+            localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(json.data));
+            this.renderCategories();
+            this.filterAndRenderProducts();
+            document.getElementById("syncStatusText").textContent = `Online: ${json.data.length} Produk`;
+            if (notify) UI.toast(`Berhasil memuat ${json.data.length} produk dari Google Sheets`, "success");
+          } else {
+            throw new Error(json.message || "Format data produk tidak sesuai.");
+          }
+        } catch (err) {
+          console.error("Sync Error:", err);
+          document.getElementById("syncStatusText").textContent = "Mode Offline (Data Lokal)";
+          if (notify) UI.toast("Gagal sinkronisasi Sheets: " + err.message, "error");
+        } finally {
+          refreshIcon.classList.remove("animate-spin");
+        }
+      },
+
+      renderCategories() {
+        const container = document.getElementById("categoryFilterContainer");
+        const cats = ["Semua", ...new Set(State.products.map(p => p.kategori))];
+
+        container.innerHTML = cats.map(cat => `
+          <button 
+            onclick="App.setCategory('${cat}')" 
+            class="px-3 py-1.5 rounded-full font-medium whitespace-nowrap transition ${State.selectedCategory === cat ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}">
+            ${cat}
+          </button>
+        `).join("");
+      },
+
+      setCategory(cat) {
+        State.selectedCategory = cat;
+        this.renderCategories();
+        this.filterAndRenderProducts();
+      },
+
+      handleSearch() {
+        State.searchQuery = document.getElementById("searchInput").value.toLowerCase();
+        this.filterAndRenderProducts();
+      },
+
+      filterAndRenderProducts() {
+        const grid = document.getElementById("productGrid");
+        const emptyState = document.getElementById("emptyProductState");
+
+        State.filteredProducts = State.products.filter(p => {
+          const matchCat = State.selectedCategory === "Semua" || p.kategori === State.selectedCategory;
+          const matchQuery = !State.searchQuery || p.nama.toLowerCase().includes(State.searchQuery) || p.id.toLowerCase().includes(State.searchQuery);
+          return matchCat && matchQuery;
+        });
+
+        if (State.filteredProducts.length === 0) {
+          grid.innerHTML = "";
+          emptyState.classList.remove("hidden");
+          return;
+        }
+
+        emptyState.classList.add("hidden");
+        grid.innerHTML = State.filteredProducts.map(p => `
+          <div class="bg-white border border-slate-200 rounded-xl p-3 flex flex-col justify-between hover:shadow-md hover:border-blue-400 transition group">
+            <div>
+              <div class="flex items-center justify-between gap-1 mb-1.5">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">${p.kategori}</span>
+                <span class="text-[10px] font-bold ${p.stok <= 5 ? 'text-red-500' : 'text-slate-400'}">Stok: ${p.stok}</span>
+              </div>
+              <h3 class="font-bold text-xs text-slate-800 line-clamp-2 leading-snug group-hover:text-blue-700 transition" title="${p.nama}">
+                ${p.nama}
+              </h3>
+            </div>
+            <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+              <div>
+                <span class="text-[10px] text-slate-400 block">Harga</span>
+                <span class="font-black text-xs text-slate-900">Rp ${p.harga.toLocaleString('id-ID')}</span>
+              </div>
+              <button 
+                onclick="Cart.addItem('${p.id}')" 
+                ${p.stok <= 0 ? 'disabled' : ''}
+                class="w-8 h-8 rounded-lg bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white flex items-center justify-center disabled:bg-slate-100 disabled:text-slate-300 disabled:cursor-not-allowed transition shadow-sm">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        `).join("");
+
+        lucide.createIcons();
+      },
+
+      async processTransaction() {
+        const total = Cart.getTotal();
+        const cash = Number(document.getElementById("cashGivenInput").value) || 0;
+        const change = cash - total;
+        const shouldPrint = document.getElementById("chkPrintReceipt").checked;
+        const shouldKickDrawer = document.getElementById("chkKickDrawer").checked;
+
+        if (cash < total) {
+          UI.toast("Nominal pembayaran kurang!", "error");
+          return;
+        }
+
+        const now = new Date();
+        const trxId = "LK-" + now.getFullYear() +
+          String(now.getMonth() + 1).padStart(2, '0') +
+          String(now.getDate()).padStart(2, '0') + "-" +
+          String(now.getHours()).padStart(2, '0') +
+          String(now.getMinutes()).padStart(2, '0') +
+          String(now.getSeconds()).padStart(2, '0');
+
+        const orderData = {
+          transactionId: trxId,
+          datetime: now.toLocaleString('id-ID'),
+          items: [...State.cart],
+          total: total,
+          bayar: cash,
+          kembalian: change,
+          metodePembayaran: "Tunai"
+        };
+
+        const btnProcess = document.getElementById("btnProcessPayment");
+        btnProcess.disabled = true;
+        btnProcess.innerHTML = `<span class="animate-spin inline-block mr-2">⏳</span> Memproses Transaksi...`;
+
+        // 1. Eksekusi Cetak Struk & Kick Drawer via Web Bluetooth
+        if (shouldPrint || shouldKickDrawer) {
+          if (PrinterService.isConnected) {
+            try {
+              const bytes = PrinterService.buildReceiptBytes(orderData, shouldKickDrawer);
+              await PrinterService.sendBytes(bytes);
+              UI.toast("Struk berhasil dicetak & laci kasir dibuka!", "success");
+            } catch (err) {
+              console.error("Print Error:", err);
+              UI.toast("Gagal mencetak struk: " + err.message, "error");
+            }
+          } else {
+            UI.toast("Printer Bluetooth belum terhubung. Transaksi tetap dicatat.", "info");
+          }
+        }
+
+        // 2. Kirim ke Google Apps Script (doPost) di background
+        if (State.gasUrl) {
+          try {
+            await fetch(State.gasUrl, {
+              method: "POST",
+              mode: "no-cors", // Mode no-cors Google Apps Script
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(orderData)
+            });
+            UI.toast("Transaksi tersimpan di Google Sheets!", "success");
+          } catch (err) {
+            console.warn("Gagal simpan ke sheets:", err);
+          }
+        }
+
+        // 3. Potong stok lokal agar instan di UI kasir
+        State.cart.forEach(cartItem => {
+          const p = State.products.find(prod => prod.id === cartItem.id);
+          if (p) {
+            p.stok = Math.max(0, p.stok - cartItem.qty);
+          }
+        });
+        localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(State.products));
+
+        // 4. Reset & Cleanup
+        State.cart = [];
+        Cart.render();
+        this.filterAndRenderProducts();
+        UI.closePaymentModal();
+
+        btnProcess.disabled = false;
+        btnProcess.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> Konfirmasi & Cetak Struk`;
+        lucide.createIcons();
+
+        UI.toast("Transaksi Selesai! Terima kasih.", "success");
+      }
+    };
+
+    /**
+     * =========================================================================
+     * 7. REGISTRASI SERVICE WORKER (PWA)
+     * =========================================================================
+     */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('[PWA] Service Worker terdaftar:', reg.scope))
+          .catch(err => console.log('[PWA] Gagal daftar SW:', err));
+      });
+    }
+
+    // Inisialisasi awal saat DOM siap
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+      App.init();
+    });
+  </script>
+</body>
+</html>
