@@ -589,6 +589,7 @@
           <input 
             type="url" 
             id="gasUrlInput" 
+            value="https://script.google.com/macros/s/AKfycbx6ZbcmQkMj1Gqa37aCx8DiupI8ydkA0qz03Vtbgd3OF_piUI-xI_Y5XGxwa3OGfHWu/exec"
             placeholder="https://script.google.com/macros/s/.../exec" 
             class="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-xs focus:ring-2 focus:ring-blue-500 outline-none"
           />
@@ -640,6 +641,9 @@
   <!-- SCRIPT LOGIKA POS KASIR                                                   -->
   <!-- ========================================================================= -->
   <script>
+    // URL Google Apps Script Web App (Hardcoded permanen)
+    const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbx6ZbcmQkMj1Gqa37aCx8DiupI8ydkA0qz03Vtbgd3OF_piUI-xI_Y5XGxwa3OGfHWu/exec";
+
     const CONFIG = {
       STORE_NAME: localStorage.getItem("lk_store_name") || "TOKO LISTRIK KITA",
       STORE_ADDR: localStorage.getItem("lk_store_addr") || "Jl. Raya Listrik No. 88, Cibinong",
@@ -993,7 +997,7 @@
       searchQuery: "",
       cart: [],
       selectedPaymentMethod: "Tunai",
-      gasUrl: localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || ""
+      gasUrl: localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || DEFAULT_GAS_URL
     };
 
     /**
@@ -1246,7 +1250,7 @@
       },
 
       openSettingsModal() {
-        document.getElementById("gasUrlInput").value = State.gasUrl;
+        document.getElementById("gasUrlInput").value = State.gasUrl || DEFAULT_GAS_URL;
         document.getElementById("storeNameInput").value = CONFIG.STORE_NAME;
         document.getElementById("storeAddrInput").value = CONFIG.STORE_ADDR;
         document.getElementById("storePhoneInput").value = CONFIG.STORE_PHONE;
@@ -1582,8 +1586,8 @@
     const App = {
       async init() {
         try {
-          // 1. Ambil URL GAS dari localStorage jika ada
-          State.gasUrl = localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || State.gasUrl || "";
+          // 1. Ambil URL GAS dari localStorage jika ada, fallback ke DEFAULT_GAS_URL (hardcoded)
+          State.gasUrl = localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || DEFAULT_GAS_URL;
 
           // 2. Muat produk dari cache lokal, fallback ke DEFAULT jika kosong/rusak
           const cached = localStorage.getItem(CONFIG.STORAGE_KEY_PRODUCTS);
@@ -1605,14 +1609,10 @@
           this.filterAndRenderProducts();
           Cart.render();
 
-          // 4. Sinkronisasi otomatis ke Google Sheets jika URL tersedia
+          // 4. Sinkronisasi otomatis ke Google Sheets
           const statusEl = document.getElementById("syncStatusText");
-          if (State.gasUrl) {
-            if (statusEl) statusEl.textContent = "Sinkronisasi Google Sheets...";
-            this.syncProducts(false);
-          } else {
-            if (statusEl) statusEl.textContent = "Mode Offline (Atur Cloud di ⚙️)";
-          }
+          if (statusEl) statusEl.textContent = "Sinkronisasi Google Sheets...";
+          this.syncProducts(false);
         } catch (err) {
           console.error("App.init error:", err);
           State.products = [...DEFAULT_PRODUCTS];
@@ -1632,7 +1632,7 @@
       },
 
       saveSettings() {
-        const gasUrl = document.getElementById("gasUrlInput").value.trim();
+        const gasUrl = document.getElementById("gasUrlInput").value.trim() || DEFAULT_GAS_URL;
         const storeName = document.getElementById("storeNameInput").value.trim() || "TOKO LISTRIK KITA";
         const storeAddr = document.getElementById("storeAddrInput").value.trim() || "";
         const storePhone = document.getElementById("storePhoneInput").value.trim() || "";
@@ -1668,14 +1668,8 @@
       },
 
       async syncProducts(notify = true) {
-        // Ambil URL terbaru dari State atau localStorage
-        const gasUrl = State.gasUrl || localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || "";
-        if (!gasUrl) {
-          const statusEl = document.getElementById("syncStatusText");
-          if (statusEl) statusEl.textContent = "Mode Offline (Data Lokal)";
-          if (notify) UI.toast("Masukkan URL Web App Google Apps Script di Pengaturan.", "info");
-          return;
-        }
+        // Ambil URL terbaru dari State atau localStorage atau hardcoded default
+        const gasUrl = State.gasUrl || localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || DEFAULT_GAS_URL;
         State.gasUrl = gasUrl;
 
         this.setRefreshSpinning(true);
