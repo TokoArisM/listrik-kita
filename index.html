@@ -1743,13 +1743,11 @@
                 onclick="Cart.addItem('${p.id}')" 
                 ${p.stok <= 0 ? 'disabled' : ''}
                 class="w-8 h-8 rounded-lg bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white flex items-center justify-center disabled:bg-slate-100 disabled:text-slate-300 disabled:cursor-not-allowed transition shadow-sm">
-                <i data-lucide="plus" class="w-4 h-4"></i>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               </button>
             </div>
           </div>
         `).join("");
-
-        lucide.createIcons();
       },
 
       async processTransaction() {
@@ -1874,10 +1872,14 @@
     }
 
     function bootstrapApp() {
-      if (window.lucide) {
-        try { lucide.createIcons(); } catch(e) {}
-      }
+      // Jalankan App tanpa tergantung Lucide
       App.init();
+      // Pastikan view POS selalu tampil saat pertama buka
+      document.getElementById("viewPos").classList.remove("hidden");
+      // Buat ikon Lucide dengan aman setelah semua render selesai
+      if (window.lucide) {
+        try { lucide.createIcons(); } catch(e) { console.warn("Lucide icons error:", e); }
+      }
     }
 
     if (document.readyState === "loading") {
