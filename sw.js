@@ -1,34 +1,36 @@
-const CACHE_NAME = 'listrik-kita-pos-v9';
+const CACHE_NAME = 'listrik-kita-pos-v10';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './logo.png',
   './manifest.json',
-  'https://cdn.tailwindcss.com',
-  'https://unpkg.com/lucide@latest'
+  './tailwind.min.js',
+  './lucide.min.js',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
-// Install Event - Caching app shell
+// Install Event - Caching semua aset aplikasi (termasuk file lokal)
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell...');
+      console.log('[Service Worker] Caching app shell (v10 - File Lokal)...');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
-        console.warn('[Service Worker] Partial cache failure (likely external CDN):', err);
+        console.warn('[Service Worker] Partial cache failure:', err);
       });
     })
   );
   self.skipWaiting();
 });
 
-// Activate Event - Clean old caches
+// Activate Event - Hapus semua cache lama (paksa update)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keyList) => {
       return Promise.all(
         keyList.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[Service Worker] Removing old cache', key);
+            console.log('[Service Worker] Removing old cache:', key);
             return caches.delete(key);
           }
         })
@@ -38,7 +40,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event - Stale-While-Revalidate untuk aset aplikasi (Buka instan 0.1 detik)
+// Fetch Event - Cache First untuk aset lokal, Network First untuk data
 self.addEventListener('fetch', (event) => {
   // Call ke Google Apps Script selalu live (Network Only)
   if (event.request.method !== 'GET' || event.request.url.includes('script.google.com')) {
@@ -57,7 +59,7 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // Mode offline
+        // Mode offline - kembalikan cache
       });
 
       // Kembalikan cache langsung jika ada (Instan tanpa tunggu download)
