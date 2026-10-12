@@ -55,7 +55,7 @@
             LISTRIK KITA
             <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-700 text-blue-100 font-semibold uppercase tracking-wider">POS PRO</span>
           </h1>
-          <p class="text-xs text-blue-200" id="syncStatusText">Data Siap</p>
+          <p class="text-xs text-blue-200" id="syncStatusText">Menghubungkan...</p>
         </div>
       </div>
 
@@ -150,7 +150,13 @@
 
       <!-- Product Cards Grid -->
       <div class="flex-1 overflow-y-auto p-3 sm:p-4">
-        <div id="productGrid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3"></div>
+        <div id="productGrid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+          <!-- Skeleton loading - akan diganti JS -->
+          <div class="bg-slate-100 rounded-xl h-28 animate-pulse"></div>
+          <div class="bg-slate-100 rounded-xl h-28 animate-pulse"></div>
+          <div class="bg-slate-100 rounded-xl h-28 animate-pulse"></div>
+          <div class="bg-slate-100 rounded-xl h-28 animate-pulse"></div>
+        </div>
         <div id="emptyProductState" class="hidden h-full flex-col items-center justify-center text-center p-8 text-slate-400">
           <i data-lucide="package-x" class="w-12 h-12 mb-2 stroke-1"></i>
           <p class="text-sm font-medium">Tidak ada produk ditemukan</p>
@@ -1575,29 +1581,46 @@
      */
     const App = {
       async init() {
-        // Muat produk dari cache lokal, dengan fallback ke DEFAULT jika kosong/error
         try {
+          // 1. Ambil URL GAS dari localStorage jika ada
+          State.gasUrl = localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || State.gasUrl || "";
+
+          // 2. Muat produk dari cache lokal, fallback ke DEFAULT jika kosong/rusak
           const cached = localStorage.getItem(CONFIG.STORAGE_KEY_PRODUCTS);
           if (cached) {
-            const parsed = JSON.parse(cached);
-            // Jika cache valid dan tidak kosong, pakai cache
-            // Jika cache array kosong [], tetap pakai DEFAULT_PRODUCTS
-            State.products = (Array.isArray(parsed) && parsed.length > 0)
-              ? parsed
-              : [...DEFAULT_PRODUCTS];
+            try {
+              const parsed = JSON.parse(cached);
+              State.products = (Array.isArray(parsed) && parsed.length > 0)
+                ? parsed
+                : [...DEFAULT_PRODUCTS];
+            } catch (e) {
+              State.products = [...DEFAULT_PRODUCTS];
+            }
           } else {
             State.products = [...DEFAULT_PRODUCTS];
           }
-        } catch (e) {
+
+          // 3. Render katalog & filter awal secara instan dari memori
+          this.renderCategories();
+          this.filterAndRenderProducts();
+          Cart.render();
+
+          // 4. Sinkronisasi otomatis ke Google Sheets jika URL tersedia
+          const statusEl = document.getElementById("syncStatusText");
+          if (State.gasUrl) {
+            if (statusEl) statusEl.textContent = "Sinkronisasi Google Sheets...";
+            this.syncProducts(false);
+          } else {
+            if (statusEl) statusEl.textContent = "Mode Offline (Atur Cloud di ⚙️)";
+          }
+        } catch (err) {
+          console.error("App.init error:", err);
           State.products = [...DEFAULT_PRODUCTS];
-        }
-
-        this.renderCategories();
-        this.filterAndRenderProducts();
-        Cart.render();
-
-        if (State.gasUrl) {
-          this.syncProducts(false);
+          try {
+            this.renderCategories();
+            this.filterAndRenderProducts();
+            Cart.render();
+          } catch(e) {}
         }
 
         window.addEventListener('keydown', (e) => {
@@ -1645,19 +1668,25 @@
       },
 
       async syncProducts(notify = true) {
-        if (!State.gasUrl) {
+        // Ambil URL terbaru dari State atau localStorage
+        const gasUrl = State.gasUrl || localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || "";
+        if (!gasUrl) {
+          const statusEl = document.getElementById("syncStatusText");
+          if (statusEl) statusEl.textContent = "Mode Offline (Data Lokal)";
           if (notify) UI.toast("Masukkan URL Web App Google Apps Script di Pengaturan.", "info");
           return;
         }
+        State.gasUrl = gasUrl;
 
         this.setRefreshSpinning(true);
-        document.getElementById("syncStatusText").textContent = "Sinkronisasi Google Sheets...";
+        const statusEl = document.getElementById("syncStatusText");
+        if (statusEl) statusEl.textContent = "Sinkronisasi Google Sheets...";
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         try {
-          const res = await fetch(State.gasUrl, { 
+          const res = await fetch(gasUrl, { 
             method: "GET",
             signal: controller.signal
           });
@@ -1669,7 +1698,7 @@
             localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(json.data));
             this.renderCategories();
             this.filterAndRenderProducts();
-            document.getElementById("syncStatusText").textContent = `Online: ${json.data.length} Produk`;
+            if (statusEl) statusEl.textContent = `Online: ${json.data.length} Produk`;
             if (notify) UI.toast(`Berhasil memuat ${json.data.length} produk dari Google Sheets`, "success");
           } else {
             throw new Error(json.message || "Format data produk tidak sesuai.");
@@ -1677,7 +1706,7 @@
         } catch (err) {
           clearTimeout(timeoutId);
           console.error("Sync Error:", err);
-          document.getElementById("syncStatusText").textContent = "Mode Offline (Data Lokal)";
+          if (statusEl) statusEl.textContent = "Mode Offline (Data Lokal)";
           if (err.name === 'AbortError') {
             if (notify) UI.toast("Koneksi timeout. Pastikan URL berakhiran /exec dan akses 'Anyone'", "error");
           } else {
@@ -1690,7 +1719,11 @@
 
       renderCategories() {
         const container = document.getElementById("categoryFilterContainer");
-        const cats = ["Semua", ...new Set(State.products.map(p => p.kategori))];
+        if (!container) return;
+        const validCats = State.products
+          .map(p => String((p && p.kategori) || "Lainnya").trim())
+          .filter(Boolean);
+        const cats = ["Semua", ...new Set(validCats)];
 
         container.innerHTML = cats.map(cat => `
           <button 
@@ -1708,17 +1741,22 @@
       },
 
       handleSearch() {
-        State.searchQuery = document.getElementById("searchInput").value.toLowerCase();
+        State.searchQuery = (document.getElementById("searchInput")?.value || "").toLowerCase();
         this.filterAndRenderProducts();
       },
 
       filterAndRenderProducts() {
         const grid = document.getElementById("productGrid");
         const emptyState = document.getElementById("emptyProductState");
+        if (!grid || !emptyState) return;
 
         State.filteredProducts = State.products.filter(p => {
-          const matchCat = State.selectedCategory === "Semua" || p.kategori === State.selectedCategory;
-          const matchQuery = !State.searchQuery || p.nama.toLowerCase().includes(State.searchQuery) || p.id.toLowerCase().includes(State.searchQuery);
+          if (!p) return false;
+          const cat = String(p.kategori || "Lainnya");
+          const nama = String(p.nama || "");
+          const id = String(p.id || "");
+          const matchCat = State.selectedCategory === "Semua" || cat === State.selectedCategory;
+          const matchQuery = !State.searchQuery || nama.toLowerCase().includes(State.searchQuery) || id.toLowerCase().includes(State.searchQuery);
           return matchCat && matchQuery;
         });
 
@@ -1729,31 +1767,39 @@
         }
 
         emptyState.classList.add("hidden");
-        grid.innerHTML = State.filteredProducts.map(p => `
-          <div class="bg-white border border-slate-200 rounded-xl p-3 flex flex-col justify-between hover:shadow-md hover:border-blue-400 transition group">
-            <div>
-              <div class="flex items-center justify-between gap-1 mb-1.5">
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">${p.kategori}</span>
-                <span class="text-[10px] font-bold ${p.stok <= 5 ? 'text-red-500' : 'text-slate-400'}">Stok: ${p.stok}</span>
-              </div>
-              <h3 class="font-bold text-xs text-slate-800 line-clamp-2 leading-snug group-hover:text-blue-700 transition" title="${p.nama}">
-                ${p.nama}
-              </h3>
-            </div>
-            <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+        grid.innerHTML = State.filteredProducts.map(p => {
+          const hargaNum = Number(p.harga) || 0;
+          const stokNum = Number(p.stok) || 0;
+          const namaStr = String(p.nama || "Produk");
+          const katStr = String(p.kategori || "Umum");
+          const idStr = String(p.id || "");
+
+          return `
+            <div class="bg-white border border-slate-200 rounded-xl p-3 flex flex-col justify-between hover:shadow-md hover:border-blue-400 transition group">
               <div>
-                <span class="text-[10px] text-slate-400 block">Harga</span>
-                <span class="font-black text-xs text-slate-900">Rp ${p.harga.toLocaleString('id-ID')}</span>
+                <div class="flex items-center justify-between gap-1 mb-1.5">
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">${katStr}</span>
+                  <span class="text-[10px] font-bold ${stokNum <= 5 ? 'text-red-500' : 'text-slate-400'}">Stok: ${stokNum}</span>
+                </div>
+                <h3 class="font-bold text-xs text-slate-800 line-clamp-2 leading-snug group-hover:text-blue-700 transition" title="${namaStr}">
+                  ${namaStr}
+                </h3>
               </div>
-              <button 
-                onclick="Cart.addItem('${p.id}')" 
-                ${p.stok <= 0 ? 'disabled' : ''}
-                class="w-8 h-8 rounded-lg bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white flex items-center justify-center disabled:bg-slate-100 disabled:text-slate-300 disabled:cursor-not-allowed transition shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              </button>
+              <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] text-slate-400 block">Harga</span>
+                  <span class="font-black text-xs text-slate-900">Rp ${hargaNum.toLocaleString('id-ID')}</span>
+                </div>
+                <button 
+                  onclick="Cart.addItem('${idStr}')" 
+                  ${stokNum <= 0 ? 'disabled' : ''}
+                  class="w-8 h-8 rounded-lg bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white flex items-center justify-center disabled:bg-slate-100 disabled:text-slate-300 disabled:cursor-not-allowed transition shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
+              </div>
             </div>
-          </div>
-        `).join("");
+          `;
+        }).join("");
       },
 
       async processTransaction() {
@@ -1877,7 +1923,11 @@
       screen.orientation.unlock().catch(() => {});
     }
 
+    let isAppBootstrapped = false;
     function bootstrapApp() {
+      if (isAppBootstrapped) return;
+      isAppBootstrapped = true;
+
       // Auto-bersihkan cache produk kosong ([] yang tersimpan di localStorage)
       try {
         const cachedRaw = localStorage.getItem("lk_products_cache");
@@ -1891,11 +1941,16 @@
         localStorage.removeItem("lk_products_cache");
       }
 
-      // Jalankan App - produk muncul dari DEFAULT atau cache lokal
-      App.init();
+      // Pastikan view POS selalu tampil langsung saat pertama buka
+      const viewPos = document.getElementById("viewPos");
+      if (viewPos) viewPos.classList.remove("hidden");
 
-      // Pastikan view POS selalu tampil saat pertama buka
-      document.getElementById("viewPos").classList.remove("hidden");
+      // Jalankan App - produk muncul instan dari DEFAULT atau cache lokal + auto sync
+      try {
+        App.init();
+      } catch (err) {
+        console.error("Bootstrap App.init error:", err);
+      }
 
       // Buat ikon Lucide setelah semua render selesai
       if (window.lucide) {
@@ -1903,10 +1958,14 @@
       }
     }
 
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", bootstrapApp);
-    } else {
+    // Jalankan segera dan pasang event listener multi-tahap agar PASTI terpanggil di browser/PWA
+    if (document.readyState === "interactive" || document.readyState === "complete") {
       bootstrapApp();
+    } else {
+      document.addEventListener("DOMContentLoaded", bootstrapApp);
+      window.addEventListener("load", bootstrapApp);
+      // Timeout fallback 50ms untuk kondisi PWA di mana event DOMContentLoaded terlewat
+      setTimeout(bootstrapApp, 50);
     }
   </script>
 </body>

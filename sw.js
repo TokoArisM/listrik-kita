@@ -1,4 +1,4 @@
-const CACHE_NAME = 'listrik-kita-pos-v10';
+const CACHE_NAME = 'listrik-kita-pos-v11';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -14,7 +14,7 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell (v10 - File Lokal)...');
+      console.log('[Service Worker] Caching app shell (v11 - Auto Sync & Instant Load)...');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
         console.warn('[Service Worker] Partial cache failure:', err);
       });
@@ -43,7 +43,7 @@ self.addEventListener('activate', (event) => {
 // Fetch Event - Cache First untuk aset lokal, Network First untuk data
 self.addEventListener('fetch', (event) => {
   // Call ke Google Apps Script selalu live (Network Only)
-  if (event.request.method !== 'GET' || event.request.url.includes('script.google.com')) {
+  if (event.request.method !== 'GET' || event.request.url.includes('script.google.com') || event.request.url.includes('googleusercontent.com')) {
     return;
   }
 
