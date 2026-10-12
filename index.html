@@ -1912,10 +1912,12 @@
       });
     }
 
-    // Buka kunci orientasi layar di browser / PWA
-    if (screen.orientation && screen.orientation.unlock) {
-      screen.orientation.unlock().catch(() => {});
-    }
+    // Buka kunci orientasi layar di browser / PWA secara aman
+    try {
+      if (window.screen && window.screen.orientation && typeof window.screen.orientation.unlock === 'function') {
+        window.screen.orientation.unlock();
+      }
+    } catch (e) {}
 
     let isAppBootstrapped = false;
     function bootstrapApp() {
@@ -1952,15 +1954,14 @@
       }
     }
 
-    // Jalankan segera dan pasang event listener multi-tahap agar PASTI terpanggil di browser/PWA
-    if (document.readyState === "interactive" || document.readyState === "complete") {
-      bootstrapApp();
-    } else {
+    // Jalankan bootstrapApp langsung (karena script berada di akhir body, DOM sudah siap)
+    bootstrapApp();
+
+    // Pasang listener tambahan sebagai jaminan
+    if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", bootstrapApp);
-      window.addEventListener("load", bootstrapApp);
-      // Timeout fallback 50ms untuk kondisi PWA di mana event DOMContentLoaded terlewat
-      setTimeout(bootstrapApp, 50);
     }
+    window.addEventListener("load", bootstrapApp);
   </script>
 </body>
 </html>
