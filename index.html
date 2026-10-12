@@ -1575,14 +1575,20 @@
      */
     const App = {
       async init() {
-        const cached = localStorage.getItem(CONFIG.STORAGE_KEY_PRODUCTS);
-        if (cached) {
-          try {
-            State.products = JSON.parse(cached);
-          } catch (e) {
+        // Muat produk dari cache lokal, dengan fallback ke DEFAULT jika kosong/error
+        try {
+          const cached = localStorage.getItem(CONFIG.STORAGE_KEY_PRODUCTS);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            // Jika cache valid dan tidak kosong, pakai cache
+            // Jika cache array kosong [], tetap pakai DEFAULT_PRODUCTS
+            State.products = (Array.isArray(parsed) && parsed.length > 0)
+              ? parsed
+              : [...DEFAULT_PRODUCTS];
+          } else {
             State.products = [...DEFAULT_PRODUCTS];
           }
-        } else {
+        } catch (e) {
           State.products = [...DEFAULT_PRODUCTS];
         }
 
@@ -1872,11 +1878,26 @@
     }
 
     function bootstrapApp() {
-      // Jalankan App tanpa tergantung Lucide
+      // Auto-bersihkan cache produk kosong ([] yang tersimpan di localStorage)
+      try {
+        const cachedRaw = localStorage.getItem("lk_products_cache");
+        if (cachedRaw) {
+          const arr = JSON.parse(cachedRaw);
+          if (!Array.isArray(arr) || arr.length === 0) {
+            localStorage.removeItem("lk_products_cache");
+          }
+        }
+      } catch(e) {
+        localStorage.removeItem("lk_products_cache");
+      }
+
+      // Jalankan App - produk muncul dari DEFAULT atau cache lokal
       App.init();
+
       // Pastikan view POS selalu tampil saat pertama buka
       document.getElementById("viewPos").classList.remove("hidden");
-      // Buat ikon Lucide dengan aman setelah semua render selesai
+
+      // Buat ikon Lucide setelah semua render selesai
       if (window.lucide) {
         try { lucide.createIcons(); } catch(e) { console.warn("Lucide icons error:", e); }
       }
