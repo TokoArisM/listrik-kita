@@ -68,7 +68,7 @@
         </button>
 
         <!-- Refresh Products Button -->
-        <button onclick="App.syncProducts()" class="p-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-blue-200 border border-blue-600 transition" title="Sinkronkan Produk dari Cloud">
+        <button id="btnRefresh" onclick="App.syncProducts()" class="p-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-blue-200 border border-blue-600 transition" title="Sinkronkan Produk dari Cloud">
           <i data-lucide="refresh-cw" class="w-4 h-4" id="refreshIcon"></i>
         </button>
 
@@ -830,18 +830,36 @@
         this.syncProducts(true);
       },
 
+      setRefreshSpinning(spinning) {
+        const btn = document.getElementById("btnRefresh");
+        if (btn) {
+          const icon = btn.querySelector("svg, i");
+          if (icon) {
+            if (spinning) icon.classList.add("animate-spin");
+            else icon.classList.remove("animate-spin");
+          }
+        }
+      },
+
       async syncProducts(notify = true) {
         if (!State.gasUrl) {
           if (notify) UI.toast("Masukkan URL Web App Google Apps Script di menu pengaturan.", "info");
           return;
         }
 
-        const refreshIcon = document.getElementById("refreshIcon");
-        refreshIcon.classList.add("animate-spin");
+        this.setRefreshSpinning(true);
         document.getElementById("syncStatusText").textContent = "Sinkronisasi Google Sheets...";
 
+        // Tambahkan timeout 15 detik agar tidak muter selamanya jika URL salah
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
         try {
-          const res = await fetch(State.gasUrl, { method: "GET" });
+          const res = await fetch(State.gasUrl, { 
+            method: "GET",
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
           const json = await res.json();
 
           if (json.status === "success" && Array.isArray(json.data) && json.data.length > 0) {
@@ -855,11 +873,16 @@
             throw new Error(json.message || "Format data produk tidak sesuai.");
           }
         } catch (err) {
+          clearTimeout(timeoutId);
           console.error("Sync Error:", err);
           document.getElementById("syncStatusText").textContent = "Mode Offline (Data Lokal)";
-          if (notify) UI.toast("Gagal sinkronisasi Sheets: " + err.message, "error");
+          if (err.name === 'AbortError') {
+            if (notify) UI.toast("Koneksi timeout (15 detik). Pastikan URL berakhiran /exec dan akses 'Anyone'", "error");
+          } else {
+            if (notify) UI.toast("Gagal sinkron: " + err.message, "error");
+          }
         } finally {
-          refreshIcon.classList.remove("animate-spin");
+          this.setRefreshSpinning(false);
         }
       },
 
