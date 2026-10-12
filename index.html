@@ -1819,6 +1819,11 @@
       });
     }
 
+    // Buka kunci orientasi layar di browser / PWA
+    if (screen.orientation && screen.orientation.unlock) {
+      screen.orientation.unlock().catch(() => {});
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       lucide.createIcons();
       App.init();
