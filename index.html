@@ -99,8 +99,8 @@
           <i data-lucide="refresh-cw" class="w-4 h-4" id="refreshIcon"></i>
         </button>
 
-        <!-- Mobile Cart Toggle Button -->
-        <button onclick="UI.toggleMobileCart()" class="lg:hidden relative p-2 rounded-lg bg-blue-600 text-white font-bold transition">
+        <!-- Mobile Cart Toggle Button (Hanya muncul di portrait layar sempit) -->
+        <button onclick="UI.toggleMobileCart()" class="md:hidden relative p-2 rounded-lg bg-blue-600 text-white font-bold transition">
           <i data-lucide="shopping-cart" class="w-4 h-4"></i>
           <span id="mobileCartCount" class="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">0</span>
         </button>
@@ -161,8 +161,8 @@
       </div>
     </main>
 
-    <!-- RIGHT PANEL: KERANJANG BELANJA (DESKTOP & MOBILE DRAWER) -->
-    <aside id="cartAside" class="fixed inset-y-0 right-0 z-30 w-full sm:w-96 bg-white shadow-2xl lg:shadow-sm lg:border lg:border-slate-200/80 lg:rounded-2xl lg:static flex flex-col translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
+    <!-- RIGHT PANEL: KERANJANG BELANJA (DESKTOP, TABLET & MOBILE LANDSCAPE DUAL-COLUMN) -->
+    <aside id="cartAside" class="fixed inset-y-0 right-0 z-30 w-full sm:w-80 md:w-80 lg:w-96 bg-white shadow-2xl md:shadow-sm md:border md:border-slate-200/80 md:rounded-2xl md:static flex flex-col translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
       
       <!-- Cart Header -->
       <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 lg:rounded-t-2xl flex-none">
