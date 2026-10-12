@@ -219,70 +219,112 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- VIEW 2: RIWAYAT & LAPORAN PENJUALAN                                       -->
+  <!-- VIEW 2: LAPORAN PENJUALAN                                                 -->
   <!-- ========================================================================= -->
   <div id="viewReports" class="hidden flex-1 overflow-y-auto max-w-7xl w-full mx-auto p-3 sm:p-6 space-y-4">
-    <!-- Header & Summary Cards -->
+    <!-- Header & Period Filter Pills -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
       <div>
-        <h2 class="text-xl font-extrabold text-slate-900">Riwayat Transaksi & Rekap</h2>
-        <p class="text-xs text-slate-500">Daftar transaksi tersimpan di Google Sheets dan ringkasan omzet</p>
-      </div>
-      <button onclick="Reports.loadData()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
-        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Muat Ulang Riwayat
-      </button>
-    </div>
-
-    <!-- KPI Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
-        <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-          <i data-lucide="trending-up" class="w-6 h-6"></i>
-        </div>
-        <div>
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Omzet</span>
-          <div class="text-xl font-black text-slate-900" id="reportTotalOmzet">Rp 0</div>
-        </div>
+        <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Laporan Penjualan</h2>
+        <p class="text-xs text-slate-500" id="reportLoadedInfo">Memuat data dari Google Sheets...</p>
       </div>
 
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
-        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-          <i data-lucide="receipt" class="w-6 h-6"></i>
-        </div>
-        <div>
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Transaksi</span>
-          <div class="text-xl font-black text-slate-900" id="reportTotalCount">0 Nota</div>
-        </div>
-      </div>
-
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
-        <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-          <i data-lucide="calculator" class="w-6 h-6"></i>
-        </div>
-        <div>
-          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Rata-Rata Nota</span>
-          <div class="text-xl font-black text-slate-900" id="reportAvgOmzet">Rp 0</div>
-        </div>
+      <!-- Period Filter Buttons (Hari Ini, 7 Hari, 30 Hari, Semua) -->
+      <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 text-xs">
+        <button onclick="Reports.setPeriod('today')" id="reportPeriodToday" class="px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition bg-amber-500 text-white shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+          Hari Ini
+        </button>
+        <button onclick="Reports.setPeriod('7days')" id="reportPeriod7days" class="px-3.5 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition bg-slate-100 hover:bg-slate-200 text-slate-600">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+          7 Hari
+        </button>
+        <button onclick="Reports.setPeriod('30days')" id="reportPeriod30days" class="px-3.5 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition bg-slate-100 hover:bg-slate-200 text-slate-600">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+          30 Hari
+        </button>
+        <button onclick="Reports.setPeriod('all')" id="reportPeriodAll" class="px-3.5 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition bg-slate-100 hover:bg-slate-200 text-slate-600">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+          Semua
+        </button>
+        <button onclick="Reports.loadData()" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition" title="Refresh Laporan">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        </button>
       </div>
     </div>
 
-    <!-- Table of Transactions -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-        <h3 class="font-bold text-sm text-slate-800">Daftar Transaksi Terbaru</h3>
-        <span class="text-xs text-slate-400" id="reportLoadedInfo">Memuat...</span>
+    <!-- 4 KPI Metrics Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <!-- Card 1: Total Omzet -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center gap-2 text-slate-400 text-xs font-semibold">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+          <span>Total Omzet</span>
+        </div>
+        <div class="mt-2 text-xl sm:text-2xl font-black text-amber-500" id="reportTotalOmzet">Rp0</div>
+      </div>
+
+      <!-- Card 2: Transaksi -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center gap-2 text-slate-400 text-xs font-semibold">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+          <span>Transaksi</span>
+        </div>
+        <div class="mt-2 text-xl sm:text-2xl font-black text-slate-900" id="reportTotalCount">0</div>
+      </div>
+
+      <!-- Card 3: Rata-rata -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center gap-2 text-slate-400 text-xs font-semibold">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+          <span>Rata-rata</span>
+        </div>
+        <div class="mt-2 text-xl sm:text-2xl font-black text-slate-900" id="reportAvgOmzet">Rp0</div>
+      </div>
+
+      <!-- Card 4: Item Terjual -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center gap-2 text-slate-400 text-xs font-semibold">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+          <span>Item Terjual</span>
+        </div>
+        <div class="mt-2 text-xl sm:text-2xl font-black text-slate-900" id="reportTotalItemsSold">0</div>
+      </div>
+    </div>
+
+    <!-- Middle Section: Per Metode Pembayaran & Produk Terlaris -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <!-- Card: Per Metode Pembayaran -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col">
+        <h3 class="font-extrabold text-sm sm:text-base text-slate-900 mb-4">Per Metode Pembayaran</h3>
+        <div id="reportPaymentMethodsList" class="space-y-3 flex-1 flex flex-col justify-center">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- Card: Produk Terlaris -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col">
+        <h3 class="font-extrabold text-sm sm:text-base text-slate-900 mb-4">Produk Terlaris</h3>
+        <div id="reportTopProductsList" class="space-y-2.5 flex-1 flex flex-col justify-center">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Section: Transaksi Terbaru -->
+    <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+      <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
+        <h3 class="font-extrabold text-sm sm:text-base text-slate-900">Transaksi Terbaru</h3>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs">
-          <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-100">
+          <thead class="bg-slate-50 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-100">
             <tr>
-              <th class="p-3">ID Nota</th>
-              <th class="p-3">Waktu</th>
-              <th class="p-3">Pelanggan</th>
-              <th class="p-3">Detail Item</th>
-              <th class="p-3">Total Akhir</th>
-              <th class="p-3">Metode</th>
-              <th class="p-3 text-center">Aksi</th>
+              <th class="p-3 sm:px-4">INVOICE</th>
+              <th class="p-3 sm:px-4">WAKTU</th>
+              <th class="p-3 sm:px-4">BAYAR</th>
+              <th class="p-3 sm:px-4 text-right">TOTAL</th>
+              <th class="p-3 sm:px-4 text-center">AKSI</th>
             </tr>
           </thead>
           <tbody id="transactionTableBody" class="divide-y divide-slate-100 text-slate-700">
@@ -1291,77 +1333,272 @@
      */
     const Reports = {
       transactions: [],
+      filteredTransactions: [],
+      currentPeriod: 'today', // Default: 'today' sesuai desain
 
       async loadData() {
-        if (!State.gasUrl) {
-          UI.toast("Silakan isi URL Google Apps Script di Pengaturan.", "info");
-          return;
-        }
-
+        const gasUrl = State.gasUrl || DEFAULT_GAS_URL;
         const info = document.getElementById("reportLoadedInfo");
-        info.textContent = "Mengambil data dari Google Sheets...";
+        if (info) info.textContent = "Mengambil data dari Google Sheets...";
 
         try {
-          const res = await fetch(`${State.gasUrl}?action=transactions`);
+          const res = await fetch(`${gasUrl}?action=transactions`);
           const json = await res.json();
 
           if (json.status === "success") {
             this.transactions = json.data || [];
-            this.renderSummary(json.summary);
-            this.renderTable();
-            info.textContent = `Total ${this.transactions.length} transaksi termuat`;
+            this.applyPeriodFilter();
+            if (info) info.textContent = `Total ${this.transactions.length} transaksi termuat dari Google Sheets`;
           } else {
             throw new Error(json.message);
           }
         } catch (err) {
           console.error("Report Error:", err);
-          info.textContent = "Gagal memuat data";
+          if (info) info.textContent = "Gagal memuat data dari server";
           UI.toast("Gagal memuat laporan: " + err.message, "error");
         }
       },
 
-      renderSummary(summary) {
-        const total = summary ? summary.totalOmzet : this.transactions.reduce((s, t) => s + t.total, 0);
-        const count = summary ? summary.count : this.transactions.length;
+      setPeriod(period) {
+        this.currentPeriod = period;
+
+        // Update styling tombol tab periode
+        const periodIds = {
+          today: 'reportPeriodToday',
+          '7days': 'reportPeriod7days',
+          '30days': 'reportPeriod30days',
+          all: 'reportPeriodAll'
+        };
+
+        Object.keys(periodIds).forEach(p => {
+          const btn = document.getElementById(periodIds[p]);
+          if (btn) {
+            if (p === period) {
+              btn.className = "px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition bg-amber-500 text-white shadow-sm";
+            } else {
+              btn.className = "px-3.5 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition bg-slate-100 hover:bg-slate-200 text-slate-600";
+            }
+          }
+        });
+
+        this.applyPeriodFilter();
+      },
+
+      parseTransactionDate(trx) {
+        // Coba ekstrak YYYYMMDD dari ID nota: LK-20261012-... atau INV20261012-...
+        const m = String(trx.transactionId || "").match(/(?:LK-|INV-?)(\d{4})(\d{2})(\d{2})/i);
+        if (m) {
+          return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+        }
+
+        // Coba parsing dari string waktu id-ID (DD/MM/YYYY)
+        const parts = String(trx.waktu || "").split(/[\/,\s]+/);
+        if (parts.length >= 3) {
+          const day = parseInt(parts[0]);
+          const month = parseInt(parts[1]) - 1;
+          const year = parseInt(parts[2].length === 2 ? "20" + parts[2] : parts[2]);
+          if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+            return new Date(year, month, day);
+          }
+        }
+
+        const d = new Date(trx.waktu);
+        if (!isNaN(d.getTime())) return d;
+
+        return new Date();
+      },
+
+      applyPeriodFilter() {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const oneDayMs = 24 * 60 * 60 * 1000;
+
+        this.filteredTransactions = this.transactions.filter(trx => {
+          if (this.currentPeriod === 'all') return true;
+          const trxDate = this.parseTransactionDate(trx);
+          const trxDayStart = new Date(trxDate.getFullYear(), trxDate.getMonth(), trxDate.getDate()).getTime();
+          const diffDays = Math.round((startOfToday - trxDayStart) / oneDayMs);
+
+          if (this.currentPeriod === 'today') {
+            return diffDays === 0;
+          } else if (this.currentPeriod === '7days') {
+            return diffDays >= 0 && diffDays < 7;
+          } else if (this.currentPeriod === '30days') {
+            return diffDays >= 0 && diffDays < 30;
+          }
+          return true;
+        });
+
+        this.renderMetrics();
+        this.renderPaymentMethods();
+        this.renderTopProducts();
+        this.renderTable();
+      },
+
+      renderMetrics() {
+        const total = this.filteredTransactions.reduce((s, t) => s + (Number(t.total) || 0), 0);
+        const count = this.filteredTransactions.length;
         const avg = count > 0 ? Math.round(total / count) : 0;
 
-        document.getElementById("reportTotalOmzet").textContent = `Rp ${total.toLocaleString('id-ID')}`;
-        document.getElementById("reportTotalCount").textContent = `${count} Nota`;
-        document.getElementById("reportAvgOmzet").textContent = `Rp ${avg.toLocaleString('id-ID')}`;
+        let totalItemsSold = 0;
+        this.filteredTransactions.forEach(trx => {
+          if (Array.isArray(trx.items) && trx.items.length) {
+            trx.items.forEach(it => { totalItemsSold += (Number(it.qty) || 1); });
+          } else if (trx.detailItem) {
+            const lines = String(trx.detailItem).split("\n").filter(Boolean);
+            totalItemsSold += Math.max(lines.length, 1);
+          }
+        });
+
+        const totalEl = document.getElementById("reportTotalOmzet");
+        const countEl = document.getElementById("reportTotalCount");
+        const avgEl = document.getElementById("reportAvgOmzet");
+        const itemsEl = document.getElementById("reportTotalItemsSold");
+
+        if (totalEl) totalEl.textContent = `Rp${total.toLocaleString('id-ID')}`;
+        if (countEl) countEl.textContent = `${count}`;
+        if (avgEl) avgEl.textContent = `Rp${avg.toLocaleString('id-ID')}`;
+        if (itemsEl) itemsEl.textContent = `${totalItemsSold}`;
+      },
+
+      renderPaymentMethods() {
+        const container = document.getElementById("reportPaymentMethodsList");
+        if (!container) return;
+
+        const methodsMap = {};
+        this.filteredTransactions.forEach(trx => {
+          const m = trx.metode || "Tunai";
+          if (!methodsMap[m]) {
+            methodsMap[m] = { total: 0, count: 0 };
+          }
+          methodsMap[m].total += (Number(trx.total) || 0);
+          methodsMap[m].count += 1;
+        });
+
+        const entries = Object.entries(methodsMap);
+        if (!entries.length) {
+          container.innerHTML = `<p class="text-slate-400 text-xs text-center py-4">Belum ada transaksi di periode ini.</p>`;
+          return;
+        }
+
+        container.innerHTML = entries.map(([method, data]) => {
+          let badgeColor = "bg-emerald-100 text-emerald-800";
+          if (method.toLowerCase().includes("qris") || method.toLowerCase().includes("transfer")) {
+            badgeColor = "bg-blue-100 text-blue-800";
+          } else if (method.toLowerCase().includes("bon") || method.toLowerCase().includes("hutang")) {
+            badgeColor = "bg-amber-100 text-amber-800";
+          }
+
+          return `
+            <div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+              <span class="px-2.5 py-1 rounded-lg text-xs font-bold ${badgeColor}">
+                ${method}
+              </span>
+              <div class="text-right">
+                <div class="font-black text-sm text-slate-900">Rp${data.total.toLocaleString('id-ID')}</div>
+                <div class="text-[11px] text-slate-400 font-medium">${data.count} transaksi</div>
+              </div>
+            </div>
+          `;
+        }).join("");
+      },
+
+      renderTopProducts() {
+        const container = document.getElementById("reportTopProductsList");
+        if (!container) return;
+
+        const productSales = {};
+        this.filteredTransactions.forEach(trx => {
+          if (Array.isArray(trx.items) && trx.items.length) {
+            trx.items.forEach(it => {
+              const name = String(it.nama || "Item").trim();
+              if (!productSales[name]) productSales[name] = { qty: 0, total: 0 };
+              const q = Number(it.qty) || 1;
+              const p = Number(it.harga) || 0;
+              productSales[name].qty += q;
+              productSales[name].total += (q * p);
+            });
+          } else if (trx.detailItem) {
+            const lines = String(trx.detailItem).split("\n").filter(Boolean);
+            lines.forEach(line => {
+              const matchQty = line.match(/^(\d+)x\s*(.*)/);
+              const q = matchQty ? parseInt(matchQty[1]) : 1;
+              const name = (matchQty ? matchQty[2] : line).trim();
+              if (!productSales[name]) productSales[name] = { qty: 0, total: 0 };
+              productSales[name].qty += q;
+              productSales[name].total += (Number(trx.total) || 0);
+            });
+          }
+        });
+
+        const sorted = Object.entries(productSales)
+          .sort((a, b) => b[1].qty - a[1].qty || b[1].total - a[1].total)
+          .slice(0, 5);
+
+        if (!sorted.length) {
+          container.innerHTML = `<p class="text-slate-400 text-xs text-center py-4">Belum ada item terjual di periode ini.</p>`;
+          return;
+        }
+
+        container.innerHTML = sorted.map(([name, stat], idx) => `
+          <div class="flex items-center justify-between gap-2 py-1.5">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-900 font-black text-xs flex items-center justify-center flex-none">
+                ${idx + 1}
+              </span>
+              <span class="font-bold text-xs text-slate-800 truncate" title="${name}">
+                ${name}
+              </span>
+            </div>
+            <div class="flex items-center gap-3 flex-none text-right">
+              <span class="text-xs text-slate-400 font-semibold">${stat.qty}x</span>
+              <span class="font-black text-xs text-slate-900 w-24">Rp${stat.total.toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+        `).join("");
       },
 
       renderTable() {
         const tbody = document.getElementById("transactionTableBody");
-        if (!this.transactions.length) {
-          tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-400">Belum ada riwayat transaksi.</td></tr>`;
+        if (!tbody) return;
+
+        if (!this.filteredTransactions.length) {
+          tbody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-slate-400">Belum ada riwayat transaksi pada periode ini.</td></tr>`;
           return;
         }
 
-        tbody.innerHTML = this.transactions.map((trx, idx) => `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="p-3 font-mono font-bold text-blue-700">${trx.transactionId}</td>
-            <td class="p-3 text-slate-500 whitespace-nowrap">${trx.waktu}</td>
-            <td class="p-3 font-semibold text-slate-800">${trx.pelanggan || "Umum"}</td>
-            <td class="p-3 max-w-xs truncate" title="${trx.detailItem}">${trx.detailItem.replace(/\n/g, ', ')}</td>
-            <td class="p-3 font-black text-slate-900">Rp ${Number(trx.total).toLocaleString('id-ID')}</td>
-            <td class="p-3">
-              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${trx.metode === 'Bon / Hutang' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
-                ${trx.metode}
-              </span>
-            </td>
-            <td class="p-3 text-center">
-              <button onclick="Reports.reprintReceipt(${idx})" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white font-bold transition flex items-center gap-1 mx-auto" title="Cetak Ulang Struk">
-                <i data-lucide="printer" class="w-3.5 h-3.5"></i> Cetak
-              </button>
-            </td>
-          </tr>
-        `).join("");
+        tbody.innerHTML = this.filteredTransactions.map((trx, idx) => {
+          let badgeColor = "bg-emerald-100 text-emerald-800";
+          const m = String(trx.metode || "Tunai");
+          if (m.toLowerCase().includes("qris") || m.toLowerCase().includes("transfer")) {
+            badgeColor = "bg-blue-100 text-blue-800";
+          } else if (m.toLowerCase().includes("bon") || m.toLowerCase().includes("hutang")) {
+            badgeColor = "bg-amber-100 text-amber-800";
+          }
 
-        lucide.createIcons();
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-3 sm:px-4 font-mono font-bold text-slate-800 text-xs">${trx.transactionId}</td>
+              <td class="p-3 sm:px-4 text-slate-500 whitespace-nowrap text-xs">${trx.waktu}</td>
+              <td class="p-3 sm:px-4">
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${badgeColor}">
+                  ${trx.metode}
+                </span>
+              </td>
+              <td class="p-3 sm:px-4 font-black text-amber-600 text-right text-xs sm:text-sm">Rp${Number(trx.total).toLocaleString('id-ID')}</td>
+              <td class="p-3 sm:px-4 text-center">
+                <button onclick="Reports.reprintReceipt(${idx})" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white font-bold transition flex items-center gap-1 mx-auto text-xs" title="Cetak Ulang Struk">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                  Cetak
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join("");
       },
 
       async reprintReceipt(idx) {
-        const trx = this.transactions[idx];
+        const trx = this.filteredTransactions[idx] || this.transactions[idx];
         if (!trx) return;
 
         if (!PrinterService.isConnected) {
