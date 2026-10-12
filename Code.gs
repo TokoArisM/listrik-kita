@@ -16,15 +16,15 @@ function setupDatabase() {
   let sheetProduk = ss.getSheetByName("Produk");
   if (!sheetProduk) {
     sheetProduk = ss.insertSheet("Produk");
-    sheetProduk.appendRow(["ID", "Nama", "Kategori", "Harga", "Stok", "Satuan"]);
-    sheetProduk.appendRow(["P001", "Lampu LED Philips 10W Putih", "Lampu", 35000, 50, "pcs"]);
-    sheetProduk.appendRow(["P002", "Stop Kontak Broco 4L + Kabel 3M", "Kabel & Stopkontak", 65000, 20, "pcs"]);
-    sheetProduk.appendRow(["P003", "Kabel NYM Eterna 2x1.5mm (Meter)", "Kabel & Stopkontak", 12000, 100, "meter"]);
-    sheetProduk.appendRow(["P004", "MCB Schneider 10A 1 Phase", "MCB & Box", 55000, 15, "pcs"]);
-    sheetProduk.appendRow(["P005", "Saklar Ganda Panasonic Seri WESJ", "Saklar", 38000, 30, "pcs"]);
-    sheetProduk.appendRow(["P006", "Isolasi Listrik Unibell Hitam", "Aksesoris", 7000, 80, "roll"]);
-    sheetProduk.appendRow(["P007", "Fitting Lampu Plafon Broco Standard", "Lampu", 15000, 45, "pcs"]);
-    sheetProduk.appendRow(["P008", "Tespen Listrik Obeng Bolak Balik", "Alat & Tool", 18000, 25, "pcs"]);
+    sheetProduk.appendRow(["ID", "Nama", "Kategori", "Harga", "Stok", "Satuan", "HargaModal"]);
+    sheetProduk.appendRow(["P001", "Lampu LED Philips 10W Putih", "Lampu", 35000, 50, "pcs", 27000]);
+    sheetProduk.appendRow(["P002", "Stop Kontak Broco 4L + Kabel 3M", "Kabel & Stopkontak", 65000, 20, "pcs", 50000]);
+    sheetProduk.appendRow(["P003", "Kabel NYM Eterna 2x1.5mm (Meter)", "Kabel & Stopkontak", 12000, 100, "meter", 9500]);
+    sheetProduk.appendRow(["P004", "MCB Schneider 10A 1 Phase", "MCB & Box", 55000, 15, "pcs", 42000]);
+    sheetProduk.appendRow(["P005", "Saklar Ganda Panasonic Seri WESJ", "Saklar", 38000, 30, "pcs", 29000]);
+    sheetProduk.appendRow(["P006", "Isolasi Listrik Unibell Hitam", "Aksesoris", 7000, 80, "roll", 4500]);
+    sheetProduk.appendRow(["P007", "Fitting Lampu Plafon Broco Standard", "Lampu", 15000, 45, "pcs", 10000]);
+    sheetProduk.appendRow(["P008", "Tespen Listrik Obeng Bolak Balik", "Alat & Tool", 18000, 25, "pcs", 12000]);
   }
 
   // 2. Setup Sheet Transaksi
@@ -82,7 +82,8 @@ function doGet(e) {
         kategori: String(row[2] || "Lainnya").trim(),
         harga: Number(row[3]) || 0,
         stok: Number(row[4]) || 0,
-        satuan: String(row[5] || "pcs").trim()
+        satuan: String(row[5] || "pcs").trim(),
+        hargaModal: Number(row[6]) || 0
       });
     }
 
@@ -261,7 +262,7 @@ function handleCheckout(ss, data) {
  * Handle Tambah / Update Produk
  */
 function handleSaveProduct(ss, payload) {
-  const { id, nama, kategori, harga, stok, satuan, isEdit } = payload;
+  const { id, nama, kategori, harga, stok, satuan, hargaModal, isEdit } = payload;
   const sheetProduk = ss.getSheetByName("Produk");
   if (!sheetProduk) throw new Error("Sheet Produk tidak ditemukan.");
 
@@ -282,6 +283,7 @@ function handleSaveProduct(ss, payload) {
     sheetProduk.getRange(targetRow, 4).setValue(Number(harga) || 0);
     sheetProduk.getRange(targetRow, 5).setValue(Number(stok) || 0);
     sheetProduk.getRange(targetRow, 6).setValue(satuan || "pcs");
+    sheetProduk.getRange(targetRow, 7).setValue(Number(hargaModal) || 0);
     return createJsonResponse({ status: "success", message: `Produk ${id} berhasil diperbarui.` });
   } else {
     // Tambah baris baru
@@ -292,7 +294,8 @@ function handleSaveProduct(ss, payload) {
       kategori || "Lainnya",
       Number(harga) || 0,
       Number(stok) || 0,
-      satuan || "pcs"
+      satuan || "pcs",
+      Number(hargaModal) || 0
     ]);
     return createJsonResponse({ status: "success", message: `Produk ${newId} berhasil ditambahkan.` });
   }

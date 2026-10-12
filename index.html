@@ -253,8 +253,8 @@
       </div>
     </div>
 
-    <!-- 4 KPI Metrics Cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <!-- 5 KPI Metrics Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
       <!-- Card 1: Total Omzet -->
       <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between">
         <div class="flex items-center gap-2 text-slate-400 text-xs font-semibold">
@@ -262,6 +262,27 @@
           <span>Total Omzet</span>
         </div>
         <div class="mt-2 text-xl sm:text-2xl font-black text-amber-500" id="reportTotalOmzet">Rp0</div>
+      </div>
+
+      <!-- Card 2: Total Modal (HPP) -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center gap-2 text-slate-400 text-xs font-semibold">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+          <span>Total Modal (HPP)</span>
+        </div>
+        <div class="mt-2 text-xl sm:text-2xl font-black text-slate-700" id="reportTotalModal">Rp0</div>
+      </div>
+
+      <!-- Card 3: Laba Bersih / Kotor -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border border-emerald-200 shadow-sm flex flex-col justify-between bg-emerald-50/20 col-span-2 lg:col-span-1">
+        <div class="flex items-center justify-between text-emerald-600 text-xs font-bold">
+          <div class="flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span>Estimasi Laba</span>
+          </div>
+          <span id="reportProfitMarginBadge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold">0%</span>
+        </div>
+        <div class="mt-2 text-xl sm:text-2xl font-black text-emerald-600" id="reportTotalLaba">Rp0</div>
       </div>
 
       <!-- Card 2: Transaksi -->
@@ -324,6 +345,7 @@
               <th class="p-3 sm:px-4">WAKTU</th>
               <th class="p-3 sm:px-4">BAYAR</th>
               <th class="p-3 sm:px-4 text-right">TOTAL</th>
+              <th class="p-3 sm:px-4 text-right">EST. LABA</th>
               <th class="p-3 sm:px-4 text-center">AKSI</th>
             </tr>
           </thead>
@@ -561,25 +583,67 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block font-bold text-slate-700 mb-1">Kategori:</label>
+            <select 
+              id="pfKategori" 
+              onchange="ProductManager.handleCategoryChange()"
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-xs cursor-pointer"
+            >
+              <option value="Lampu">Lampu</option>
+              <option value="Kabel & Stopkontak">Kabel & Stopkontak</option>
+              <option value="Saklar">Saklar</option>
+              <option value="MCB & Box">MCB & Box</option>
+              <option value="Pipa & Kelistrikan">Pipa & Kelistrikan</option>
+              <option value="Aksesoris">Aksesoris</option>
+              <option value="Alat & Tool">Alat & Tool</option>
+              <option value="Elektronik">Elektronik</option>
+              <option value="Lainnya">Lainnya</option>
+              <option value="__custom__">+ Kategori Baru...</option>
+            </select>
             <input 
               type="text" 
-              id="pfKategori" 
-              placeholder="Lampu / Kabel / Saklar" 
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              id="pfKategoriCustom" 
+              placeholder="Ketik kategori baru..." 
+              class="w-full mt-2 px-3 py-1.5 border border-amber-400 bg-amber-50 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none hidden text-xs font-semibold text-slate-800"
             />
           </div>
           <div>
             <label class="block font-bold text-slate-700 mb-1">Satuan:</label>
+            <select 
+              id="pfSatuan" 
+              onchange="ProductManager.handleUnitChange()"
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-xs cursor-pointer"
+            >
+              <option value="pcs">pcs (Pcs / Buah)</option>
+              <option value="meter">meter (Meter)</option>
+              <option value="roll">roll (Roll)</option>
+              <option value="set">set (Set)</option>
+              <option value="pack">pack (Pack / Dus)</option>
+              <option value="batang">batang (Batang)</option>
+              <option value="box">box (Box)</option>
+              <option value="unit">unit (Unit)</option>
+              <option value="pasang">pasang (Pasang)</option>
+              <option value="__custom__">+ Satuan Baru...</option>
+            </select>
             <input 
               type="text" 
-              id="pfSatuan" 
-              placeholder="pcs / roll / meter" 
-              value="pcs"
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              id="pfSatuanCustom" 
+              placeholder="Ketik satuan baru..." 
+              class="w-full mt-2 px-3 py-1.5 border border-amber-400 bg-amber-50 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none hidden text-xs font-semibold text-slate-800"
             />
           </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Harga Modal / Beli (Rp):</label>
+            <input 
+              type="number" 
+              id="pfHargaModal" 
+              min="0"
+              placeholder="0" 
+              oninput="ProductManager.calculateProfitPreview()"
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:ring-2 focus:ring-amber-500 outline-none bg-amber-50/50"
+            />
+          </div>
           <div>
             <label class="block font-bold text-slate-700 mb-1">Harga Jual (Rp):</label>
             <input 
@@ -588,9 +652,12 @@
               required 
               min="0"
               placeholder="0" 
+              oninput="ProductManager.calculateProfitPreview()"
               class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block font-bold text-slate-700 mb-1">Stok:</label>
             <input 
@@ -601,6 +668,12 @@
               placeholder="0" 
               class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:ring-2 focus:ring-blue-500 outline-none"
             />
+          </div>
+          <div class="flex flex-col justify-end">
+            <div id="pfProfitPreview" class="px-2.5 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex items-center justify-between">
+              <span>Untung / pcs:</span>
+              <span id="pfProfitBadge" class="font-black text-emerald-700">Rp 0 (0%)</span>
+            </div>
           </div>
         </div>
         <div class="flex justify-end gap-2 pt-2 border-t">
@@ -695,14 +768,14 @@
     };
 
     const DEFAULT_PRODUCTS = [
-      { id: "P001", nama: "Lampu LED Philips 10W Putih", kategori: "Lampu", harga: 35000, stok: 50, satuan: "pcs" },
-      { id: "P002", nama: "Stop Kontak Broco 4L + Kabel 3M", kategori: "Kabel & Stopkontak", harga: 65000, stok: 20, satuan: "pcs" },
-      { id: "P003", nama: "Kabel NYM Eterna 2x1.5mm (Meter)", kategori: "Kabel & Stopkontak", harga: 12000, stok: 100, satuan: "meter" },
-      { id: "P004", nama: "MCB Schneider 10A 1 Phase", kategori: "MCB & Box", harga: 55000, stok: 15, satuan: "pcs" },
-      { id: "P005", nama: "Saklar Ganda Panasonic Seri WESJ", kategori: "Saklar", harga: 38000, stok: 30, satuan: "pcs" },
-      { id: "P006", nama: "Isolasi Listrik Unibell Hitam", kategori: "Aksesoris", harga: 7000, stok: 80, satuan: "roll" },
-      { id: "P007", nama: "Fitting Lampu Plafon Broco Standard", kategori: "Lampu", harga: 15000, stok: 45, satuan: "pcs" },
-      { id: "P008", nama: "Tespen Listrik Obeng Bolak Balik", kategori: "Alat & Tool", harga: 18000, stok: 25, satuan: "pcs" }
+      { id: "P001", nama: "Lampu LED Philips 10W Putih", kategori: "Lampu", harga: 35000, stok: 50, satuan: "pcs", hargaModal: 27000 },
+      { id: "P002", nama: "Stop Kontak Broco 4L + Kabel 3M", kategori: "Kabel & Stopkontak", harga: 65000, stok: 20, satuan: "pcs", hargaModal: 50000 },
+      { id: "P003", nama: "Kabel NYM Eterna 2x1.5mm (Meter)", kategori: "Kabel & Stopkontak", harga: 12000, stok: 100, satuan: "meter", hargaModal: 9500 },
+      { id: "P004", nama: "MCB Schneider 10A 1 Phase", kategori: "MCB & Box", harga: 55000, stok: 15, satuan: "pcs", hargaModal: 42000 },
+      { id: "P005", nama: "Saklar Ganda Panasonic Seri WESJ", kategori: "Saklar", harga: 38000, stok: 30, satuan: "pcs", hargaModal: 29000 },
+      { id: "P006", nama: "Isolasi Listrik Unibell Hitam", kategori: "Aksesoris", harga: 7000, stok: 80, satuan: "roll", hargaModal: 4500 },
+      { id: "P007", nama: "Fitting Lampu Plafon Broco Standard", kategori: "Lampu", harga: 15000, stok: 45, satuan: "pcs", hargaModal: 10000 },
+      { id: "P008", nama: "Tespen Listrik Obeng Bolak Balik", kategori: "Alat & Tool", harga: 18000, stok: 25, satuan: "pcs", hargaModal: 12000 }
     ];
 
     /**
@@ -1069,6 +1142,7 @@
             id: product.id,
             nama: product.nama,
             harga: product.harga,
+            hargaModal: product.hargaModal || 0,
             stok: product.stok,
             qty: 1
           });
@@ -1408,6 +1482,48 @@
         return new Date();
       },
 
+      formatTransactionTime(trx) {
+        if (!trx) return "-";
+        const d = this.parseTransactionDate(trx);
+
+        let timeStr = "";
+        const matchTime = String(trx.waktu || "").match(/(?:T|\s|^)(\d{1,2})[:.](\d{2})/);
+        if (matchTime) {
+          timeStr = `${matchTime[1].padStart(2, '0')}:${matchTime[2]}`;
+        } else {
+          const directMatch = String(trx.waktu || "").match(/(\d{1,2})[:.](\d{2})/);
+          if (directMatch) {
+            timeStr = `${directMatch[1].padStart(2, '0')}:${directMatch[2]}`;
+          } else {
+            timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+          }
+        }
+
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const trxDayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+        const diffDays = Math.round((startOfToday - trxDayStart) / (24 * 60 * 60 * 1000));
+
+        if (diffDays === 0) {
+          return `Hari ini, ${timeStr}`;
+        }
+        if (diffDays === 1) {
+          return `Kemarin, ${timeStr}`;
+        }
+
+        const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+        const day = d.getDate();
+        const monthName = months[d.getMonth()] || "";
+        const isCurrentYear = d.getFullYear() === now.getFullYear();
+
+        if (isCurrentYear) {
+          return `${day} ${monthName}, ${timeStr}`;
+        } else {
+          const yearShort = String(d.getFullYear()).slice(-2);
+          return `${day} ${monthName} '${yearShort}, ${timeStr}`;
+        }
+      },
+
       applyPeriodFilter() {
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -1435,27 +1551,66 @@
         this.renderTable();
       },
 
+      calculateTransactionProfit(trx) {
+        if (!trx) return 0;
+        let trxModal = 0;
+        const trxTotal = Number(trx.total) || 0;
+
+        if (Array.isArray(trx.items) && trx.items.length) {
+          trx.items.forEach(it => {
+            const q = Number(it.qty) || 1;
+            let m = Number(it.hargaModal);
+            if (isNaN(m) || m <= 0) {
+              const prod = State.products.find(p => p.id === it.id);
+              m = (prod && Number(prod.hargaModal) > 0) ? Number(prod.hargaModal) : 0;
+            }
+            trxModal += (m * q);
+          });
+        }
+        return Math.max(0, trxTotal - trxModal);
+      },
+
       renderMetrics() {
         const total = this.filteredTransactions.reduce((s, t) => s + (Number(t.total) || 0), 0);
         const count = this.filteredTransactions.length;
         const avg = count > 0 ? Math.round(total / count) : 0;
 
         let totalItemsSold = 0;
+        let totalModal = 0;
+
         this.filteredTransactions.forEach(trx => {
           if (Array.isArray(trx.items) && trx.items.length) {
-            trx.items.forEach(it => { totalItemsSold += (Number(it.qty) || 1); });
+            trx.items.forEach(it => {
+              const q = Number(it.qty) || 1;
+              totalItemsSold += q;
+              let m = Number(it.hargaModal);
+              if (isNaN(m) || m <= 0) {
+                const prod = State.products.find(p => p.id === it.id);
+                m = (prod && Number(prod.hargaModal) > 0) ? Number(prod.hargaModal) : 0;
+              }
+              totalModal += (m * q);
+            });
           } else if (trx.detailItem) {
             const lines = String(trx.detailItem).split("\n").filter(Boolean);
             totalItemsSold += Math.max(lines.length, 1);
           }
         });
 
+        const totalLaba = Math.max(0, total - totalModal);
+        const marginPct = total > 0 ? ((totalLaba / total) * 100).toFixed(1) : 0;
+
         const totalEl = document.getElementById("reportTotalOmzet");
+        const modalEl = document.getElementById("reportTotalModal");
+        const labaEl = document.getElementById("reportTotalLaba");
+        const marginBadge = document.getElementById("reportProfitMarginBadge");
         const countEl = document.getElementById("reportTotalCount");
         const avgEl = document.getElementById("reportAvgOmzet");
         const itemsEl = document.getElementById("reportTotalItemsSold");
 
         if (totalEl) totalEl.textContent = `Rp${total.toLocaleString('id-ID')}`;
+        if (modalEl) modalEl.textContent = `Rp${totalModal.toLocaleString('id-ID')}`;
+        if (labaEl) labaEl.textContent = `Rp${totalLaba.toLocaleString('id-ID')}`;
+        if (marginBadge) marginBadge.textContent = `${marginPct}%`;
         if (countEl) countEl.textContent = `${count}`;
         if (avgEl) avgEl.textContent = `Rp${avg.toLocaleString('id-ID')}`;
         if (itemsEl) itemsEl.textContent = `${totalItemsSold}`;
@@ -1512,11 +1667,17 @@
           if (Array.isArray(trx.items) && trx.items.length) {
             trx.items.forEach(it => {
               const name = String(it.nama || "Item").trim();
-              if (!productSales[name]) productSales[name] = { qty: 0, total: 0 };
+              if (!productSales[name]) productSales[name] = { qty: 0, total: 0, laba: 0 };
               const q = Number(it.qty) || 1;
               const p = Number(it.harga) || 0;
+              let m = Number(it.hargaModal);
+              if (isNaN(m) || m <= 0) {
+                const prod = State.products.find(x => x.id === it.id);
+                m = (prod && Number(prod.hargaModal) > 0) ? Number(prod.hargaModal) : 0;
+              }
               productSales[name].qty += q;
               productSales[name].total += (q * p);
+              productSales[name].laba += (q * Math.max(0, p - m));
             });
           } else if (trx.detailItem) {
             const lines = String(trx.detailItem).split("\n").filter(Boolean);
@@ -1524,7 +1685,7 @@
               const matchQty = line.match(/^(\d+)x\s*(.*)/);
               const q = matchQty ? parseInt(matchQty[1]) : 1;
               const name = (matchQty ? matchQty[2] : line).trim();
-              if (!productSales[name]) productSales[name] = { qty: 0, total: 0 };
+              if (!productSales[name]) productSales[name] = { qty: 0, total: 0, laba: 0 };
               productSales[name].qty += q;
               productSales[name].total += (Number(trx.total) || 0);
             });
@@ -1552,7 +1713,10 @@
             </div>
             <div class="flex items-center gap-3 flex-none text-right">
               <span class="text-xs text-slate-400 font-semibold">${stat.qty}x</span>
-              <span class="font-black text-xs text-slate-900 w-24">Rp${stat.total.toLocaleString('id-ID')}</span>
+              <div class="text-right">
+                <div class="font-black text-xs text-slate-900">Rp${stat.total.toLocaleString('id-ID')}</div>
+                ${stat.laba > 0 ? `<div class="text-[10px] text-emerald-600 font-bold">+Laba Rp${stat.laba.toLocaleString('id-ID')}</div>` : ''}
+              </div>
             </div>
           </div>
         `).join("");
@@ -1563,7 +1727,7 @@
         if (!tbody) return;
 
         if (!this.filteredTransactions.length) {
-          tbody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-slate-400">Belum ada riwayat transaksi pada periode ini.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-slate-400">Belum ada riwayat transaksi pada periode ini.</td></tr>`;
           return;
         }
 
@@ -1575,17 +1739,21 @@
           } else if (m.toLowerCase().includes("bon") || m.toLowerCase().includes("hutang")) {
             badgeColor = "bg-amber-100 text-amber-800";
           }
+          const trxLaba = this.calculateTransactionProfit(trx);
 
           return `
             <tr class="hover:bg-slate-50 transition">
               <td class="p-3 sm:px-4 font-mono font-bold text-slate-800 text-xs">${trx.transactionId}</td>
-              <td class="p-3 sm:px-4 text-slate-500 whitespace-nowrap text-xs">${trx.waktu}</td>
+              <td class="p-3 sm:px-4 text-slate-600 whitespace-nowrap text-xs font-medium" title="${trx.waktu || ''}">${this.formatTransactionTime(trx)}</td>
               <td class="p-3 sm:px-4">
                 <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${badgeColor}">
                   ${trx.metode}
                 </span>
               </td>
               <td class="p-3 sm:px-4 font-black text-amber-600 text-right text-xs sm:text-sm">Rp${Number(trx.total).toLocaleString('id-ID')}</td>
+              <td class="p-3 sm:px-4 font-bold text-emerald-600 text-right text-xs">
+                ${trxLaba > 0 ? `+Rp${trxLaba.toLocaleString('id-ID')}` : '-'}
+              </td>
               <td class="p-3 sm:px-4 text-center">
                 <button onclick="Reports.reprintReceipt(${idx})" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white font-bold transition flex items-center gap-1 mx-auto text-xs" title="Cetak Ulang Struk">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
@@ -1653,7 +1821,10 @@
             <td class="p-3 font-mono font-bold text-slate-700">${p.id}</td>
             <td class="p-3 font-bold text-slate-800">${p.nama}</td>
             <td class="p-3"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">${p.kategori}</span></td>
-            <td class="p-3 font-bold text-slate-900">Rp ${Number(p.harga).toLocaleString('id-ID')}</td>
+            <td class="p-3 font-bold text-slate-900">
+              <div>Rp ${Number(p.harga).toLocaleString('id-ID')}</div>
+              ${Number(p.hargaModal) > 0 ? `<div class="text-[10px] text-slate-400 font-medium">Modal: Rp ${Number(p.hargaModal).toLocaleString('id-ID')}</div>` : ''}
+            </td>
             <td class="p-3 font-bold ${p.stok <= 5 ? 'text-red-500' : 'text-slate-700'}">${p.stok}</td>
             <td class="p-3 text-slate-500">${p.satuan || 'pcs'}</td>
             <td class="p-3 text-center">
@@ -1682,7 +1853,10 @@
             <td class="p-3 font-mono font-bold text-slate-700">${p.id}</td>
             <td class="p-3 font-bold text-slate-800">${p.nama}</td>
             <td class="p-3"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">${p.kategori}</span></td>
-            <td class="p-3 font-bold text-slate-900">Rp ${Number(p.harga).toLocaleString('id-ID')}</td>
+            <td class="p-3 font-bold text-slate-900">
+              <div>Rp ${Number(p.harga).toLocaleString('id-ID')}</div>
+              ${Number(p.hargaModal) > 0 ? `<div class="text-[10px] text-slate-400 font-medium">Modal: Rp ${Number(p.hargaModal).toLocaleString('id-ID')}</div>` : ''}
+            </td>
             <td class="p-3 font-bold ${p.stok <= 5 ? 'text-red-500' : 'text-slate-700'}">${p.stok}</td>
             <td class="p-3 text-slate-500">${p.satuan || 'pcs'}</td>
             <td class="p-3 text-center">
@@ -1701,13 +1875,131 @@
         lucide.createIcons();
       },
 
+      setupCategoryAndUnitOptions(selectedCategory = "Lampu", selectedUnit = "pcs") {
+        const pfKategori = document.getElementById("pfKategori");
+        const pfKategoriCustom = document.getElementById("pfKategoriCustom");
+        const pfSatuan = document.getElementById("pfSatuan");
+        const pfSatuanCustom = document.getElementById("pfSatuanCustom");
+        if (!pfKategori || !pfSatuan) return;
+
+        // Daftar kategori default & gabungkan dengan kategori unik di State.products
+        const defaultCats = [
+          "Lampu",
+          "Kabel & Stopkontak",
+          "Saklar",
+          "MCB & Box",
+          "Pipa & Kelistrikan",
+          "Aksesoris",
+          "Alat & Tool",
+          "Elektronik",
+          "Lainnya"
+        ];
+        const existingCats = (State.products || []).map(p => (p && p.kategori) ? String(p.kategori).trim() : "").filter(Boolean);
+        const uniqueCats = Array.from(new Set([...defaultCats, ...existingCats]));
+
+        pfKategori.innerHTML = uniqueCats.map(c => `<option value="${c}">${c}</option>`).join("") +
+          `<option value="__custom__">+ Kategori Baru...</option>`;
+
+        if (selectedCategory && !uniqueCats.includes(selectedCategory)) {
+          const opt = document.createElement("option");
+          opt.value = selectedCategory;
+          opt.textContent = selectedCategory;
+          pfKategori.insertBefore(opt, pfKategori.lastElementChild);
+        }
+        pfKategori.value = selectedCategory || "Lampu";
+        if (pfKategoriCustom) {
+          pfKategoriCustom.classList.add("hidden");
+          pfKategoriCustom.value = "";
+        }
+
+        // Daftar satuan default & gabungkan dengan satuan di State.products
+        const defaultUnits = [
+          { val: "pcs", label: "pcs (Pcs / Buah)" },
+          { val: "meter", label: "meter (Meter)" },
+          { val: "roll", label: "roll (Roll)" },
+          { val: "set", label: "set (Set)" },
+          { val: "pack", label: "pack (Pack / Dus)" },
+          { val: "batang", label: "batang (Batang)" },
+          { val: "box", label: "box (Box)" },
+          { val: "unit", label: "unit (Unit)" },
+          { val: "pasang", label: "pasang (Pasang)" }
+        ];
+        const existingUnits = (State.products || []).map(p => (p && p.satuan) ? String(p.satuan).trim().toLowerCase() : "").filter(Boolean);
+        const allUnitVals = Array.from(new Set([...defaultUnits.map(u => u.val), ...existingUnits]));
+
+        pfSatuan.innerHTML = allUnitVals.map(u => {
+          const found = defaultUnits.find(d => d.val === u);
+          const label = found ? found.label : u;
+          return `<option value="${u}">${label}</option>`;
+        }).join("") + `<option value="__custom__">+ Satuan Baru...</option>`;
+
+        const unitVal = (selectedUnit || "pcs").toLowerCase();
+        if (unitVal && !allUnitVals.includes(unitVal)) {
+          const opt = document.createElement("option");
+          opt.value = unitVal;
+          opt.textContent = unitVal;
+          pfSatuan.insertBefore(opt, pfSatuan.lastElementChild);
+        }
+        pfSatuan.value = unitVal || "pcs";
+        if (pfSatuanCustom) {
+          pfSatuanCustom.classList.add("hidden");
+          pfSatuanCustom.value = "";
+        }
+      },
+
+      handleCategoryChange() {
+        const sel = document.getElementById("pfKategori");
+        const custom = document.getElementById("pfKategoriCustom");
+        if (!sel || !custom) return;
+        if (sel.value === "__custom__") {
+          custom.classList.remove("hidden");
+          custom.focus();
+        } else {
+          custom.classList.add("hidden");
+          custom.value = "";
+        }
+      },
+
+      handleUnitChange() {
+        const sel = document.getElementById("pfSatuan");
+        const custom = document.getElementById("pfSatuanCustom");
+        if (!sel || !custom) return;
+        if (sel.value === "__custom__") {
+          custom.classList.remove("hidden");
+          custom.focus();
+        } else {
+          custom.classList.add("hidden");
+          custom.value = "";
+        }
+      },
+
+      calculateProfitPreview() {
+        const modal = Number(document.getElementById("pfHargaModal")?.value) || 0;
+        const jual = Number(document.getElementById("pfHarga")?.value) || 0;
+        const badge = document.getElementById("pfProfitBadge");
+        if (!badge) return;
+
+        const laba = jual - modal;
+        const pct = modal > 0 ? ((laba / modal) * 100).toFixed(1) : (jual > 0 ? 100 : 0);
+
+        if (jual === 0 && modal === 0) {
+          badge.textContent = `Rp 0 (0%)`;
+          badge.className = "font-black text-slate-500";
+        } else if (laba >= 0) {
+          badge.textContent = `Rp ${laba.toLocaleString('id-ID')} (+${pct}%)`;
+          badge.className = "font-black text-emerald-700";
+        } else {
+          badge.textContent = `-Rp ${Math.abs(laba).toLocaleString('id-ID')} (${pct}%)`;
+          badge.className = "font-black text-red-600";
+        }
+      },
+
       openModal(productId = null) {
         this.editingId = productId;
         const title = document.getElementById("productFormTitle");
         const pfId = document.getElementById("pfId");
         const pfNama = document.getElementById("pfNama");
-        const pfKategori = document.getElementById("pfKategori");
-        const pfSatuan = document.getElementById("pfSatuan");
+        const pfHargaModal = document.getElementById("pfHargaModal");
         const pfHarga = document.getElementById("pfHarga");
         const pfStok = document.getElementById("pfStok");
 
@@ -1718,8 +2010,8 @@
           pfId.value = p.id;
           pfId.readOnly = true;
           pfNama.value = p.nama;
-          pfKategori.value = p.kategori;
-          pfSatuan.value = p.satuan || "pcs";
+          this.setupCategoryAndUnitOptions(p.kategori, p.satuan || "pcs");
+          if (pfHargaModal) pfHargaModal.value = Number(p.hargaModal) > 0 ? p.hargaModal : "";
           pfHarga.value = p.harga;
           pfStok.value = p.stok;
         } else {
@@ -1727,28 +2019,44 @@
           pfId.value = "P" + String(State.products.length + 1).padStart(3, '0');
           pfId.readOnly = false;
           pfNama.value = "";
-          pfKategori.value = "Lampu";
-          pfSatuan.value = "pcs";
+          this.setupCategoryAndUnitOptions("Lampu", "pcs");
+          if (pfHargaModal) pfHargaModal.value = "";
           pfHarga.value = "";
           pfStok.value = "";
         }
 
+        this.calculateProfitPreview();
         document.getElementById("productFormModal").classList.remove("hidden");
       },
 
       closeModal() {
         document.getElementById("productFormModal").classList.add("hidden");
+        const pfKategoriCustom = document.getElementById("pfKategoriCustom");
+        const pfSatuanCustom = document.getElementById("pfSatuanCustom");
+        if (pfKategoriCustom) pfKategoriCustom.classList.add("hidden");
+        if (pfSatuanCustom) pfSatuanCustom.classList.add("hidden");
         this.editingId = null;
       },
 
       async handleSubmit(e) {
         e.preventDefault();
+
+        let kategoriVal = document.getElementById("pfKategori").value;
+        if (kategoriVal === "__custom__") {
+          kategoriVal = document.getElementById("pfKategoriCustom")?.value.trim() || "Lainnya";
+        }
+        let satuanVal = document.getElementById("pfSatuan").value;
+        if (satuanVal === "__custom__") {
+          satuanVal = document.getElementById("pfSatuanCustom")?.value.trim() || "pcs";
+        }
+
         const payload = {
           action: "save_product",
           id: document.getElementById("pfId").value.trim(),
           nama: document.getElementById("pfNama").value.trim(),
-          kategori: document.getElementById("pfKategori").value.trim() || "Lainnya",
-          satuan: document.getElementById("pfSatuan").value.trim() || "pcs",
+          kategori: kategoriVal || "Lainnya",
+          satuan: satuanVal || "pcs",
+          hargaModal: Number(document.getElementById("pfHargaModal")?.value) || 0,
           harga: Number(document.getElementById("pfHarga").value) || 0,
           stok: Number(document.getElementById("pfStok").value) || 0,
           isEdit: !!this.editingId
