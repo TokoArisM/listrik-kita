@@ -22,9 +22,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- HTML5 QR Code Scanner (Dimuat secara defer agar tidak menghambat buka awal aplikasi) -->
-  <script defer src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-
   <style>
     /* Styling scrollbar & touch */
     ::-webkit-scrollbar {
@@ -900,11 +897,23 @@
         this.startScanner();
       },
 
+      async loadScannerScript() {
+        if (window.Html5Qrcode) return;
+        return new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
+          s.onload = resolve;
+          s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      },
+
       async startScanner() {
         const modal = document.getElementById("scannerModal");
         modal.classList.remove("hidden");
 
         try {
+          await this.loadScannerScript();
           if (!this.html5QrCode) {
             this.html5QrCode = new Html5Qrcode("reader");
           }
@@ -1868,10 +1877,18 @@
       screen.orientation.unlock().catch(() => {});
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-      lucide.createIcons();
+    function bootstrapApp() {
+      if (window.lucide) {
+        try { lucide.createIcons(); } catch(e) {}
+      }
       App.init();
-    });
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", bootstrapApp);
+    } else {
+      bootstrapApp();
+    }
   </script>
 </body>
 </html>
