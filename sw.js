@@ -1,7 +1,8 @@
-const CACHE_NAME = 'listrik-kita-pos-v2';
+const CACHE_NAME = 'listrik-kita-pos-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
+  './logo.png',
   './manifest.json',
   'https://cdn.tailwindcss.com',
   'https://unpkg.com/lucide@latest'
