@@ -1,4 +1,4 @@
-const CACHE_NAME = 'listrik-kita-pos-v7';
+const CACHE_NAME = 'listrik-kita-pos-v8';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -38,27 +38,30 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event - Network first with cache fallback
+// Fetch Event - Stale-While-Revalidate untuk aset aplikasi (Buka instan 0.1 detik)
 self.addEventListener('fetch', (event) => {
-  // Hanya cache GET request dan lewati call Google Script agar selalu update
+  // Call ke Google Apps Script selalu live (Network Only)
   if (event.request.method !== 'GET' || event.request.url.includes('script.google.com')) {
     return;
   }
 
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
+    caches.match(event.request).then((cachedResponse) => {
+      // Ambil update baru di background sambil langsung tampilkan versi cache
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
         }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-        return response;
-      })
-      .catch(() => {
-        return caches.match(event.request);
-      })
+        return networkResponse;
+      }).catch(() => {
+        // Mode offline
+      });
+
+      // Kembalikan cache langsung jika ada (Instan tanpa tunggu download)
+      return cachedResponse || fetchPromise;
+    })
   );
 });
