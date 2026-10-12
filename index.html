@@ -68,7 +68,7 @@
         </button>
 
         <!-- Refresh Products Button -->
-        <button onclick="App.syncProducts()" class="p-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-blue-200 border border-blue-600 transition" title="Sinkronkan Produk dari Cloud">
+        <button id="btnRefresh" onclick="App.syncProducts()" class="p-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-blue-200 border border-blue-600 transition" title="Sinkronkan Produk dari Cloud">
           <i data-lucide="refresh-cw" class="w-4 h-4" id="refreshIcon"></i>
         </button>
 
@@ -830,14 +830,24 @@
         this.syncProducts(true);
       },
 
+      setRefreshSpinning(spinning) {
+        const btn = document.getElementById("btnRefresh");
+        if (btn) {
+          const icon = btn.querySelector("svg, i");
+          if (icon) {
+            if (spinning) icon.classList.add("animate-spin");
+            else icon.classList.remove("animate-spin");
+          }
+        }
+      },
+
       async syncProducts(notify = true) {
         if (!State.gasUrl) {
           if (notify) UI.toast("Masukkan URL Web App Google Apps Script di menu pengaturan.", "info");
           return;
         }
 
-        const refreshIcon = document.getElementById("refreshIcon");
-        refreshIcon.classList.add("animate-spin");
+        this.setRefreshSpinning(true);
         document.getElementById("syncStatusText").textContent = "Sinkronisasi Google Sheets...";
 
         // Tambahkan timeout 15 detik agar tidak muter selamanya jika URL salah
@@ -872,7 +882,7 @@
             if (notify) UI.toast("Gagal sinkron: " + err.message, "error");
           }
         } finally {
-          refreshIcon.classList.remove("animate-spin");
+          this.setRefreshSpinning(false);
         }
       },
 
