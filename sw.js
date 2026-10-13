@@ -1,4 +1,4 @@
-const CACHE_NAME = 'listrik-kita-pos-v14';
+const CACHE_NAME = 'listrik-kita-pos-v15';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -14,7 +14,7 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell (v11 - Auto Sync & Instant Load)...');
+      console.log('[Service Worker] Caching app shell (v15 - Fast & Optimized)...');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
         console.warn('[Service Worker] Partial cache failure:', err);
       });
@@ -59,7 +59,8 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // Mode offline - kembalikan cache
+        // Mode offline - kembalikan cache jika ada
+        return cachedResponse;
       });
 
       // Kembalikan cache langsung jika ada (Instan tanpa tunggu download)

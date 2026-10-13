@@ -900,7 +900,8 @@
           throw new Error("Printer belum terhubung via Bluetooth.");
         }
 
-        const CHUNK_SIZE = 50;
+        // Ukuran chunk 20 byte aman untuk standar BLE MTU 23 byte printer thermal 58mm
+        const CHUNK_SIZE = 20;
         for (let i = 0; i < byteArray.length; i += CHUNK_SIZE) {
           const chunk = byteArray.slice(i, i + CHUNK_SIZE);
           const buffer = new Uint8Array(chunk);
@@ -909,7 +910,7 @@
           } else {
             await this.characteristic.writeValue(buffer);
           }
-          await new Promise(r => setTimeout(r, 25));
+          await new Promise(r => setTimeout(r, 20));
         }
       },
 
@@ -1334,7 +1335,8 @@
 
       calculateChange() {
         const subtotal = Cart.getSubtotal();
-        const diskon = Number(document.getElementById("discountInput").value) || 0;
+        const rawDiskon = Number(document.getElementById("discountInput").value) || 0;
+        const diskon = Math.max(0, Math.min(subtotal, rawDiskon));
         const total = Math.max(0, subtotal - diskon);
 
         document.getElementById("modalBillAmount").textContent = `Rp ${total.toLocaleString('id-ID')}`;
@@ -1416,7 +1418,8 @@
         if (info) info.textContent = "Mengambil data dari Google Sheets...";
 
         try {
-          const res = await fetch(`${gasUrl}?action=transactions`);
+          // Tambahkan timestamp anti-cache agar browser selalu ambil data terbaru
+          const res = await fetch(`${gasUrl}?action=transactions&_t=${Date.now()}`);
           const json = await res.json();
 
           if (json.status === "success") {
@@ -1459,24 +1462,29 @@
       },
 
       parseTransactionDate(trx) {
-        // Coba ekstrak YYYYMMDD dari ID nota: LK-20261012-... atau INV20261012-...
-        const m = String(trx.transactionId || "").match(/(?:LK-|INV-?)(\d{4})(\d{2})(\d{2})/i);
+        // 1. Coba ekstrak YYYYMMDD dari ID nota: LK-..., INV-..., atau TRX-...
+        const m = String(trx.transactionId || "").match(/(?:LK-|INV-|TRX-?)(\d{4})(\d{2})(\d{2})/i);
         if (m) {
-          return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+          return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
         }
 
-        // Coba parsing dari string waktu id-ID (DD/MM/YYYY)
-        const parts = String(trx.waktu || "").split(/[\/,\s]+/);
-        if (parts.length >= 3) {
-          const day = parseInt(parts[0]);
-          const month = parseInt(parts[1]) - 1;
-          const year = parseInt(parts[2].length === 2 ? "20" + parts[2] : parts[2]);
-          if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-            return new Date(year, month, day);
-          }
+        const str = String(trx.waktu || "").trim();
+
+        // 2. Coba format tanggal ISO / SQL: YYYY-MM-DD atau YYYY/MM/DD
+        const isoMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+        if (isoMatch) {
+          return new Date(parseInt(isoMatch[1], 10), parseInt(isoMatch[2], 10) - 1, parseInt(isoMatch[3], 10));
         }
 
-        const d = new Date(trx.waktu);
+        // 3. Coba format Indonesia: DD/MM/YYYY atau DD-MM-YYYY
+        const idMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+        if (idMatch) {
+          return new Date(parseInt(idMatch[3], 10), parseInt(idMatch[2], 10) - 1, parseInt(idMatch[1], 10));
+        }
+
+        // 4. Fallback aman kompatibel Safari iOS (ganti '-' dengan '/' dan buang T)
+        const safeStr = str.replace(/-/g, "/").replace(/T/g, " ");
+        const d = new Date(safeStr);
         if (!isNaN(d.getTime())) return d;
 
         return new Date();
@@ -1682,12 +1690,28 @@
           } else if (trx.detailItem) {
             const lines = String(trx.detailItem).split("\n").filter(Boolean);
             lines.forEach(line => {
-              const matchQty = line.match(/^(\d+)x\s*(.*)/);
-              const q = matchQty ? parseInt(matchQty[1]) : 1;
-              const name = (matchQty ? matchQty[2] : line).trim();
+              let q = 1;
+              let name = line.trim();
+              let itemTotal = 0;
+
+              // Coba cocokkan: 'Nama Produk (2x @35000) = Rp70000'
+              const matchDetailed = line.match(/^(.*?)\s*\((?:(\d+)x)?\s*(?:@(\d+))?\)\s*=\s*Rp(\d+)/i);
+              if (matchDetailed) {
+                name = matchDetailed[1].trim();
+                q = matchDetailed[2] ? parseInt(matchDetailed[2], 10) : 1;
+                itemTotal = matchDetailed[4] ? parseInt(matchDetailed[4], 10) : 0;
+              } else {
+                const matchQty = line.match(/^(\d+)x\s*(.*)/);
+                if (matchQty) {
+                  q = parseInt(matchQty[1], 10);
+                  name = matchQty[2].trim();
+                }
+                itemTotal = Math.round((Number(trx.total) || 0) / Math.max(1, lines.length));
+              }
+
               if (!productSales[name]) productSales[name] = { qty: 0, total: 0, laba: 0 };
               productSales[name].qty += q;
-              productSales[name].total += (Number(trx.total) || 0);
+              productSales[name].total += itemTotal;
             });
           }
         });
@@ -1806,73 +1830,56 @@
     const ProductManager = {
       editingId: null,
 
+      renderProductRow(p) {
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3 font-mono font-bold text-slate-700">${p.id}</td>
+            <td class="p-3 font-bold text-slate-800">${p.nama}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">${p.kategori}</span></td>
+            <td class="p-3 font-bold text-slate-900">
+              <div>Rp ${Number(p.harga).toLocaleString('id-ID')}</div>
+              ${Number(p.hargaModal) > 0 ? `<div class="text-[10px] text-slate-400 font-medium">Modal: Rp ${Number(p.hargaModal).toLocaleString('id-ID')}</div>` : ''}
+            </td>
+            <td class="p-3 font-bold ${p.stok <= 5 ? 'text-red-500' : 'text-slate-700'}">${p.stok}</td>
+            <td class="p-3 text-slate-500">${p.satuan || 'pcs'}</td>
+            <td class="p-3 text-center">
+              <div class="flex items-center justify-center gap-1.5">
+                <button onclick="ProductManager.openModal('${p.id}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </button>
+                <button onclick="ProductManager.deleteProduct('${p.id}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition" title="Hapus">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      },
+
       renderTable() {
         const tbody = document.getElementById("productManagerTableBody");
         const countBadge = document.getElementById("productCountBadge");
-        countBadge.textContent = `${State.products.length} Produk`;
+        if (countBadge) countBadge.textContent = `${State.products.length} Produk`;
 
         if (!State.products.length) {
           tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-400">Tidak ada produk.</td></tr>`;
           return;
         }
 
-        tbody.innerHTML = State.products.map(p => `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="p-3 font-mono font-bold text-slate-700">${p.id}</td>
-            <td class="p-3 font-bold text-slate-800">${p.nama}</td>
-            <td class="p-3"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">${p.kategori}</span></td>
-            <td class="p-3 font-bold text-slate-900">
-              <div>Rp ${Number(p.harga).toLocaleString('id-ID')}</div>
-              ${Number(p.hargaModal) > 0 ? `<div class="text-[10px] text-slate-400 font-medium">Modal: Rp ${Number(p.hargaModal).toLocaleString('id-ID')}</div>` : ''}
-            </td>
-            <td class="p-3 font-bold ${p.stok <= 5 ? 'text-red-500' : 'text-slate-700'}">${p.stok}</td>
-            <td class="p-3 text-slate-500">${p.satuan || 'pcs'}</td>
-            <td class="p-3 text-center">
-              <div class="flex items-center justify-center gap-1.5">
-                <button onclick="ProductManager.openModal('${p.id}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
-                  <i data-lucide="edit-3" class="w-4 h-4"></i>
-                </button>
-                <button onclick="ProductManager.deleteProduct('${p.id}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Hapus">
-                  <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-        `).join("");
-
-        lucide.createIcons();
+        tbody.innerHTML = State.products.map(p => this.renderProductRow(p)).join("");
       },
 
       filterTable() {
-        const q = document.getElementById("productManagerSearch").value.toLowerCase();
+        const q = (document.getElementById("productManagerSearch")?.value || "").toLowerCase().trim();
         const tbody = document.getElementById("productManagerTableBody");
         const filtered = State.products.filter(p => p.nama.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
 
-        tbody.innerHTML = filtered.map(p => `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="p-3 font-mono font-bold text-slate-700">${p.id}</td>
-            <td class="p-3 font-bold text-slate-800">${p.nama}</td>
-            <td class="p-3"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">${p.kategori}</span></td>
-            <td class="p-3 font-bold text-slate-900">
-              <div>Rp ${Number(p.harga).toLocaleString('id-ID')}</div>
-              ${Number(p.hargaModal) > 0 ? `<div class="text-[10px] text-slate-400 font-medium">Modal: Rp ${Number(p.hargaModal).toLocaleString('id-ID')}</div>` : ''}
-            </td>
-            <td class="p-3 font-bold ${p.stok <= 5 ? 'text-red-500' : 'text-slate-700'}">${p.stok}</td>
-            <td class="p-3 text-slate-500">${p.satuan || 'pcs'}</td>
-            <td class="p-3 text-center">
-              <div class="flex items-center justify-center gap-1.5">
-                <button onclick="ProductManager.openModal('${p.id}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
-                  <i data-lucide="edit-3" class="w-4 h-4"></i>
-                </button>
-                <button onclick="ProductManager.deleteProduct('${p.id}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Hapus">
-                  <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-        `).join("");
+        if (!filtered.length) {
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-400">Tidak ada produk yang cocok.</td></tr>`;
+          return;
+        }
 
-        lucide.createIcons();
+        tbody.innerHTML = filtered.map(p => this.renderProductRow(p)).join("");
       },
 
       setupCategoryAndUnitOptions(selectedCategory = "Lampu", selectedUnit = "pcs") {
@@ -2016,7 +2023,15 @@
           pfStok.value = p.stok;
         } else {
           title.textContent = "Tambah Produk Baru";
-          pfId.value = "P" + String(State.products.length + 1).padStart(3, '0');
+          let maxPidNum = 0;
+          (State.products || []).forEach(p => {
+            const match = String(p.id || "").match(/^P(\d+)$/i);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > maxPidNum) maxPidNum = num;
+            }
+          });
+          pfId.value = "P" + String(maxPidNum + 1).padStart(3, '0');
           pfId.readOnly = false;
           pfNama.value = "";
           this.setupCategoryAndUnitOptions("Lampu", "pcs");
@@ -2174,6 +2189,10 @@
             UI.openPaymentModal();
           }
         });
+
+        window.addEventListener('online', () => {
+          this.flushOfflineTransactions();
+        });
       },
 
       saveSettings() {
@@ -2225,7 +2244,9 @@
         const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         try {
-          const res = await fetch(gasUrl, { 
+          // Tambahkan timestamp query agar browser tidak mengembalikan cache 302 lama
+          const fetchUrl = `${gasUrl}${gasUrl.includes('?') ? '&' : '?'}action=products&_t=${Date.now()}`;
+          const res = await fetch(fetchUrl, { 
             method: "GET",
             signal: controller.signal
           });
@@ -2239,6 +2260,8 @@
             this.filterAndRenderProducts();
             if (statusEl) statusEl.textContent = `Online: ${json.data.length} Produk`;
             if (notify) UI.toast(`Berhasil memuat ${json.data.length} produk dari Google Sheets`, "success");
+            // Otomatis kirim transaksi offline jika ada antrean tertunda
+            this.flushOfflineTransactions();
           } else {
             throw new Error(json.message || "Format data produk tidak sesuai.");
           }
@@ -2280,7 +2303,7 @@
       },
 
       handleSearch() {
-        State.searchQuery = (document.getElementById("searchInput")?.value || "").toLowerCase();
+        State.searchQuery = (document.getElementById("searchInput")?.value || "").toLowerCase().trim();
         this.filterAndRenderProducts();
       },
 
@@ -2341,9 +2364,66 @@
         }).join("");
       },
 
+      async sendTransactionToCloud(orderData) {
+        const gasUrl = State.gasUrl || DEFAULT_GAS_URL;
+        if (!gasUrl) return;
+
+        try {
+          await fetch(gasUrl, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(orderData)
+          });
+          UI.toast("Transaksi tersimpan di Google Sheets!", "success");
+        } catch (err) {
+          console.warn("Gagal simpan langsung, transaksi disimpan ke antrean offline:", err);
+          const pending = JSON.parse(localStorage.getItem("lk_offline_transactions") || "[]");
+          pending.push(orderData);
+          localStorage.setItem("lk_offline_transactions", JSON.stringify(pending));
+          UI.toast("Tersimpan di offline cache (akan dikirim saat online)", "info");
+        }
+      },
+
+      async flushOfflineTransactions() {
+        const gasUrl = State.gasUrl || DEFAULT_GAS_URL;
+        if (!gasUrl || !navigator.onLine) return;
+
+        try {
+          const raw = localStorage.getItem("lk_offline_transactions");
+          if (!raw) return;
+          const pending = JSON.parse(raw);
+          if (!Array.isArray(pending) || !pending.length) return;
+
+          const remaining = [];
+          for (const trx of pending) {
+            try {
+              await fetch(gasUrl, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(trx)
+              });
+            } catch (e) {
+              remaining.push(trx);
+            }
+          }
+
+          if (remaining.length === 0) {
+            localStorage.removeItem("lk_offline_transactions");
+            UI.toast(`Semua (${pending.length}) transaksi offline berhasil disinkronkan ke Google Sheets!`, "success");
+          } else {
+            localStorage.setItem("lk_offline_transactions", JSON.stringify(remaining));
+          }
+        } catch (e) {
+          console.warn("Gagal flush antrean transaksi offline:", e);
+        }
+      },
+
       async processTransaction() {
         const subtotal = Cart.getSubtotal();
-        const diskon = Number(document.getElementById("discountInput").value) || 0;
+        const rawDiskon = Number(document.getElementById("discountInput").value) || 0;
+        const diskon = Math.max(0, Math.min(subtotal, rawDiskon));
         const total = Math.max(0, subtotal - diskon);
         const method = State.selectedPaymentMethod;
         const customerName = document.getElementById("customerNameInput").value.trim() || "Umum";
@@ -2385,11 +2465,16 @@
           metodePembayaran: method
         };
 
-        const btnProcess = document.getElementById("btnProcessPayment");
-        btnProcess.disabled = true;
-        btnProcess.innerHTML = `<span class="animate-spin inline-block mr-2">⏳</span> Memproses Transaksi...`;
+        // 1. Potong stok lokal secara instan (Zero delay)
+        State.cart.forEach(cartItem => {
+          const p = State.products.find(prod => prod.id === cartItem.id);
+          if (p) {
+            p.stok = Math.max(0, p.stok - cartItem.qty);
+          }
+        });
+        localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(State.products));
 
-        // 1. Eksekusi Cetak Struk via Web Bluetooth
+        // 2. Eksekusi Cetak Struk via Web Bluetooth
         if (shouldPrint || shouldKickDrawer) {
           if (PrinterService.isConnected) {
             try {
@@ -2405,42 +2490,16 @@
           }
         }
 
-        // 2. Simpan Transaksi ke Google Sheets
-        if (State.gasUrl) {
-          try {
-            await fetch(State.gasUrl, {
-              method: "POST",
-              mode: "no-cors",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(orderData)
-            });
-            UI.toast("Transaksi tersimpan di Google Sheets!", "success");
-          } catch (err) {
-            console.warn("Gagal simpan transaksi:", err);
-          }
-        }
-
-        // 3. Potong stok lokal
-        State.cart.forEach(cartItem => {
-          const p = State.products.find(prod => prod.id === cartItem.id);
-          if (p) {
-            p.stok = Math.max(0, p.stok - cartItem.qty);
-          }
-        });
-        localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(State.products));
-
-        // 4. Reset Form & UI
+        // 3. Reset Keranjang & Tutup Modal Seketika (Kasir langsung siap melayani pembeli berikutnya)
         State.cart = [];
         document.getElementById("customerNameInput").value = "";
         Cart.render();
         this.filterAndRenderProducts();
         UI.closePaymentModal();
-
-        btnProcess.disabled = false;
-        btnProcess.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> Konfirmasi & Cetak Struk`;
-        lucide.createIcons();
-
         UI.toast("Transaksi Berhasil!", "success");
+
+        // 4. Kirim Transaksi ke Google Sheets di background (tidak menahan antrean kasir)
+        this.sendTransactionToCloud(orderData);
       }
     };
 

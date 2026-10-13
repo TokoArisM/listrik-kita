@@ -98,7 +98,7 @@ function doGet(e) {
 }
 
 /**
- * Mengambil 100 transaksi terakhir & ringkasan omzet
+ * Mengambil maksimal 100 transaksi terakhir & ringkasan omzet (Optimized O(1) Read)
  */
 function getTransactionsData(ss) {
   const sheetTransaksi = ss.getSheetByName("Transaksi");
@@ -106,17 +106,21 @@ function getTransactionsData(ss) {
     return createJsonResponse({ status: "success", data: [], summary: { totalOmzet: 0, count: 0 } });
   }
 
-  const values = sheetTransaksi.getDataRange().getValues();
-  if (values.length <= 1) {
+  const lastRow = sheetTransaksi.getLastRow();
+  if (lastRow <= 1) {
     return createJsonResponse({ status: "success", data: [], summary: { totalOmzet: 0, count: 0 } });
   }
+
+  // Cukup ambil maksimal 100 baris terakhir, tidak membaca seluruh sheet
+  const numRows = Math.min(lastRow - 1, 100);
+  const startRow = lastRow - numRows + 1;
+  const values = sheetTransaksi.getRange(startRow, 1, numRows, 11).getValues();
 
   const transactions = [];
   let totalOmzet = 0;
 
-  // Baca dari baris paling baru (bawah ke atas), ambil maksimal 100 data terakhir
-  const startRow = Math.max(1, values.length - 100);
-  for (let i = values.length - 1; i >= startRow; i--) {
+  // Baca dari baris paling baru ke baris lama
+  for (let i = values.length - 1; i >= 0; i--) {
     const row = values[i];
     if (!row[0]) continue;
 
@@ -170,6 +174,10 @@ function doPost(e) {
   }
 
   try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return createJsonResponse({ status: "error", message: "Payload request kosong." });
+    }
+
     const postData = JSON.parse(e.postData.contents);
     const action = postData.action || "checkout";
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -189,7 +197,7 @@ function doPost(e) {
 }
 
 /**
- * Handle Checkout Transaksi
+ * Handle Checkout Transaksi (Optimized Batch Update)
  */
 function handleCheckout(ss, data) {
   const {
@@ -234,20 +242,34 @@ function handleCheckout(ss, data) {
     JSON.stringify(items)
   ]);
 
-  // 2. Potong stok otomatis di sheet Produk
-  const produkValues = sheetProduk.getDataRange().getValues();
-  const idMap = {};
-  for (let r = 1; r < produkValues.length; r++) {
-    const pid = String(produkValues[r][0]).trim();
-    if (pid) idMap[pid] = r + 1;
-  }
+  // 2. Potong stok otomatis di sheet Produk dengan 1 kali Batch Write (sangat cepat)
+  const lastProdRow = sheetProduk.getLastRow();
+  if (lastProdRow > 1) {
+    const numProdRows = lastProdRow - 1;
+    // Ambil kolom ID (kolom 1) dan Stok (kolom 5)
+    const idList = sheetProduk.getRange(2, 1, numProdRows, 1).getValues();
+    const stockRange = sheetProduk.getRange(2, 5, numProdRows, 1);
+    const stockValues = stockRange.getValues();
 
-  for (const item of items) {
-    const rowIdx = idMap[String(item.id).trim()];
-    if (rowIdx) {
-      const cellStok = sheetProduk.getRange(rowIdx, 5);
-      const currentStok = Number(cellStok.getValue()) || 0;
-      cellStok.setValue(Math.max(0, currentStok - Number(item.qty)));
+    const idMap = {};
+    for (let r = 0; r < idList.length; r++) {
+      const pid = String(idList[r][0]).trim();
+      if (pid) idMap[pid] = r;
+    }
+
+    let hasStockChange = false;
+    for (const item of items) {
+      const rowIdx = idMap[String(item.id).trim()];
+      if (rowIdx !== undefined) {
+        const curStok = Number(stockValues[rowIdx][0]) || 0;
+        stockValues[rowIdx][0] = Math.max(0, curStok - (Number(item.qty) || 0));
+        hasStockChange = true;
+      }
+    }
+
+    // Tulis kembali seluruh stok sekaligus hanya dengan 1 panggilan API
+    if (hasStockChange) {
+      stockRange.setValues(stockValues);
     }
   }
 
@@ -259,7 +281,7 @@ function handleCheckout(ss, data) {
 }
 
 /**
- * Handle Tambah / Update Produk
+ * Handle Tambah / Update Produk (Optimized Batch Update)
  */
 function handleSaveProduct(ss, payload) {
   const { id, nama, kategori, harga, stok, satuan, hargaModal, isEdit } = payload;
@@ -268,26 +290,35 @@ function handleSaveProduct(ss, payload) {
 
   const values = sheetProduk.getDataRange().getValues();
   let targetRow = -1;
+  let maxPidNum = 0;
 
   for (let r = 1; r < values.length; r++) {
-    if (String(values[r][0]).trim() === String(id).trim()) {
+    const existingId = String(values[r][0]).trim();
+    if (existingId === String(id).trim()) {
       targetRow = r + 1;
       break;
+    }
+    const match = existingId.match(/^P(\d+)$/i);
+    if (match) {
+      const n = parseInt(match[1], 10);
+      if (n > maxPidNum) maxPidNum = n;
     }
   }
 
   if (targetRow > 0) {
-    // Update data produk yang ada
-    sheetProduk.getRange(targetRow, 2).setValue(nama);
-    sheetProduk.getRange(targetRow, 3).setValue(kategori || "Lainnya");
-    sheetProduk.getRange(targetRow, 4).setValue(Number(harga) || 0);
-    sheetProduk.getRange(targetRow, 5).setValue(Number(stok) || 0);
-    sheetProduk.getRange(targetRow, 6).setValue(satuan || "pcs");
-    sheetProduk.getRange(targetRow, 7).setValue(Number(hargaModal) || 0);
+    // Update data produk sekaligus dalam 1 batch call (kolom 2 s/d 7)
+    sheetProduk.getRange(targetRow, 2, 1, 6).setValues([[
+      nama,
+      kategori || "Lainnya",
+      Number(harga) || 0,
+      Number(stok) || 0,
+      satuan || "pcs",
+      Number(hargaModal) || 0
+    ]]);
     return createJsonResponse({ status: "success", message: `Produk ${id} berhasil diperbarui.` });
   } else {
-    // Tambah baris baru
-    const newId = id || ("P" + String(values.length).padStart(3, "0"));
+    // Tambah baris baru dengan ID anti-bentrok
+    const newId = id || ("P" + String(maxPidNum + 1).padStart(3, "0"));
     sheetProduk.appendRow([
       newId,
       nama,
