@@ -2553,8 +2553,19 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('[PWA] Service Worker aktif'))
+          .then(reg => {
+            console.log('[PWA] Service Worker aktif');
+            reg.update(); // Paksa periksa update setiap reload
+          })
           .catch(err => console.log('[PWA] SW register failed:', err));
+      });
+
+      let isRefreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!isRefreshing) {
+          isRefreshing = true;
+          window.location.reload();
+        }
       });
     }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'listrik-kita-pos-v16';
+const CACHE_NAME = 'listrik-kita-pos-v17';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -10,11 +10,11 @@ const ASSETS_TO_CACHE = [
   './icons/icon-512.png'
 ];
 
-// Install Event - Caching semua aset aplikasi (termasuk file lokal)
+// Install Event - Caching semua aset aplikasi
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell (v15 - Fast & Optimized)...');
+      console.log('[Service Worker] Caching app shell (v17 - Auto Update)...');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
         console.warn('[Service Worker] Partial cache failure:', err);
       });
@@ -40,30 +40,45 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event - Cache First untuk aset lokal, Network First untuk data
+// Fetch Event - Network-First untuk HTML/Navigasi, Cache-First untuk Aset Statis
 self.addEventListener('fetch', (event) => {
   // Call ke Google Apps Script selalu live (Network Only)
   if (event.request.method !== 'GET' || event.request.url.includes('script.google.com') || event.request.url.includes('googleusercontent.com')) {
     return;
   }
 
+  const isHtml = event.request.mode === 'navigate' || 
+                 event.request.headers.get('accept')?.includes('text/html') ||
+                 event.request.url.endsWith('index.html') || 
+                 event.request.url.endsWith('/');
+
+  if (isHtml) {
+    // Network-First untuk HTML agar update tampilan langsung terlihat saat refresh
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then(cached => cached || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // Cache-First untuk aset lokal lainnya (gambar, skrip JS statis)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      // Ambil update baru di background sambil langsung tampilkan versi cache
       const fetchPromise = fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
         }
         return networkResponse;
-      }).catch(() => {
-        // Mode offline - kembalikan cache jika ada
-        return cachedResponse;
-      });
+      }).catch(() => cachedResponse);
 
-      // Kembalikan cache langsung jika ada (Instan tanpa tunggu download)
       return cachedResponse || fetchPromise;
     })
   );
