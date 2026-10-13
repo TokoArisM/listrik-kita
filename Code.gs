@@ -208,8 +208,12 @@ function doPost(e) {
 
     if (action === "save_product") {
       return handleSaveProduct(ss, postData);
+    } else if (action === "restock_product") {
+      return handleRestockProduct(ss, postData);
     } else if (action === "delete_product") {
       return handleDeleteProduct(ss, postData);
+    } else if (action === "restore_product") {
+      return handleRestoreProduct(ss, postData);
     } else {
       return handleCheckout(ss, postData);
     }
@@ -305,7 +309,7 @@ function handleCheckout(ss, data) {
 }
 
 /**
- * Handle Tambah / Update Produk (Optimized Batch Update)
+ * Handle Tambah / Update Produk (Optimized Batch Update & Logging)
  */
 function handleSaveProduct(ss, payload) {
   const { id, nama, kategori, harga, stok, satuan, hargaModal, isEdit } = payload;
@@ -315,11 +319,13 @@ function handleSaveProduct(ss, payload) {
   const values = sheetProduk.getDataRange().getValues();
   let targetRow = -1;
   let maxPidNum = 0;
+  let oldStock = 0;
 
   for (let r = 1; r < values.length; r++) {
     const existingId = String(values[r][0]).trim();
     if (existingId === String(id).trim()) {
       targetRow = r + 1;
+      oldStock = Number(values[r][4]) || 0;
       break;
     }
     const match = existingId.match(/^P(\d+)$/i);
@@ -328,6 +334,8 @@ function handleSaveProduct(ss, payload) {
       if (n > maxPidNum) maxPidNum = n;
     }
   }
+
+  const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
 
   if (targetRow > 0) {
     // Update data produk sekaligus dalam 1 batch call (kolom 2 s/d 7)
@@ -339,6 +347,20 @@ function handleSaveProduct(ss, payload) {
       satuan || "pcs",
       Number(hargaModal) || 0
     ]]);
+
+    // Log jika ada perubahan stok saat edit
+    if (oldStock !== Number(stok)) {
+      logStockChange(ss, {
+        waktu: nowStr,
+        id: id,
+        nama: nama,
+        stokLama: oldStock,
+        perubahan: Number(stok) - oldStock,
+        stokBaru: Number(stok),
+        keterangan: "Edit info produk"
+      });
+    }
+
     return createJsonResponse({ status: "success", message: `Produk ${id} berhasil diperbarui.` });
   } else {
     // Tambah baris baru dengan ID anti-bentrok
@@ -352,27 +374,180 @@ function handleSaveProduct(ss, payload) {
       satuan || "pcs",
       Number(hargaModal) || 0
     ]);
+
+    logStockChange(ss, {
+      waktu: nowStr,
+      id: newId,
+      nama: nama,
+      stokLama: 0,
+      perubahan: Number(stok) || 0,
+      stokBaru: Number(stok) || 0,
+      keterangan: "Produk Baru Ditambahkan"
+    });
+
     return createJsonResponse({ status: "success", message: `Produk ${newId} berhasil ditambahkan.` });
   }
 }
 
 /**
- * Handle Hapus Produk
+ * Handle Restock / Tambah Stok Cepat (Kulakan)
  */
-function handleDeleteProduct(ss, payload) {
-  const { id } = payload;
+function handleRestockProduct(ss, payload) {
+  const { id, addQty, newHargaModal, keterangan } = payload;
   const sheetProduk = ss.getSheetByName("Produk");
   if (!sheetProduk) throw new Error("Sheet Produk tidak ditemukan.");
 
   const values = sheetProduk.getDataRange().getValues();
   for (let r = 1; r < values.length; r++) {
     if (String(values[r][0]).trim() === String(id).trim()) {
+      const oldStock = Number(values[r][4]) || 0;
+      const addition = Number(addQty) || 0;
+      const newStock = Math.max(0, oldStock + addition);
+      const nama = String(values[r][1]);
+
+      sheetProduk.getRange(r + 1, 5).setValue(newStock);
+
+      if (Number(newHargaModal) > 0) {
+        sheetProduk.getRange(r + 1, 7).setValue(Number(newHargaModal));
+      }
+
+      const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
+      logStockChange(ss, {
+        waktu: nowStr,
+        id: id,
+        nama: nama,
+        stokLama: oldStock,
+        perubahan: addition,
+        stokBaru: newStock,
+        keterangan: keterangan || "Restock / Kulakan"
+      });
+
+      return createJsonResponse({ 
+        status: "success", 
+        message: `Stok ${nama} bertambah +${addition} (Total: ${newStock}).`,
+        newStock: newStock
+      });
+    }
+  }
+
+  return createJsonResponse({ status: "error", message: `Produk ${id} tidak ditemukan.` });
+}
+
+/**
+ * Handle Hapus Produk dengan Soft Delete (Pindah ke Sheet 'Produk_Sampah')
+ */
+function handleDeleteProduct(ss, payload) {
+  const { id, reason } = payload;
+  const sheetProduk = ss.getSheetByName("Produk");
+  if (!sheetProduk) throw new Error("Sheet Produk tidak ditemukan.");
+
+  let sheetSampah = ss.getSheetByName("Produk_Sampah");
+  if (!sheetSampah) {
+    sheetSampah = ss.insertSheet("Produk_Sampah");
+    sheetSampah.appendRow(["ID", "Nama Produk", "Kategori", "Harga Jual", "Stok Terakhir", "Satuan", "Harga Modal", "Waktu Dihapus", "Alasan"]);
+    sheetSampah.getRange(1, 1, 1, 9).setFontWeight("bold").setBackground("#fee2e2");
+  }
+
+  const values = sheetProduk.getDataRange().getValues();
+  for (let r = 1; r < values.length; r++) {
+    if (String(values[r][0]).trim() === String(id).trim()) {
+      const rowData = values[r];
+      const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
+
+      // Simpan cadangan ke Produk_Sampah sebelum dihapus dari katalog utama
+      sheetSampah.appendRow([
+        rowData[0], // ID
+        rowData[1], // Nama
+        rowData[2], // Kategori
+        rowData[3], // Harga
+        rowData[4], // Stok
+        rowData[5], // Satuan
+        rowData[6] || 0, // Modal
+        nowStr,
+        reason || "Dihapus oleh pengguna"
+      ]);
+
+      // Catat log
+      logStockChange(ss, {
+        waktu: nowStr,
+        id: id,
+        nama: String(rowData[1]),
+        stokLama: Number(rowData[4]) || 0,
+        perubahan: -(Number(rowData[4]) || 0),
+        stokBaru: 0,
+        keterangan: "Dihapus ke Tong Sampah"
+      });
+
+      // Hapus dari sheet Produk utama
       sheetProduk.deleteRow(r + 1);
-      return createJsonResponse({ status: "success", message: `Produk ${id} berhasil dihapus.` });
+      return createJsonResponse({ 
+        status: "success", 
+        message: `Produk ${id} berhasil dipindahkan ke Tong Sampah (Aman & dapat dipulihkan).` 
+      });
     }
   }
 
   return createJsonResponse({ status: "error", message: `Produk dengan ID ${id} tidak ditemukan.` });
+}
+
+/**
+ * Handle Pulihkan Produk dari Tong Sampah (Restore)
+ */
+function handleRestoreProduct(ss, payload) {
+  const { id } = payload;
+  const sheetSampah = ss.getSheetByName("Produk_Sampah");
+  const sheetProduk = ss.getSheetByName("Produk");
+  if (!sheetSampah || !sheetProduk) throw new Error("Sheet Produk atau Produk_Sampah tidak ditemukan.");
+
+  const values = sheetSampah.getDataRange().getValues();
+  for (let r = 1; r < values.length; r++) {
+    if (String(values[r][0]).trim() === String(id).trim()) {
+      const row = values[r];
+      // Kembalikan ke sheet Produk utama
+      sheetProduk.appendRow([row[0], row[1], row[2], row[3], row[4], row[5], row[6] || 0]);
+      sheetSampah.deleteRow(r + 1);
+
+      const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
+      logStockChange(ss, {
+        waktu: nowStr,
+        id: id,
+        nama: String(row[1]),
+        stokLama: 0,
+        perubahan: Number(row[4]) || 0,
+        stokBaru: Number(row[4]) || 0,
+        keterangan: "Dipulihkan dari Tong Sampah"
+      });
+
+      return createJsonResponse({ status: "success", message: `Produk ${id} (${row[1]}) berhasil dipulihkan.` });
+    }
+  }
+
+  return createJsonResponse({ status: "error", message: `Produk ${id} tidak ada di Tong Sampah.` });
+}
+
+/**
+ * Mencatat perubahan stok ke sheet 'Log_Stok' untuk pelacakan audit
+ */
+function logStockChange(ss, entry) {
+  try {
+    let sheetLog = ss.getSheetByName("Log_Stok");
+    if (!sheetLog) {
+      sheetLog = ss.insertSheet("Log_Stok");
+      sheetLog.appendRow(["Waktu", "ID Produk", "Nama Produk", "Stok Lama", "Perubahan", "Stok Baru", "Keterangan"]);
+      sheetLog.getRange(1, 1, 1, 7).setFontWeight("bold").setBackground("#e2e8f0");
+    }
+    sheetLog.appendRow([
+      entry.waktu,
+      entry.id,
+      entry.nama,
+      entry.stokLama,
+      entry.perubahan >= 0 ? `+${entry.perubahan}` : entry.perubahan,
+      entry.stokBaru,
+      entry.keterangan
+    ]);
+  } catch (e) {
+    console.warn("Gagal menulis Log_Stok:", e);
+  }
 }
 
 function createJsonResponse(data) {

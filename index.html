@@ -364,24 +364,43 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
       <div>
         <h2 class="text-xl font-extrabold text-slate-900">Kelola Katalog Produk</h2>
-        <p class="text-xs text-slate-500">Tambah, ubah harga & stok, atau hapus produk dari Google Sheets</p>
+        <p class="text-xs text-slate-500">Tambah, kulakan/restock stok, atau amankan produk di Google Sheets</p>
       </div>
-      <button onclick="ProductManager.openModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
-        <i data-lucide="plus" class="w-4 h-4"></i> Tambah Produk Baru
-      </button>
+      <div class="flex items-center gap-2">
+        <button onclick="ProductManager.openTrashModal()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition" title="Lihat produk yang pernah dihapus">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          Tong Sampah
+        </button>
+        <button onclick="ProductManager.openModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Tambah Produk
+        </button>
+      </div>
     </div>
 
     <!-- Product Management Table -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      <div class="p-3 sm:p-4 border-b border-slate-100 flex items-center justify-between gap-2">
-        <input 
-          type="text" 
-          id="productManagerSearch" 
-          oninput="ProductManager.filterTable()" 
-          placeholder="Cari kode atau nama produk..." 
-          class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs w-full max-w-sm outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <span class="text-xs font-semibold text-slate-400" id="productCountBadge">0 Produk</span>
+      <div class="p-3 sm:p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+        <div class="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm">
+          <input 
+            type="text" 
+            id="productManagerSearch" 
+            oninput="ProductManager.filterTable()" 
+            placeholder="Cari kode atau nama produk..." 
+            class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs w-full outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div class="flex items-center gap-2">
+          <!-- Filter Pill: Semua vs Stok Menipis -->
+          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+            <button id="pmFilterAll" onclick="ProductManager.setFilter('all')" class="px-2.5 py-1 rounded-md bg-white text-slate-800 shadow-sm">Semua</button>
+            <button id="pmFilterLow" onclick="ProductManager.setFilter('low')" class="px-2.5 py-1 rounded-md text-red-600 hover:text-red-700 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+              Stok Menipis (≤5)
+            </button>
+          </div>
+          <span class="text-xs font-semibold text-slate-400" id="productCountBadge">0 Produk</span>
+        </div>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs">
@@ -393,7 +412,7 @@
               <th class="p-3">Harga</th>
               <th class="p-3">Stok</th>
               <th class="p-3">Satuan</th>
-              <th class="p-3 text-center">Aksi</th>
+              <th class="p-3 text-center">Aksi Cepat</th>
             </tr>
           </thead>
           <tbody id="productManagerTableBody" class="divide-y divide-slate-100 text-slate-700">
@@ -757,6 +776,114 @@
           <button onclick="UI.closeSettingsModal()" class="px-4 py-2 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Tutup</button>
           <button onclick="App.saveSettings()" class="px-4 py-2 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white">Simpan Pengaturan</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: KULAKAN / RESTOCK CEPAT STOK                                       -->
+  <!-- ========================================================================= -->
+  <div id="restockModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col animate-in fade-in duration-150">
+      <div class="bg-blue-900 text-white px-5 py-4 flex items-center justify-between">
+        <h3 class="font-bold text-sm flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+          Restock / Tambah Stok Kulakan
+        </h3>
+        <button onclick="ProductManager.closeRestockModal()" class="text-blue-300 hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <form onsubmit="ProductManager.handleRestockSubmit(event)" class="p-5 space-y-3.5 text-xs">
+        <input type="hidden" id="restockProdId" />
+        
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div class="text-[10px] text-slate-400 uppercase font-bold" id="restockProdCode">KODE: -</div>
+          <div class="font-black text-sm text-slate-800" id="restockProdName">-</div>
+          <div class="mt-1 flex justify-between text-slate-600 font-semibold">
+            <span>Stok Saat Ini:</span>
+            <span class="text-blue-700 font-black" id="restockCurrentStock">0 pcs</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Jumlah Masuk / Kulakan Baru:</label>
+          <div class="flex items-center gap-2">
+            <input 
+              type="number" 
+              id="restockAddQty" 
+              required 
+              min="1" 
+              value="10" 
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+            <span class="font-bold text-slate-500" id="restockUnitLabel">pcs</span>
+          </div>
+          <!-- Quick Chips -->
+          <div class="flex gap-1.5 mt-2">
+            <button type="button" onclick="ProductManager.setRestockQuickQty(5)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[11px] font-bold text-slate-700">+5</button>
+            <button type="button" onclick="ProductManager.setRestockQuickQty(10)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[11px] font-bold text-slate-700">+10</button>
+            <button type="button" onclick="ProductManager.setRestockQuickQty(20)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[11px] font-bold text-slate-700">+20</button>
+            <button type="button" onclick="ProductManager.setRestockQuickQty(50)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[11px] font-bold text-slate-700">+50</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Update Harga Modal Baru (Opsional jika harga pabrik berubah):</label>
+          <input 
+            type="number" 
+            id="restockNewModal" 
+            min="0"
+            placeholder="Biarkan kosong jika tetap" 
+            class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Catatan / Supplier (Opsional):</label>
+          <input 
+            type="text" 
+            id="restockKeterangan" 
+            placeholder="Contoh: Kulakan Toko Grosir Jaya" 
+            class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t">
+          <button type="button" onclick="ProductManager.closeRestockModal()" class="px-4 py-2 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Batal</button>
+          <button type="submit" id="btnSubmitRestock" class="px-4 py-2 rounded-lg font-bold bg-blue-600 hover:bg-blue-700 text-white shadow">Simpan Stok Masuk</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: TONG SAMPAH & PULIHKAN PRODUK (RESTORE SAFETY)                     -->
+  <!-- ========================================================================= -->
+  <div id="trashModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in duration-150">
+      <div class="bg-red-900 text-white px-5 py-4 flex items-center justify-between">
+        <h3 class="font-bold text-sm flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-red-300"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          Tong Sampah Produk (Riwayat Dihapus)
+        </h3>
+        <button onclick="ProductManager.closeTrashModal()" class="text-red-200 hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-4 overflow-y-auto flex-1 space-y-3 text-xs">
+        <p class="text-slate-500 leading-relaxed">
+          Produk yang terhapus dicadangkan di sini secara aman agar tidak hilang dari Google Sheets. Anda dapat memulihkannya kapan saja.
+        </p>
+
+        <div id="trashListContainer" class="space-y-2">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <div class="p-3 bg-slate-50 border-t flex justify-end">
+        <button onclick="ProductManager.closeTrashModal()" class="px-4 py-2 rounded-lg font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs">Tutup</button>
       </div>
     </div>
   </div>
@@ -1883,25 +2010,65 @@
      */
     const ProductManager = {
       editingId: null,
+      currentFilter: 'all', // 'all' atau 'low'
+
+      setFilter(type) {
+        this.currentFilter = type;
+        const btnAll = document.getElementById("pmFilterAll");
+        const btnLow = document.getElementById("pmFilterLow");
+        if (btnAll && btnLow) {
+          if (type === 'all') {
+            btnAll.className = "px-2.5 py-1 rounded-md bg-white text-slate-800 shadow-sm";
+            btnLow.className = "px-2.5 py-1 rounded-md text-red-600 hover:text-red-700 flex items-center gap-1";
+          } else {
+            btnAll.className = "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-800";
+            btnLow.className = "px-2.5 py-1 rounded-md bg-red-600 text-white shadow-sm flex items-center gap-1";
+          }
+        }
+        this.filterTable();
+      },
 
       renderProductRow(p) {
+        const stokNum = Number(p.stok) || 0;
+        const isLow = stokNum <= 5;
+        const isOut = stokNum <= 0;
+
+        let stockBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700">${stokNum}</span>`;
+        if (isOut) {
+          stockBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-black bg-red-100 text-red-700 border border-red-300">Habis (0)</span>`;
+        } else if (isLow) {
+          stockBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-black bg-amber-100 text-amber-800 border border-amber-300">Sisa ${stokNum}</span>`;
+        }
+
         return `
-          <tr class="hover:bg-slate-50 transition">
+          <tr class="hover:bg-slate-50 transition ${isLow ? 'bg-amber-50/20' : ''}">
             <td class="p-3 font-mono font-bold text-slate-700">${p.id}</td>
-            <td class="p-3 font-bold text-slate-800">${p.nama}</td>
+            <td class="p-3">
+              <div class="font-bold text-slate-800">${p.nama}</div>
+              ${isLow ? `<div class="text-[10px] text-amber-700 font-semibold flex items-center gap-1">⚠️ Segera kulakan</div>` : ''}
+            </td>
             <td class="p-3"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">${p.kategori}</span></td>
             <td class="p-3 font-bold text-slate-900">
               <div>Rp ${Number(p.harga).toLocaleString('id-ID')}</div>
               ${Number(p.hargaModal) > 0 ? `<div class="text-[10px] text-slate-400 font-medium">Modal: Rp ${Number(p.hargaModal).toLocaleString('id-ID')}</div>` : ''}
             </td>
-            <td class="p-3 font-bold ${p.stok <= 5 ? 'text-red-500' : 'text-slate-700'}">${p.stok}</td>
+            <td class="p-3 font-bold">${stockBadge}</td>
             <td class="p-3 text-slate-500">${p.satuan || 'pcs'}</td>
             <td class="p-3 text-center">
-              <div class="flex items-center justify-center gap-1.5">
-                <button onclick="ProductManager.openModal('${p.id}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit">
+              <div class="flex items-center justify-center gap-1">
+                <!-- Tombol Kulakan / Restock Cepat -->
+                <button onclick="ProductManager.openRestockModal('${p.id}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-[11px] flex items-center gap-1 shadow-sm transition" title="Tambah Stok Masuk (Kulakan)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span>Restock</span>
+                </button>
+
+                <!-- Tombol Edit -->
+                <button onclick="ProductManager.openModal('${p.id}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Rincian">
                   <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                 </button>
-                <button onclick="ProductManager.deleteProduct('${p.id}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition" title="Hapus">
+
+                <!-- Tombol Hapus Aman -->
+                <button onclick="ProductManager.deleteProduct('${p.id}')" class="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition" title="Pindah ke Tong Sampah">
                   <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                 </button>
               </div>
@@ -1911,29 +2078,197 @@
       },
 
       renderTable() {
-        const tbody = document.getElementById("productManagerTableBody");
-        const countBadge = document.getElementById("productCountBadge");
-        if (countBadge) countBadge.textContent = `${State.products.length} Produk`;
-
-        if (!State.products.length) {
-          tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-400">Tidak ada produk.</td></tr>`;
-          return;
-        }
-
-        tbody.innerHTML = State.products.map(p => this.renderProductRow(p)).join("");
+        this.filterTable();
       },
 
       filterTable() {
         const q = (document.getElementById("productManagerSearch")?.value || "").toLowerCase().trim();
         const tbody = document.getElementById("productManagerTableBody");
-        const filtered = State.products.filter(p => p.nama.toLowerCase().includes(q) || p.id.toLowerCase().includes(q));
+        const countBadge = document.getElementById("productCountBadge");
+        if (!tbody) return;
+
+        let list = State.products || [];
+        if (this.currentFilter === 'low') {
+          list = list.filter(p => (Number(p.stok) || 0) <= 5);
+        }
+
+        const filtered = list.filter(p => 
+          String(p.nama || "").toLowerCase().includes(q) || 
+          String(p.id || "").toLowerCase().includes(q)
+        );
+
+        if (countBadge) {
+          const totalText = this.currentFilter === 'low' ? `${filtered.length} Menipis` : `${filtered.length} Produk`;
+          countBadge.textContent = totalText;
+        }
 
         if (!filtered.length) {
-          tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-400">Tidak ada produk yang cocok.</td></tr>`;
+          const msg = this.currentFilter === 'low' 
+            ? "Semua stok aman! Tidak ada produk dengan stok menipis (≤5)." 
+            : "Tidak ada produk yang cocok dengan pencarian.";
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-400 font-medium">${msg}</td></tr>`;
           return;
         }
 
         tbody.innerHTML = filtered.map(p => this.renderProductRow(p)).join("");
+      },
+
+      // --- RESTOCK CEPAT / KULAKAN ---
+      openRestockModal(productId) {
+        const p = State.products.find(x => x.id === productId);
+        if (!p) return;
+
+        document.getElementById("restockProdId").value = p.id;
+        document.getElementById("restockProdCode").textContent = `KODE: ${p.id}`;
+        document.getElementById("restockProdName").textContent = p.nama;
+        document.getElementById("restockCurrentStock").textContent = `${p.stok} ${p.satuan || 'pcs'}`;
+        document.getElementById("restockUnitLabel").textContent = p.satuan || 'pcs';
+        document.getElementById("restockAddQty").value = "10";
+        document.getElementById("restockNewModal").value = Number(p.hargaModal) > 0 ? p.hargaModal : "";
+        document.getElementById("restockKeterangan").value = "";
+
+        document.getElementById("restockModal").classList.remove("hidden");
+        setTimeout(() => document.getElementById("restockAddQty").focus(), 100);
+      },
+
+      closeRestockModal() {
+        document.getElementById("restockModal").classList.add("hidden");
+      },
+
+      setRestockQuickQty(val) {
+        document.getElementById("restockAddQty").value = val;
+      },
+
+      async handleRestockSubmit(e) {
+        e.preventDefault();
+        const id = document.getElementById("restockProdId").value;
+        const addQty = Number(document.getElementById("restockAddQty").value) || 0;
+        const newHargaModal = Number(document.getElementById("restockNewModal").value) || 0;
+        const keterangan = document.getElementById("restockKeterangan").value.trim() || "Restock / Kulakan";
+
+        if (addQty <= 0) {
+          UI.toast("Jumlah stok masuk harus lebih dari 0", "error");
+          return;
+        }
+
+        const btn = document.getElementById("btnSubmitRestock");
+        btn.disabled = true;
+        btn.textContent = "Menyimpan...";
+
+        // Update lokal instan
+        const p = State.products.find(x => x.id === id);
+        if (p) {
+          p.stok = (Number(p.stok) || 0) + addQty;
+          if (newHargaModal > 0) p.hargaModal = newHargaModal;
+          localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(State.products));
+          this.renderTable();
+          App.filterAndRenderProducts();
+        }
+
+        // Kirim ke Google Sheets
+        if (State.gasUrl) {
+          try {
+            await fetch(State.gasUrl, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "restock_product",
+                token: State.securityToken || "",
+                id: id,
+                addQty: addQty,
+                newHargaModal: newHargaModal,
+                keterangan: keterangan
+              })
+            });
+            UI.toast(`Stok ${p ? p.nama : id} bertambah +${addQty}!`, "success");
+          } catch (err) {
+            console.warn("Restock sync warning:", err);
+          }
+        }
+
+        btn.disabled = false;
+        btn.textContent = "Simpan Stok Masuk";
+        this.closeRestockModal();
+      },
+
+      // --- TONG SAMPAH & PULIHKAN (RESTORE SAFETY) ---
+      openTrashModal() {
+        const trash = JSON.parse(localStorage.getItem("lk_trash_products") || "[]");
+        const container = document.getElementById("trashListContainer");
+        if (!container) return;
+
+        if (!trash.length) {
+          container.innerHTML = `
+            <div class="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              <p class="font-bold">Tong sampah bersih</p>
+              <p class="text-[11px] mt-1">Belum ada produk yang dihapus.</p>
+            </div>
+          `;
+        } else {
+          container.innerHTML = trash.map((p, idx) => `
+            <div class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-3 hover:shadow-sm">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="font-mono font-bold text-slate-500 text-[11px]">${p.id}</span>
+                  <span class="font-bold text-slate-800 text-xs truncate">${p.nama}</span>
+                </div>
+                <div class="text-[11px] text-slate-400 mt-0.5">
+                  Stok terakhir: ${p.stok} ${p.satuan || 'pcs'} | Rp ${Number(p.harga).toLocaleString('id-ID')}
+                </div>
+              </div>
+              <button onclick="ProductManager.restoreProduct('${p.id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition flex-none">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                Pulihkan
+              </button>
+            </div>
+          `).join("");
+        }
+
+        document.getElementById("trashModal").classList.remove("hidden");
+      },
+
+      closeTrashModal() {
+        document.getElementById("trashModal").classList.add("hidden");
+      },
+
+      async restoreProduct(id) {
+        let trash = JSON.parse(localStorage.getItem("lk_trash_products") || "[]");
+        const item = trash.find(x => x.id === id);
+        if (!item) return;
+
+        // Kembalikan ke State.products
+        State.products.push(item);
+        localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(State.products));
+
+        // Hapus dari trash lokal
+        trash = trash.filter(x => x.id !== id);
+        localStorage.setItem("lk_trash_products", JSON.stringify(trash));
+
+        this.renderTable();
+        App.renderCategories();
+        App.filterAndRenderProducts();
+        this.openTrashModal(); // Re-render isi modal
+
+        UI.toast(`Produk ${item.nama} berhasil dipulihkan ke katalog!`, "success");
+
+        // Kirim restore ke Google Sheets
+        if (State.gasUrl) {
+          try {
+            await fetch(State.gasUrl, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "restore_product",
+                token: State.securityToken || "",
+                id: id
+              })
+            });
+          } catch (err) {
+            console.warn("Restore sync warning:", err);
+          }
+        }
       },
 
       setupCategoryAndUnitOptions(selectedCategory = "Lampu", selectedUnit = "pcs") {
@@ -2119,6 +2454,16 @@
           satuanVal = document.getElementById("pfSatuanCustom")?.value.trim() || "pcs";
         }
 
+        const hargaModalVal = Number(document.getElementById("pfHargaModal")?.value) || 0;
+        const hargaJualVal = Number(document.getElementById("pfHarga").value) || 0;
+
+        // Peringatan jika jual di bawah modal
+        if (hargaModalVal > 0 && hargaJualVal < hargaModalVal) {
+          if (!confirm(`Perhatian: Harga jual (Rp ${hargaJualVal.toLocaleString('id-ID')}) lebih rendah dari harga modal (Rp ${hargaModalVal.toLocaleString('id-ID')}). Yakin ingin menyimpan?`)) {
+            return;
+          }
+        }
+
         const payload = {
           action: "save_product",
           token: State.securityToken || "",
@@ -2126,8 +2471,8 @@
           nama: document.getElementById("pfNama").value.trim(),
           kategori: kategoriVal || "Lainnya",
           satuan: satuanVal || "pcs",
-          hargaModal: Number(document.getElementById("pfHargaModal")?.value) || 0,
-          harga: Number(document.getElementById("pfHarga").value) || 0,
+          hargaModal: hargaModalVal,
+          harga: hargaJualVal,
           stok: Number(document.getElementById("pfStok").value) || 0,
           isEdit: !!this.editingId
         };
@@ -2169,7 +2514,18 @@
       },
 
       async deleteProduct(id) {
-        if (!confirm(`Hapus produk '${id}' dari katalog?`)) return;
+        const item = State.products.find(p => p.id === id);
+        const nama = item ? item.nama : id;
+
+        // Konfirmasi aman
+        if (!confirm(`Pindahkan '${nama}' (${id}) ke Tong Sampah?\n\n(Data tidak akan hilang permanen, Anda bisa memulihkannya kapan saja dari menu Tong Sampah).`)) return;
+
+        // Pindahkan ke cadangan lokal Tong Sampah
+        const trash = JSON.parse(localStorage.getItem("lk_trash_products") || "[]");
+        if (item) {
+          trash.unshift({ ...item, deletedAt: new Date().toISOString() });
+          localStorage.setItem("lk_trash_products", JSON.stringify(trash.slice(0, 50))); // Simpan max 50
+        }
 
         State.products = State.products.filter(p => p.id !== id);
         localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(State.products));
@@ -2183,9 +2539,14 @@
               method: "POST",
               mode: "no-cors",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "delete_product", id: id, token: State.securityToken || "" })
+              body: JSON.stringify({ 
+                action: "delete_product", 
+                id: id, 
+                reason: "Dihapus dari aplikasi POS",
+                token: State.securityToken || "" 
+              })
             });
-            UI.toast(`Produk ${id} dihapus dari Google Sheets.`, "success");
+            UI.toast(`Produk ${nama} dipindahkan ke Tong Sampah.`, "info");
           } catch (err) {
             console.warn("Delete error:", err);
           }
@@ -2403,13 +2764,17 @@
           const namaStr = String(p.nama || "Produk");
           const katStr = String(p.kategori || "Umum");
           const idStr = String(p.id || "");
+          const isOut = stokNum <= 0;
+          const isLow = stokNum > 0 && stokNum <= 5;
 
           return `
-            <div class="bg-white border border-slate-200 rounded-xl p-3 flex flex-col justify-between hover:shadow-md hover:border-blue-400 transition group">
+            <div class="bg-white border ${isOut ? 'border-red-200 bg-red-50/20' : isLow ? 'border-amber-200' : 'border-slate-200'} rounded-xl p-3 flex flex-col justify-between hover:shadow-md hover:border-blue-400 transition group relative">
               <div>
                 <div class="flex items-center justify-between gap-1 mb-1.5">
                   <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">${katStr}</span>
-                  <span class="text-[10px] font-bold ${stokNum <= 5 ? 'text-red-500' : 'text-slate-400'}">Stok: ${stokNum}</span>
+                  <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded ${isOut ? 'bg-red-100 text-red-700' : isLow ? 'bg-amber-100 text-amber-800' : 'text-slate-400'}">
+                    ${isOut ? 'Habis' : `Stok: ${stokNum}`}
+                  </span>
                 </div>
                 <h3 class="font-bold text-xs text-slate-800 line-clamp-2 leading-snug group-hover:text-blue-700 transition" title="${namaStr}">
                   ${namaStr}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'listrik-kita-pos-v18';
+const CACHE_NAME = 'listrik-kita-pos-v19';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
