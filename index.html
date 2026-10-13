@@ -1445,7 +1445,23 @@
 
           if (json.status === "success") {
             this.transactions = json.data || [];
-            this.applyPeriodFilter();
+
+            // Periksa apakah ada transaksi pada hari ini
+            const now = new Date();
+            const todayCount = this.transactions.filter(t => {
+              const d = this.parseTransactionDate(t);
+              return d.getFullYear() === now.getFullYear() &&
+                     d.getMonth() === now.getMonth() &&
+                     d.getDate() === now.getDate();
+            }).length;
+
+            // Jika ada riwayat transaksi tapi hari ini belum ada, otomatis pilih tab 'all' (Semua) agar data langsung tampil
+            if (todayCount === 0 && this.transactions.length > 0 && this.currentPeriod === 'today') {
+              this.setPeriod('all');
+            } else {
+              this.applyPeriodFilter();
+            }
+
             if (info) info.textContent = `Total ${this.transactions.length} transaksi termuat dari Google Sheets`;
           } else {
             throw new Error(json.message);
@@ -1483,6 +1499,8 @@
       },
 
       parseTransactionDate(trx) {
+        if (!trx) return new Date();
+
         // 1. Coba ekstrak YYYYMMDD dari ID nota: LK-..., INV-..., atau TRX-...
         const m = String(trx.transactionId || "").match(/(?:LK-|INV-|TRX-?)(\d{4})(\d{2})(\d{2})/i);
         if (m) {
@@ -1490,6 +1508,7 @@
         }
 
         const str = String(trx.waktu || "").trim();
+        if (!str) return new Date();
 
         // 2. Coba format tanggal ISO / SQL: YYYY-MM-DD atau YYYY/MM/DD
         const isoMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
@@ -1503,8 +1522,14 @@
           return new Date(parseInt(idMatch[3], 10), parseInt(idMatch[2], 10) - 1, parseInt(idMatch[1], 10));
         }
 
-        // 4. Fallback aman kompatibel Safari iOS (ganti '-' dengan '/' dan buang T)
-        const safeStr = str.replace(/-/g, "/").replace(/T/g, " ");
+        // 4. Jika format tanggal standar JS / timestamp parseable (misal: "Tue Oct 13 2026...")
+        const parsedTs = Date.parse(str);
+        if (!isNaN(parsedTs)) {
+          return new Date(parsedTs);
+        }
+
+        // 5. Fallback aman ganti '-' dengan '/' dan pertahankan spasi
+        const safeStr = str.replace(/-/g, "/").replace(/(\d)T(\d)/i, "$1 $2");
         const d = new Date(safeStr);
         if (!isNaN(d.getTime())) return d;
 
@@ -1561,12 +1586,17 @@
         this.filteredTransactions = this.transactions.filter(trx => {
           if (this.currentPeriod === 'all') return true;
           const trxDate = this.parseTransactionDate(trx);
+
+          if (this.currentPeriod === 'today') {
+            return trxDate.getFullYear() === now.getFullYear() &&
+                   trxDate.getMonth() === now.getMonth() &&
+                   trxDate.getDate() === now.getDate();
+          }
+
           const trxDayStart = new Date(trxDate.getFullYear(), trxDate.getMonth(), trxDate.getDate()).getTime();
           const diffDays = Math.round((startOfToday - trxDayStart) / oneDayMs);
 
-          if (this.currentPeriod === 'today') {
-            return diffDays === 0;
-          } else if (this.currentPeriod === '7days') {
+          if (this.currentPeriod === '7days') {
             return diffDays >= 0 && diffDays < 7;
           } else if (this.currentPeriod === '30days') {
             return diffDays >= 0 && diffDays < 30;
@@ -1772,7 +1802,10 @@
         if (!tbody) return;
 
         if (!this.filteredTransactions.length) {
-          tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-slate-400">Belum ada riwayat transaksi pada periode ini.</td></tr>`;
+          const msg = (this.transactions.length > 0 && this.currentPeriod !== 'all')
+            ? `Belum ada transaksi pada filter ini (${this.transactions.length} transaksi tersedia di tab 'Semua').`
+            : `Belum ada riwayat transaksi pada periode ini.`;
+          tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-slate-400 font-medium">${msg}</td></tr>`;
           return;
         }
 
