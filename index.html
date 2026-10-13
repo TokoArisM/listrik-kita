@@ -229,7 +229,7 @@
         <p class="text-xs text-slate-500" id="reportLoadedInfo">Memuat data dari Google Sheets...</p>
       </div>
 
-      <!-- Period Filter Buttons (Hari Ini, 7 Hari, 30 Hari, Semua) -->
+      <!-- Action Buttons & Period Filter (Hari Ini, 7 Hari, 30 Hari, Semua, Bon/Hutang, Ekspor) -->
       <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 text-xs">
         <button onclick="Reports.setPeriod('today')" id="reportPeriodToday" class="px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition bg-amber-500 text-white shadow-sm">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
@@ -246,6 +246,16 @@
         <button onclick="Reports.setPeriod('all')" id="reportPeriodAll" class="px-3.5 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition bg-slate-100 hover:bg-slate-200 text-slate-600">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
           Semua
+        </button>
+        <!-- Filter Kasbon Belum Lunas -->
+        <button onclick="Reports.setPeriod('debt')" id="reportPeriodDebt" class="px-3.5 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition bg-slate-100 hover:bg-slate-200 text-amber-700">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+          Kasbon / Tempo
+        </button>
+        <!-- Tombol Ekspor CSV -->
+        <button onclick="Reports.exportToCsv()" class="px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition" title="Download Laporan Excel / CSV">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          Unduh CSV
         </button>
         <button onclick="Reports.loadData()" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition" title="Refresh Laporan">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
@@ -343,7 +353,8 @@
             <tr>
               <th class="p-3 sm:px-4">INVOICE</th>
               <th class="p-3 sm:px-4">WAKTU</th>
-              <th class="p-3 sm:px-4">BAYAR</th>
+              <th class="p-3 sm:px-4">PELANGGAN</th>
+              <th class="p-3 sm:px-4">METODE</th>
               <th class="p-3 sm:px-4 text-right">TOTAL</th>
               <th class="p-3 sm:px-4 text-right">EST. LABA</th>
               <th class="p-3 sm:px-4 text-center">AKSI</th>
@@ -885,6 +896,67 @@
       <div class="p-3 bg-slate-50 border-t flex justify-end">
         <button onclick="ProductManager.closeTrashModal()" class="px-4 py-2 rounded-lg font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs">Tutup</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: PELUNASAN KASBON / HUTANG PELANGGAN                                -->
+  <!-- ========================================================================= -->
+  <div id="payDebtModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col animate-in fade-in duration-150">
+      <div class="bg-amber-600 text-white px-5 py-4 flex items-center justify-between">
+        <h3 class="font-bold text-sm flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Pelunasan Kasbon / Bon Tempo
+        </h3>
+        <button onclick="Reports.closePayDebtModal()" class="text-amber-200 hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <form onsubmit="Reports.handlePayDebtSubmit(event)" class="p-5 space-y-3.5 text-xs">
+        <input type="hidden" id="debtTrxId" />
+
+        <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
+          <div class="flex justify-between items-center">
+            <span class="font-mono font-bold text-amber-900 text-[11px]" id="debtModalInvoice">LK-...</span>
+            <span class="text-[10px] text-amber-700 font-semibold" id="debtModalWaktu">-</span>
+          </div>
+          <div class="mt-1 font-black text-sm text-slate-800" id="debtModalPelanggan">Pelanggan: -</div>
+          <div class="mt-2 pt-2 border-t border-amber-200/80 flex justify-between items-center">
+            <span class="font-bold text-slate-600">Total Kasbon:</span>
+            <span class="text-base font-black text-amber-800" id="debtModalTotal">Rp 0</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Nominal yang Dibayarkan (Rp):</label>
+          <input 
+            type="number" 
+            id="debtPayNominal" 
+            required 
+            min="1" 
+            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
+          />
+          <div class="flex gap-1.5 mt-2">
+            <button type="button" onclick="Reports.setDebtQuickPay('lunas')" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 rounded text-[11px] font-bold text-amber-900">Bayar Lunas</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Metode Pelunasan:</label>
+          <select id="debtPayMethod" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-semibold outline-none focus:ring-2 focus:ring-amber-500">
+            <option value="Tunai">Tunai</option>
+            <option value="QRIS">QRIS</option>
+            <option value="Transfer Bank">Transfer Bank</option>
+          </select>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2 border-t">
+          <button type="button" onclick="Reports.closePayDebtModal()" class="px-4 py-2 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Batal</button>
+          <button type="submit" id="btnSubmitDebt" class="px-4 py-2 rounded-lg font-bold bg-amber-600 hover:bg-amber-700 text-white shadow">Simpan Pelunasan</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -1608,16 +1680,23 @@
           today: 'reportPeriodToday',
           '7days': 'reportPeriod7days',
           '30days': 'reportPeriod30days',
-          all: 'reportPeriodAll'
+          all: 'reportPeriodAll',
+          debt: 'reportPeriodDebt'
         };
 
         Object.keys(periodIds).forEach(p => {
           const btn = document.getElementById(periodIds[p]);
           if (btn) {
             if (p === period) {
-              btn.className = "px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition bg-amber-500 text-white shadow-sm";
+              if (p === 'debt') {
+                btn.className = "px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition bg-amber-600 text-white shadow-sm";
+              } else {
+                btn.className = "px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition bg-amber-500 text-white shadow-sm";
+              }
             } else {
-              btn.className = "px-3.5 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition bg-slate-100 hover:bg-slate-200 text-slate-600";
+              btn.className = (p === 'debt')
+                ? "px-3.5 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition bg-slate-100 hover:bg-slate-200 text-amber-700"
+                : "px-3.5 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition bg-slate-100 hover:bg-slate-200 text-slate-600";
             }
           }
         });
@@ -1711,6 +1790,11 @@
         const oneDayMs = 24 * 60 * 60 * 1000;
 
         this.filteredTransactions = this.transactions.filter(trx => {
+          if (this.currentPeriod === 'debt') {
+            const m = String(trx.metode || "").toLowerCase();
+            return m.includes("bon") || m.includes("hutang") || m.includes("cicil");
+          }
+
           if (this.currentPeriod === 'all') return true;
           const trxDate = this.parseTransactionDate(trx);
 
@@ -1929,29 +2013,37 @@
         if (!tbody) return;
 
         if (!this.filteredTransactions.length) {
-          const msg = (this.transactions.length > 0 && this.currentPeriod !== 'all')
-            ? `Belum ada transaksi pada filter ini (${this.transactions.length} transaksi tersedia di tab 'Semua').`
-            : `Belum ada riwayat transaksi pada periode ini.`;
-          tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-slate-400 font-medium">${msg}</td></tr>`;
+          const msg = (this.currentPeriod === 'debt')
+            ? `Bagus! Tidak ada kasbon atau hutang pelanggan yang belum lunas.`
+            : (this.transactions.length > 0 && this.currentPeriod !== 'all')
+              ? `Belum ada transaksi pada filter ini (${this.transactions.length} transaksi tersedia di tab 'Semua').`
+              : `Belum ada riwayat transaksi pada periode ini.`;
+          tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-400 font-medium">${msg}</td></tr>`;
           return;
         }
 
         tbody.innerHTML = this.filteredTransactions.map((trx, idx) => {
           let badgeColor = "bg-emerald-100 text-emerald-800";
           const m = String(trx.metode || "Tunai");
+          const isDebt = m.toLowerCase().includes("bon") || m.toLowerCase().includes("hutang") || m.toLowerCase().includes("cicil");
+
           if (m.toLowerCase().includes("qris") || m.toLowerCase().includes("transfer")) {
             badgeColor = "bg-blue-100 text-blue-800";
-          } else if (m.toLowerCase().includes("bon") || m.toLowerCase().includes("hutang")) {
-            badgeColor = "bg-amber-100 text-amber-800";
+          } else if (isDebt) {
+            badgeColor = "bg-amber-100 text-amber-900 border border-amber-300 font-black";
+          } else if (m.toLowerCase().includes("lunas")) {
+            badgeColor = "bg-emerald-100 text-emerald-800 font-bold";
           }
           const trxLaba = this.calculateTransactionProfit(trx);
+          const custName = trx.pelanggan || "Umum";
 
           return `
             <tr class="hover:bg-slate-50 transition">
               <td class="p-3 sm:px-4 font-mono font-bold text-slate-800 text-xs">${trx.transactionId}</td>
               <td class="p-3 sm:px-4 text-slate-600 whitespace-nowrap text-xs font-medium" title="${trx.waktu || ''}">${this.formatTransactionTime(trx)}</td>
+              <td class="p-3 sm:px-4 font-semibold text-slate-800 text-xs">${custName}</td>
               <td class="p-3 sm:px-4">
-                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${badgeColor}">
+                <span class="px-2 py-0.5 rounded-full text-[11px] ${badgeColor}">
                   ${trx.metode}
                 </span>
               </td>
@@ -1960,14 +2052,201 @@
                 ${trxLaba > 0 ? `+Rp${trxLaba.toLocaleString('id-ID')}` : '-'}
               </td>
               <td class="p-3 sm:px-4 text-center">
-                <button onclick="Reports.reprintReceipt(${idx})" class="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white font-bold transition flex items-center gap-1 mx-auto text-xs" title="Cetak Ulang Struk">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
-                  Cetak
-                </button>
+                <div class="flex items-center justify-center gap-1.5">
+                  <!-- Tombol Lunasi jika Kasbon -->
+                  ${isDebt ? `
+                    <button onclick="Reports.openPayDebtModal('${trx.transactionId}')" class="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold transition flex items-center gap-1 text-[11px] shadow-sm" title="Catat Pelunasan Kasbon">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                      <span>Lunasi</span>
+                    </button>
+                  ` : ''}
+
+                  <!-- Tombol Kirim WhatsApp -->
+                  <button onclick="Reports.shareInvoiceWA(${idx})" class="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition" title="Kirim Nota via WhatsApp">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>
+                  </button>
+
+                  <!-- Tombol Cetak Ulang Struk -->
+                  <button onclick="Reports.reprintReceipt(${idx})" class="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition" title="Cetak Ulang Struk">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                  </button>
+                </div>
               </td>
             </tr>
           `;
         }).join("");
+      },
+
+      // --- KIRIM NOTA DIGITAL VIA WHATSAPP ---
+      shareInvoiceWA(idx) {
+        const trx = this.filteredTransactions[idx] || this.transactions[idx];
+        if (!trx) return;
+
+        const storeName = CONFIG.STORE_NAME || "TOKO LISTRIK KITA";
+        const storeAddr = CONFIG.STORE_ADDR || "";
+        const storePhone = CONFIG.STORE_PHONE || "";
+        const total = Number(trx.total) || 0;
+        const cust = trx.pelanggan || "Pelanggan";
+
+        let lines = [
+          `*${storeName}*`,
+          storeAddr ? `_${storeAddr}_` : "",
+          storePhone ? `Telp/WA: ${storePhone}` : "",
+          "----------------------------------------",
+          `*NOTA PEMBELIAN*`,
+          `No. Nota: ${trx.transactionId}`,
+          `Waktu   : ${trx.waktu || new Date().toLocaleString('id-ID')}`,
+          `Kepada  : ${cust}`,
+          `Metode  : ${trx.metode}`,
+          "----------------------------------------",
+          `*RINCIAN BARANG:*`
+        ];
+
+        if (Array.isArray(trx.items) && trx.items.length) {
+          trx.items.forEach(it => {
+            const q = Number(it.qty) || 1;
+            const h = Number(it.harga) || 0;
+            lines.push(`• ${it.nama}\n  ${q}x @Rp${h.toLocaleString('id-ID')} = Rp${(q * h).toLocaleString('id-ID')}`);
+          });
+        } else if (trx.detailItem) {
+          lines.push(trx.detailItem);
+        }
+
+        lines.push("----------------------------------------");
+        if (Number(trx.diskon) > 0) {
+          lines.push(`Subtotal: Rp${(Number(trx.subtotal) || total).toLocaleString('id-ID')}`);
+          lines.push(`Diskon  : -Rp${Number(trx.diskon).toLocaleString('id-ID')}`);
+        }
+        lines.push(`*TOTAL BAYAR: Rp${total.toLocaleString('id-ID')}*`);
+        if (Number(trx.bayar) > 0) {
+          lines.push(`Bayar   : Rp${Number(trx.bayar).toLocaleString('id-ID')}`);
+          lines.push(`Kembali : Rp${Number(trx.kembalian || 0).toLocaleString('id-ID')}`);
+        }
+        lines.push("----------------------------------------");
+        lines.push("_Terima kasih atas kunjungan Anda!_");
+        lines.push("_Barang yang sudah dibeli dapat ditukar jika rusak pabrik (maks 3 hari)._");
+
+        const msgText = encodeURIComponent(lines.filter(Boolean).join("\n"));
+        const waUrl = `https://wa.me/?text=${msgText}`;
+        window.open(waUrl, "_blank");
+      },
+
+      // --- PELUNASAN KASBON / HUTANG TEMPO ---
+      openPayDebtModal(trxId) {
+        const trx = this.transactions.find(t => t.transactionId === trxId);
+        if (!trx) return;
+
+        document.getElementById("debtTrxId").value = trx.transactionId;
+        document.getElementById("debtModalInvoice").textContent = trx.transactionId;
+        document.getElementById("debtModalWaktu").textContent = trx.waktu || "-";
+        document.getElementById("debtModalPelanggan").textContent = `Pelanggan: ${trx.pelanggan || "Umum"}`;
+        document.getElementById("debtModalTotal").textContent = `Rp ${Number(trx.total).toLocaleString('id-ID')}`;
+        document.getElementById("debtPayNominal").value = trx.total;
+
+        document.getElementById("payDebtModal").classList.remove("hidden");
+      },
+
+      closePayDebtModal() {
+        document.getElementById("payDebtModal").classList.add("hidden");
+      },
+
+      setDebtQuickPay(type) {
+        const trxId = document.getElementById("debtTrxId").value;
+        const trx = this.transactions.find(t => t.transactionId === trxId);
+        if (trx && type === 'lunas') {
+          document.getElementById("debtPayNominal").value = trx.total;
+        }
+      },
+
+      async handlePayDebtSubmit(e) {
+        e.preventDefault();
+        const trxId = document.getElementById("debtTrxId").value;
+        const bayarNominal = Number(document.getElementById("debtPayNominal").value) || 0;
+        const metodePelunasan = document.getElementById("debtPayMethod").value;
+
+        const btn = document.getElementById("btnSubmitDebt");
+        btn.disabled = true;
+        btn.textContent = "Menyimpan...";
+
+        // Update lokal instan
+        const trx = this.transactions.find(t => t.transactionId === trxId);
+        if (trx) {
+          trx.bayar = (Number(trx.bayar) || 0) + bayarNominal;
+          trx.kembalian = Math.max(0, trx.bayar - Number(trx.total));
+          trx.metode = trx.bayar >= Number(trx.total) ? `Lunas (${metodePelunasan})` : `Cicil (${trx.bayar}/${trx.total})`;
+          this.applyPeriodFilter();
+        }
+
+        // Kirim update ke Google Sheets
+        if (State.gasUrl) {
+          try {
+            await fetch(State.gasUrl, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "pay_debt",
+                token: State.securityToken || "",
+                transactionId: trxId,
+                bayarNominal: bayarNominal,
+                metodePelunasan: metodePelunasan
+              })
+            });
+            UI.toast(`Kasbon ${trxId} berhasil diperbarui!`, "success");
+          } catch (err) {
+            console.warn("Pay debt warning:", err);
+          }
+        }
+
+        btn.disabled = false;
+        btn.textContent = "Simpan Pelunasan";
+        this.closePayDebtModal();
+      },
+
+      // --- EKSPOR LAPORAN KE CSV / EXCEL ---
+      exportToCsv() {
+        const data = this.filteredTransactions.length ? this.filteredTransactions : this.transactions;
+        if (!data.length) {
+          UI.toast("Tidak ada data transaksi untuk diunduh.", "error");
+          return;
+        }
+
+        const headers = ["Invoice", "Waktu", "Pelanggan", "Rincian Barang", "Subtotal", "Diskon", "Total Bayar", "Uang Diterima", "Kembalian", "Metode Pembayaran", "Estimasi Laba"];
+        const rows = data.map(t => {
+          const detail = (Array.isArray(t.items) && t.items.length)
+            ? t.items.map(i => `${i.nama} (${i.qty}x)`).join("; ")
+            : String(t.detailItem || "").replace(/\n/g, "; ");
+          const laba = this.calculateTransactionProfit(t);
+
+          return [
+            `"${t.transactionId || ''}"`,
+            `"${t.waktu || ''}"`,
+            `"${t.pelanggan || 'Umum'}"`,
+            `"${detail.replace(/"/g, '""')}"`,
+            t.subtotal || t.total || 0,
+            t.diskon || 0,
+            t.total || 0,
+            t.bayar || 0,
+            t.kembalian || 0,
+            `"${t.metode || 'Tunai'}"`,
+            laba
+          ].join(",");
+        });
+
+        const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const filename = `Laporan_Penjualan_ListrikKita_${this.currentPeriod}_${new Date().toISOString().slice(0,10)}.csv`;
+
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        UI.toast(`Laporan berhasil diunduh (${filename})`, "success");
       },
 
       async reprintReceipt(idx) {

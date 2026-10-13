@@ -214,6 +214,8 @@ function doPost(e) {
       return handleDeleteProduct(ss, postData);
     } else if (action === "restore_product") {
       return handleRestoreProduct(ss, postData);
+    } else if (action === "pay_debt") {
+      return handlePayDebt(ss, postData);
     } else {
       return handleCheckout(ss, postData);
     }
@@ -548,6 +550,45 @@ function logStockChange(ss, entry) {
   } catch (e) {
     console.warn("Gagal menulis Log_Stok:", e);
   }
+}
+
+/**
+ * Handle Pelunasan Kasbon / Hutang
+ */
+function handlePayDebt(ss, payload) {
+  const { transactionId, bayarNominal, metodePelunasan } = payload;
+  const sheetTransaksi = ss.getSheetByName("Transaksi");
+  if (!sheetTransaksi) throw new Error("Sheet Transaksi tidak ditemukan.");
+
+  const values = sheetTransaksi.getDataRange().getValues();
+  for (let r = 1; r < values.length; r++) {
+    if (String(values[r][0]).trim() === String(transactionId).trim()) {
+      const totalTagihan = Number(values[r][6]) || 0;
+      const bayarLama = Number(values[r][7]) || 0;
+      const bayarBaru = bayarNominal ? (bayarLama + Number(bayarNominal)) : totalTagihan;
+      const kembalian = Math.max(0, bayarBaru - totalTagihan);
+
+      const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "Asia/Jakarta", "yyyy-MM-dd HH:mm");
+      const metodeStr = bayarBaru >= totalTagihan 
+        ? `Lunas (${metodePelunasan || "Tunai"} - ${nowStr})` 
+        : `Cicil (${bayarBaru}/${totalTagihan} - ${nowStr})`;
+
+      // Update kolom Bayar (8), Kembalian (9), Metode (10)
+      sheetTransaksi.getRange(r + 1, 8).setValue(bayarBaru);
+      sheetTransaksi.getRange(r + 1, 9).setValue(kembalian);
+      sheetTransaksi.getRange(r + 1, 10).setValue(metodeStr);
+
+      return createJsonResponse({ 
+        status: "success", 
+        message: `Kasbon invoice ${transactionId} berhasil diperbarui (Status: ${metodeStr}).`,
+        total: totalTagihan,
+        bayar: bayarBaru,
+        metode: metodeStr
+      });
+    }
+  }
+
+  return createJsonResponse({ status: "error", message: `Transaksi ${transactionId} tidak ditemukan.` });
 }
 
 function createJsonResponse(data) {
