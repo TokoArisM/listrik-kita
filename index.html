@@ -2088,6 +2088,18 @@
         const total = Number(trx.total) || 0;
         const cust = trx.pelanggan || "Pelanggan";
 
+        // Format waktu yang ringkas & rapi: DD/MM/YYYY HH:mm
+        const d = this.parseTransactionDate(trx);
+        const pad = (n) => String(n).padStart(2, '0');
+        let timePart = "";
+        const matchTime = String(trx.waktu || "").match(/(?:T|\s|^)(\d{1,2})[:.](\d{2})/);
+        if (matchTime) {
+          timePart = `${matchTime[1].padStart(2, '0')}:${matchTime[2]}`;
+        } else {
+          timePart = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+        const cleanWaktu = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${timePart}`;
+
         let lines = [
           `*${storeName}*`,
           storeAddr ? `_${storeAddr}_` : "",
@@ -2095,7 +2107,7 @@
           "----------------------------------------",
           `*NOTA PEMBELIAN*`,
           `No. Nota: ${trx.transactionId}`,
-          `Waktu   : ${trx.waktu || new Date().toLocaleString('id-ID')}`,
+          `Waktu   : ${cleanWaktu}`,
           `Kepada  : ${cust}`,
           `Metode  : ${trx.metode}`,
           "----------------------------------------",
@@ -2136,9 +2148,13 @@
         const trx = this.transactions.find(t => t.transactionId === trxId);
         if (!trx) return;
 
+        const d = this.parseTransactionDate(trx);
+        const pad = (n) => String(n).padStart(2, '0');
+        const waktuStr = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+
         document.getElementById("debtTrxId").value = trx.transactionId;
         document.getElementById("debtModalInvoice").textContent = trx.transactionId;
-        document.getElementById("debtModalWaktu").textContent = trx.waktu || "-";
+        document.getElementById("debtModalWaktu").textContent = waktuStr;
         document.getElementById("debtModalPelanggan").textContent = `Pelanggan: ${trx.pelanggan || "Umum"}`;
         document.getElementById("debtModalTotal").textContent = `Rp ${Number(trx.total).toLocaleString('id-ID')}`;
         document.getElementById("debtPayNominal").value = trx.total;
@@ -2217,10 +2233,17 @@
             ? t.items.map(i => `${i.nama} (${i.qty}x)`).join("; ")
             : String(t.detailItem || "").replace(/\n/g, "; ");
           const laba = this.calculateTransactionProfit(t);
+          const dt = this.parseTransactionDate(t);
+          const pad = (n) => String(n).padStart(2, '0');
+          let tm = "";
+          const mTm = String(t.waktu || "").match(/(?:T|\s|^)(\d{1,2})[:.](\d{2})/);
+          if (mTm) tm = `${mTm[1].padStart(2, '0')}:${mTm[2]}`;
+          else tm = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+          const waktuClean = `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()} ${tm}`;
 
           return [
             `"${t.transactionId || ''}"`,
-            `"${t.waktu || ''}"`,
+            `"${waktuClean}"`,
             `"${t.pelanggan || 'Umum'}"`,
             `"${detail.replace(/"/g, '""')}"`,
             t.subtotal || t.total || 0,
@@ -3169,11 +3192,14 @@
           String(now.getMinutes()).padStart(2, '0') +
           String(now.getSeconds()).padStart(2, '0');
 
+        const pad = (n) => String(n).padStart(2, '0');
+        const cleanDatetime = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
         const orderData = {
           action: "checkout",
           token: State.securityToken || "",
           transactionId: trxId,
-          datetime: now.toLocaleString('id-ID'),
+          datetime: cleanDatetime,
           namaPelanggan: customerName,
           items: [...State.cart],
           subtotal: subtotal,
