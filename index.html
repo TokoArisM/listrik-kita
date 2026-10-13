@@ -704,11 +704,23 @@
           <input 
             type="url" 
             id="gasUrlInput" 
-            value="https://script.google.com/macros/s/AKfycbx6ZbcmQkMj1Gqa37aCx8DiupI8ydkA0qz03Vtbgd3OF_piUI-xI_Y5XGxwa3OGfHWu/exec"
+            value="" 
             placeholder="https://script.google.com/macros/s/.../exec" 
             class="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-xs focus:ring-2 focus:ring-blue-500 outline-none"
           />
-          <p class="text-slate-400 mt-1">Dapatkan URL ini setelah melakukan Deploy -> Web App di Google Sheets (wajib berakhiran /exec).</p>
+          <p class="text-slate-400 mt-1">Dapatkan URL ini setelah Deploy Web App di Google Sheets (wajib berakhiran <code>/exec</code>).</p>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">PIN / Token Keamanan Toko:</label>
+          <input 
+            type="text" 
+            id="securityTokenInput" 
+            value="" 
+            placeholder="LK-LISTRIK-KITA-2026" 
+            class="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-xs font-bold text-blue-700 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+          <p class="text-slate-400 mt-1">Harus sama dengan <code>SECURITY_TOKEN</code> di Code.gs agar transaksi aman dari orang asing.</p>
         </div>
 
         <div>
@@ -756,14 +768,16 @@
   <!-- SCRIPT LOGIKA POS KASIR                                                   -->
   <!-- ========================================================================= -->
   <script>
-    // URL Google Apps Script Web App (Hardcoded permanen)
-    const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbx6ZbcmQkMj1Gqa37aCx8DiupI8ydkA0qz03Vtbgd3OF_piUI-xI_Y5XGxwa3OGfHWu/exec";
+    // URL dan Token Keamanan (Disimpan aman di localStorage browser kasir toko)
+    const DEFAULT_GAS_URL = "";
+    const DEFAULT_SECURITY_TOKEN = "LK-LISTRIK-KITA-2026";
 
     const CONFIG = {
       STORE_NAME: localStorage.getItem("lk_store_name") || "TOKO LISTRIK KITA",
       STORE_ADDR: localStorage.getItem("lk_store_addr") || "Jl. Raya Listrik No. 88, Cibinong",
       STORE_PHONE: localStorage.getItem("lk_store_phone") || "0856-5954-9991",
       STORAGE_KEY_GAS: "lk_gas_url",
+      STORAGE_KEY_TOKEN: "lk_security_token",
       STORAGE_KEY_PRODUCTS: "lk_products_cache"
     };
 
@@ -1113,7 +1127,8 @@
       searchQuery: "",
       cart: [],
       selectedPaymentMethod: "Tunai",
-      gasUrl: localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || DEFAULT_GAS_URL
+      gasUrl: localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || DEFAULT_GAS_URL,
+      securityToken: localStorage.getItem(CONFIG.STORAGE_KEY_TOKEN) || DEFAULT_SECURITY_TOKEN
     };
 
     /**
@@ -1368,7 +1383,8 @@
       },
 
       openSettingsModal() {
-        document.getElementById("gasUrlInput").value = State.gasUrl || DEFAULT_GAS_URL;
+        document.getElementById("gasUrlInput").value = State.gasUrl || "";
+        document.getElementById("securityTokenInput").value = State.securityToken || DEFAULT_SECURITY_TOKEN;
         document.getElementById("storeNameInput").value = CONFIG.STORE_NAME;
         document.getElementById("storeAddrInput").value = CONFIG.STORE_ADDR;
         document.getElementById("storePhoneInput").value = CONFIG.STORE_PHONE;
@@ -1413,13 +1429,18 @@
       currentPeriod: 'today', // Default: 'today' sesuai desain
 
       async loadData() {
-        const gasUrl = State.gasUrl || DEFAULT_GAS_URL;
+        const gasUrl = State.gasUrl;
         const info = document.getElementById("reportLoadedInfo");
+        if (!gasUrl) {
+          if (info) info.textContent = "URL Google Apps Script belum disetel. Atur di menu Pengaturan.";
+          return;
+        }
         if (info) info.textContent = "Mengambil data dari Google Sheets...";
 
         try {
-          // Tambahkan timestamp anti-cache agar browser selalu ambil data terbaru
-          const res = await fetch(`${gasUrl}?action=transactions&_t=${Date.now()}`);
+          // Tambahkan timestamp anti-cache dan token keamanan toko
+          const tokenParam = State.securityToken ? `&token=${encodeURIComponent(State.securityToken)}` : "";
+          const res = await fetch(`${gasUrl}?action=transactions&_t=${Date.now()}${tokenParam}`);
           const json = await res.json();
 
           if (json.status === "success") {
@@ -2067,6 +2088,7 @@
 
         const payload = {
           action: "save_product",
+          token: State.securityToken || "",
           id: document.getElementById("pfId").value.trim(),
           nama: document.getElementById("pfNama").value.trim(),
           kategori: kategoriVal || "Lainnya",
@@ -2128,7 +2150,7 @@
               method: "POST",
               mode: "no-cors",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "delete_product", id: id })
+              body: JSON.stringify({ action: "delete_product", id: id, token: State.securityToken || "" })
             });
             UI.toast(`Produk ${id} dihapus dari Google Sheets.`, "success");
           } catch (err) {
@@ -2146,8 +2168,9 @@
     const App = {
       async init() {
         try {
-          // 1. Ambil URL GAS dari localStorage jika ada, fallback ke DEFAULT_GAS_URL (hardcoded)
-          State.gasUrl = localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || DEFAULT_GAS_URL;
+          // 1. Ambil URL GAS dan Token Keamanan dari localStorage jika ada
+          State.gasUrl = localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || DEFAULT_GAS_URL || "";
+          State.securityToken = localStorage.getItem(CONFIG.STORAGE_KEY_TOKEN) || DEFAULT_SECURITY_TOKEN;
 
           // 2. Muat produk dari cache lokal, fallback ke DEFAULT jika kosong/rusak
           const cached = localStorage.getItem(CONFIG.STORAGE_KEY_PRODUCTS);
@@ -2169,10 +2192,14 @@
           this.filterAndRenderProducts();
           Cart.render();
 
-          // 4. Sinkronisasi otomatis ke Google Sheets
+          // 4. Sinkronisasi otomatis ke Google Sheets jika URL sudah disetel
           const statusEl = document.getElementById("syncStatusText");
-          if (statusEl) statusEl.textContent = "Sinkronisasi Google Sheets...";
-          this.syncProducts(false);
+          if (State.gasUrl) {
+            if (statusEl) statusEl.textContent = "Sinkronisasi Google Sheets...";
+            this.syncProducts(false);
+          } else {
+            if (statusEl) statusEl.textContent = "Data Lokal (Atur URL di Pengaturan)";
+          }
         } catch (err) {
           console.error("App.init error:", err);
           State.products = [...DEFAULT_PRODUCTS];
@@ -2196,13 +2223,16 @@
       },
 
       saveSettings() {
-        const gasUrl = document.getElementById("gasUrlInput").value.trim() || DEFAULT_GAS_URL;
+        const gasUrl = document.getElementById("gasUrlInput").value.trim();
+        const securityToken = document.getElementById("securityTokenInput").value.trim() || DEFAULT_SECURITY_TOKEN;
         const storeName = document.getElementById("storeNameInput").value.trim() || "TOKO LISTRIK KITA";
         const storeAddr = document.getElementById("storeAddrInput").value.trim() || "";
         const storePhone = document.getElementById("storePhoneInput").value.trim() || "";
 
         State.gasUrl = gasUrl;
+        State.securityToken = securityToken;
         localStorage.setItem(CONFIG.STORAGE_KEY_GAS, gasUrl);
+        localStorage.setItem(CONFIG.STORAGE_KEY_TOKEN, securityToken);
 
         CONFIG.STORE_NAME = storeName;
         CONFIG.STORE_ADDR = storeAddr;
@@ -2213,7 +2243,7 @@
         localStorage.setItem("lk_store_phone", storePhone);
 
         UI.closeSettingsModal();
-        UI.toast("Pengaturan toko & alamat berhasil disimpan!", "success");
+        UI.toast("Pengaturan toko & token keamanan berhasil disimpan!", "success");
 
         if (gasUrl) {
           this.syncProducts(true);
@@ -2232,20 +2262,25 @@
       },
 
       async syncProducts(notify = true) {
-        // Ambil URL terbaru dari State atau localStorage atau hardcoded default
-        const gasUrl = State.gasUrl || localStorage.getItem(CONFIG.STORAGE_KEY_GAS) || DEFAULT_GAS_URL;
-        State.gasUrl = gasUrl;
+        const gasUrl = State.gasUrl;
+        const statusEl = document.getElementById("syncStatusText");
+
+        if (!gasUrl) {
+          if (statusEl) statusEl.textContent = "Data Lokal (Atur URL di Pengaturan)";
+          if (notify) UI.toast("Silakan atur Web App URL di menu Pengaturan.", "info");
+          return;
+        }
 
         this.setRefreshSpinning(true);
-        const statusEl = document.getElementById("syncStatusText");
         if (statusEl) statusEl.textContent = "Sinkronisasi Google Sheets...";
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         try {
-          // Tambahkan timestamp query agar browser tidak mengembalikan cache 302 lama
-          const fetchUrl = `${gasUrl}${gasUrl.includes('?') ? '&' : '?'}action=products&_t=${Date.now()}`;
+          // Sertakan timestamp anti-cache dan token keamanan
+          const tokenParam = State.securityToken ? `&token=${encodeURIComponent(State.securityToken)}` : "";
+          const fetchUrl = `${gasUrl}${gasUrl.includes('?') ? '&' : '?'}action=products&_t=${Date.now()}${tokenParam}`;
           const res = await fetch(fetchUrl, { 
             method: "GET",
             signal: controller.signal
@@ -2365,28 +2400,33 @@
       },
 
       async sendTransactionToCloud(orderData) {
-        const gasUrl = State.gasUrl || DEFAULT_GAS_URL;
+        const gasUrl = State.gasUrl;
         if (!gasUrl) return;
+
+        const payload = {
+          ...orderData,
+          token: State.securityToken || ""
+        };
 
         try {
           await fetch(gasUrl, {
             method: "POST",
             mode: "no-cors",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(orderData)
+            body: JSON.stringify(payload)
           });
           UI.toast("Transaksi tersimpan di Google Sheets!", "success");
         } catch (err) {
           console.warn("Gagal simpan langsung, transaksi disimpan ke antrean offline:", err);
           const pending = JSON.parse(localStorage.getItem("lk_offline_transactions") || "[]");
-          pending.push(orderData);
+          pending.push(payload);
           localStorage.setItem("lk_offline_transactions", JSON.stringify(pending));
           UI.toast("Tersimpan di offline cache (akan dikirim saat online)", "info");
         }
       },
 
       async flushOfflineTransactions() {
-        const gasUrl = State.gasUrl || DEFAULT_GAS_URL;
+        const gasUrl = State.gasUrl;
         if (!gasUrl || !navigator.onLine) return;
 
         try {
@@ -2398,6 +2438,7 @@
           const remaining = [];
           for (const trx of pending) {
             try {
+              trx.token = trx.token || State.securityToken || "";
               await fetch(gasUrl, {
                 method: "POST",
                 mode: "no-cors",
@@ -2453,6 +2494,7 @@
 
         const orderData = {
           action: "checkout",
+          token: State.securityToken || "",
           transactionId: trxId,
           datetime: now.toLocaleString('id-ID'),
           namaPelanggan: customerName,

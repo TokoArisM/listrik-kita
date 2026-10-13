@@ -6,8 +6,16 @@
  * 1. Manajemen Produk (Tambah, Edit, Hapus)
  * 2. Ambil Riwayat Transaksi & Ringkasan Omzet
  * 3. Dukungan Multi Metode Pembayaran, Diskon, dan Nama Pelanggan
+ * 4. Proteksi Keamanan Token / PIN Toko
  * =========================================================================
  */
+
+// =========================================================================
+// KEAMANAN TOKO: Token / PIN Rahasia
+// Ubah PIN ini sesuka Anda. Hanya aplikasi kasir yang memiliki PIN ini
+// yang dapat melihat data produk, omzet, dan melakukan transaksi.
+// =========================================================================
+const SECURITY_TOKEN = "LK-LISTRIK-KITA-2026";
 
 function setupDatabase() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -54,6 +62,14 @@ function setupDatabase() {
  */
 function doGet(e) {
   try {
+    const token = (e && e.parameter && e.parameter.token) || "";
+    if (SECURITY_TOKEN && token !== SECURITY_TOKEN) {
+      return createJsonResponse({
+        status: "error",
+        message: "Akses ditolak: PIN / Token keamanan toko tidak valid."
+      });
+    }
+
     const action = (e && e.parameter && e.parameter.action) || "products";
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -179,6 +195,14 @@ function doPost(e) {
     }
 
     const postData = JSON.parse(e.postData.contents);
+    const token = (postData && postData.token) || (e.parameter && e.parameter.token) || "";
+    if (SECURITY_TOKEN && token !== SECURITY_TOKEN) {
+      return createJsonResponse({
+        status: "error",
+        message: "Akses ditolak: PIN / Token keamanan toko tidak valid."
+      });
+    }
+
     const action = postData.action || "checkout";
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
