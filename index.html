@@ -807,26 +807,11 @@
         </div>
 
         <!-- Opsi Cetak Struk -->
-        <div class="space-y-2 pt-2 border-t border-slate-100">
+        <div class="pt-2 border-t border-slate-100">
           <label class="flex items-center gap-2 cursor-pointer select-none">
             <input type="checkbox" id="chkPrintLogoReceipt" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
             <span class="font-bold text-slate-700 text-xs">Cetak Logo Toko di Kepala Struk</span>
           </label>
-          <div class="flex items-center gap-3 pl-6">
-            <img id="receiptLogoPreview" src="logo-receipt.png" alt="Preview Logo Struk" class="w-12 h-12 object-contain bg-white border border-slate-200 rounded-lg p-1 shadow-sm" />
-            <div class="space-y-1">
-              <input type="file" id="receiptLogoUpload" accept="image/*" class="hidden" onchange="App.handleReceiptLogoUpload(event)" />
-              <div class="flex gap-1.5">
-                <button type="button" onclick="document.getElementById('receiptLogoUpload').click()" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-bold border border-slate-300">
-                  Upload Gambar Baru
-                </button>
-                <button type="button" onclick="App.resetReceiptLogo()" class="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded text-[11px] font-semibold border border-slate-200" title="Kembali ke logo monokrom tajam bawaan">
-                  Reset
-                </button>
-              </div>
-              <p class="text-[10px] text-slate-400">Desain monokrom bawaan dioptimasi khusus printer thermal 58mm.</p>
-            </div>
-          </div>
         </div>
 
         <!-- Bagian Update Versi Aplikasi PWA -->
@@ -834,7 +819,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v30</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v31</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -1137,7 +1122,7 @@
             console.warn("Logo file tidak ditemukan.");
             resolve(null);
           };
-          img.src = localStorage.getItem("lk_custom_receipt_logo") || "logo-receipt.png";
+          img.src = "logo-receipt.png";
         });
       },
 
@@ -1764,11 +1749,6 @@
         document.getElementById("storePhoneInput").value = CONFIG.STORE_PHONE;
         document.getElementById("storeFooterInput").value = CONFIG.STORE_FOOTER;
         document.getElementById("chkPrintLogoReceipt").checked = CONFIG.PRINT_LOGO;
-        const customLogo = localStorage.getItem("lk_custom_receipt_logo");
-        const preview = document.getElementById("receiptLogoPreview");
-        if (preview) {
-          preview.src = customLogo || "logo-receipt.png";
-        }
         document.getElementById("settingsModal").classList.remove("hidden");
       },
 
@@ -3125,31 +3105,6 @@
         if (gasUrl) {
           this.syncProducts(true);
         }
-      },
-
-      handleReceiptLogoUpload(event) {
-        const file = event.target.files && event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const base64 = e.target.result;
-          localStorage.setItem("lk_custom_receipt_logo", base64);
-          PrinterService.logoBytes = null;
-          const preview = document.getElementById("receiptLogoPreview");
-          if (preview) preview.src = base64;
-          PrinterService.loadLogo();
-          UI.toast("Logo struk berhasil diganti!", "success");
-        };
-        reader.readAsDataURL(file);
-      },
-
-      resetReceiptLogo() {
-        localStorage.removeItem("lk_custom_receipt_logo");
-        PrinterService.logoBytes = null;
-        const preview = document.getElementById("receiptLogoPreview");
-        if (preview) preview.src = "logo-receipt.png";
-        PrinterService.loadLogo();
-        UI.toast("Logo struk dikembalikan ke logo monokrom tajam bawaan.", "info");
       },
 
       setRefreshSpinning(spinning) {
