@@ -834,7 +834,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v29</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v30</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -1074,9 +1074,9 @@
           img.crossOrigin = "Anonymous";
           img.onload = () => {
             try {
-              // Ukuran 160x160 dot menghasilkan logo 2cm di struk 58mm, sangat jelas & terbaca sempurna
-              const targetW = 160;
-              const targetH = 160;
+              // Ukuran 128x128 dot (1.6cm) sangat pas di struk 58mm: teks "Listrik Kita" terbaca jelas & cetak kilat (~1.0 detik)
+              const targetW = 128;
+              const targetH = 128;
               const canvas = document.createElement("canvas");
               canvas.width = targetW;
               canvas.height = targetH;
@@ -1089,12 +1089,12 @@
               const imgData = ctx.getImageData(0, 0, targetW, targetH).data;
 
               // Centering di printer thermal 384 dot (58mm):
-              // Padding kiri = (384 - 160) / 2 = 112 dot = 14 byte
-              // Lebar logo = 160 dot = 20 byte
-              // Total lebar baris = 14 + 20 = 34 byte
-              const leftPaddingBytes = 14;
-              const logoWidthBytes = targetW / 8; // 20
-              const rowBytes = leftPaddingBytes + logoWidthBytes; // 34
+              // Padding kiri = (384 - 128) / 2 = 128 dot = 16 byte
+              // Lebar logo = 128 dot = 16 byte
+              // Total lebar baris = 16 + 16 = 32 byte (tepat 1 packet BLE 32 byte per baris cetak!)
+              const leftPaddingBytes = 16;
+              const logoWidthBytes = targetW / 8; // 16
+              const rowBytes = leftPaddingBytes + logoWidthBytes; // 32
 
               const xL = rowBytes % 256;
               const xH = Math.floor(rowBytes / 256);
@@ -3062,7 +3062,14 @@
             if (statusEl) statusEl.textContent = "Data Lokal (Atur URL di Pengaturan)";
           }
 
-          // 5. Pre-load raster logo printer di background
+          // 5. Pastikan menggunakan logo resmi bawaan terbaru jika baru upgrade v30
+          if (localStorage.getItem("lk_logo_v30") !== "1") {
+            localStorage.removeItem("lk_custom_receipt_logo");
+            localStorage.setItem("lk_logo_v30", "1");
+            PrinterService.logoBytes = null;
+          }
+
+          // 6. Pre-load raster logo printer di background
           PrinterService.loadLogo().catch(() => {});
         } catch (err) {
           console.error("App.init error:", err);
