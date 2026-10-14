@@ -1,4 +1,4 @@
-const CACHE_NAME = 'listrik-kita-pos-v28';
+const CACHE_NAME = 'listrik-kita-pos-v29';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -22,7 +22,7 @@ self.addEventListener('message', (event) => {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell (v28 - Optimasi Kecepatan Cetak Logo Bluetooth)...');
+      console.log('[Service Worker] Caching app shell (v29 - Logo Resmi Struk Hitam Putih)...');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
         console.warn('[Service Worker] Partial cache failure:', err);
       });
