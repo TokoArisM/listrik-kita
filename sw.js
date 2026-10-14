@@ -1,4 +1,4 @@
-const CACHE_NAME = 'listrik-kita-pos-v22';
+const CACHE_NAME = 'listrik-kita-pos-v23';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -10,11 +10,18 @@ const ASSETS_TO_CACHE = [
   './icons/icon-512.png'
 ];
 
+// Listener pesan dari aplikasi (untuk tombol "Perbarui Sekarang")
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Install Event - Caching semua aset aplikasi
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell (v17 - Auto Update)...');
+      console.log('[Service Worker] Caching app shell (v23 - Auto Update PWA)...');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
         console.warn('[Service Worker] Partial cache failure:', err);
       });
