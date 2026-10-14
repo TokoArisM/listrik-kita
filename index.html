@@ -799,12 +799,31 @@
           />
         </div>
 
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Pesan / Catatan Bagian Bawah Struk (Footer):</label>
+          <textarea 
+            id="storeFooterInput" 
+            rows="2" 
+            placeholder="Terima Kasih Atas Kunjungan Anda&#10;Barang yang sudah dibeli tidak dapat ditukar/dikembalikan." 
+            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+          ></textarea>
+        </div>
+
+        <!-- Opsi Cetak Struk -->
+        <div class="space-y-1 pt-1">
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="chkPrintLogoReceipt" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
+            <span class="font-bold text-slate-700 text-xs">Cetak Logo Toko di Kepala Struk</span>
+          </label>
+          <p class="text-[11px] text-slate-400 pl-6">Mencetak grafis logo bulat LISTRIK KITA di atas nama toko.</p>
+        </div>
+
         <!-- Bagian Update Versi Aplikasi PWA -->
         <div class="pt-3 border-t border-slate-200">
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v23</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v24</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -1006,6 +1025,10 @@
       STORE_NAME: localStorage.getItem("lk_store_name") || "TOKO LISTRIK KITA",
       STORE_ADDR: localStorage.getItem("lk_store_addr") || "Jl. Raya Listrik No. 88, Cibinong",
       STORE_PHONE: localStorage.getItem("lk_store_phone") || "0856-5954-9991",
+      STORE_FOOTER: localStorage.getItem("lk_store_footer") !== null
+        ? localStorage.getItem("lk_store_footer")
+        : "Terima Kasih Atas Kunjungan Anda\nBarang yang sudah dibeli tidak dapat ditukar/dikembalikan.",
+      PRINT_LOGO: localStorage.getItem("lk_print_logo") === "true",
       STORAGE_KEY_GAS: "lk_gas_url",
       STORAGE_KEY_TOKEN: "lk_security_token",
       STORAGE_KEY_PRODUCTS: "lk_products_cache"
@@ -1031,6 +1054,80 @@
       device: null,
       characteristic: null,
       isConnected: false,
+      logoBytes: null,
+
+      async loadLogo() {
+        if (this.logoBytes) return this.logoBytes;
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "Anonymous";
+          img.onload = () => {
+            try {
+              const targetW = 160;
+              const targetH = 160;
+              const canvas = document.createElement("canvas");
+              canvas.width = targetW;
+              canvas.height = targetH;
+              const ctx = canvas.getContext("2d");
+
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(0, 0, targetW, targetH);
+              ctx.drawImage(img, 0, 0, targetW, targetH);
+
+              const imgData = ctx.getImageData(0, 0, targetW, targetH).data;
+
+              // Centering on 384-dot thermal printer:
+              // Left margin = (384 - 160) / 2 = 112 dots = 14 bytes
+              // Logo width = 160 dots = 20 bytes
+              // Total row width = 14 + 20 = 34 bytes
+              const leftPaddingBytes = 14;
+              const logoWidthBytes = targetW / 8; // 20
+              const rowBytes = leftPaddingBytes + logoWidthBytes; // 34
+
+              const xL = rowBytes % 256;
+              const xH = Math.floor(rowBytes / 256);
+              const yL = targetH % 256;
+              const yH = Math.floor(targetH / 256);
+
+              const raster = [];
+              for (let y = 0; y < targetH; y++) {
+                // Left margin padding dots
+                for (let p = 0; p < leftPaddingBytes; p++) {
+                  raster.push(0);
+                }
+                // Logo 1-bit bitmap dots (MSB first)
+                for (let x = 0; x < targetW; x += 8) {
+                  let byte = 0;
+                  for (let b = 0; b < 8; b++) {
+                    const idx = ((y * targetW) + (x + b)) * 4;
+                    const r = imgData[idx];
+                    const g = imgData[idx + 1];
+                    const bVal = imgData[idx + 2];
+                    const a = imgData[idx + 3];
+                    const gray = a < 128 ? 255 : (0.299 * r + 0.587 * g + 0.114 * bVal);
+                    if (gray < 175) {
+                      byte |= (1 << (7 - b));
+                    }
+                  }
+                  raster.push(byte);
+                }
+              }
+
+              // ESC/POS GS v 0 0 xL xH yL yH [data]
+              this.logoBytes = [29, 118, 48, 0, xL, xH, yL, yH, ...raster];
+              resolve(this.logoBytes);
+            } catch (err) {
+              console.warn("Gagal membuat raster logo:", err);
+              resolve(null);
+            }
+          };
+          img.onerror = () => {
+            console.warn("Logo file tidak ditemukan.");
+            resolve(null);
+          };
+          img.src = "logo.png";
+        });
+      },
 
       PRINTER_SERVICES: [
         '000018f0-0000-1000-8000-00805f9b34fb',
@@ -1170,19 +1267,44 @@
         // Inisialisasi: ESC @
         append(27, 64);
 
+        // Cetak Logo Toko (jika diaktifkan di Pengaturan dan buffer logo sudah siap)
+        if (CONFIG.PRINT_LOGO && this.logoBytes) {
+          append(...this.logoBytes);
+          append(10); // feed line kecil pemisah logo dan header
+        }
+
         // Center Align: ESC a 1
         append(27, 97, 1);
-        append(27, 69, 1); // Bold ON
-        appendText(CONFIG.STORE_NAME + "\n");
+
+        // Nama Toko: Cetak Tebal & Lebih Besar
+        const storeName = CONFIG.STORE_NAME || "TOKO LISTRIK KITA";
+        const isShortName = storeName.length <= 16;
+        append(27, 33, isShortName ? 56 : 24); // ESC ! 56: Double Width+Height+Bold, 24: Double Height+Bold
+        append(27, 69, 1); // Extra Bold ON
+        appendText(storeName + "\n");
+        append(27, 33, 0); // Reset ukuran font standar
         append(27, 69, 0); // Bold OFF
-        appendText(CONFIG.STORE_ADDR + "\n");
-        appendText("Telp: " + CONFIG.STORE_PHONE + "\n");
+
+        if (CONFIG.STORE_ADDR) appendText(CONFIG.STORE_ADDR + "\n");
+        if (CONFIG.STORE_PHONE) appendText("Telp: " + CONFIG.STORE_PHONE + "\n");
         appendText("================================\n");
 
         // Info Transaksi: ESC a 0 (Kiri)
         append(27, 97, 0);
         appendText("No. Trx : " + orderData.transactionId + "\n");
-        appendText("Waktu   : " + orderData.datetime + "\n");
+
+        const formatCleanDate = (dt) => {
+          if (!dt) return "-";
+          try {
+            const d = new Date(dt);
+            if (!isNaN(d.getTime())) {
+              const pad = (n) => String(n).padStart(2, '0');
+              return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            }
+          } catch (e) {}
+          return String(dt).substring(0, 19);
+        };
+        appendText("Waktu   : " + formatCleanDate(orderData.datetime) + "\n");
         appendText("Kasir   : Admin Kasir\n");
         if (orderData.namaPelanggan && orderData.namaPelanggan !== "Umum") {
           appendText("Konsumen: " + orderData.namaPelanggan + "\n");
@@ -1223,11 +1345,16 @@
         }
         appendText("================================\n");
 
-        // Footer
+        // Footer Kustom (Tengah)
         append(27, 97, 1);
-        appendText("Terima Kasih Atas Kunjungan Anda\n");
-        appendText("Barang yang sudah dibeli tidak\n");
-        appendText("dapat ditukar/dikembalikan.\n\n");
+        const footerText = CONFIG.STORE_FOOTER || "Terima Kasih Atas Kunjungan Anda\nBarang yang sudah dibeli tidak dapat ditukar/dikembalikan.";
+        const footerLines = footerText.split("\n");
+        footerLines.forEach(line => {
+          const trimmed = line.trim();
+          if (trimmed) {
+            appendText(trimmed + "\n");
+          }
+        });
         append(10, 10, 10); // Feed Paper
 
         // TRIGGER KICK LACI KASIR RJ11: [27, 112, 0, 25, 250]
@@ -1618,6 +1745,8 @@
         document.getElementById("storeNameInput").value = CONFIG.STORE_NAME;
         document.getElementById("storeAddrInput").value = CONFIG.STORE_ADDR;
         document.getElementById("storePhoneInput").value = CONFIG.STORE_PHONE;
+        document.getElementById("storeFooterInput").value = CONFIG.STORE_FOOTER;
+        document.getElementById("chkPrintLogoReceipt").checked = CONFIG.PRINT_LOGO;
         document.getElementById("settingsModal").classList.remove("hidden");
       },
 
@@ -2326,6 +2455,10 @@
             metodePembayaran: trx.metode
           };
 
+          if (CONFIG.PRINT_LOGO) {
+            await PrinterService.loadLogo();
+          }
+
           const bytes = PrinterService.buildReceiptBytes(orderData, false);
           await PrinterService.sendBytes(bytes);
           UI.toast("Struk berhasil dicetak ulang!", "success");
@@ -2906,6 +3039,9 @@
           } else {
             if (statusEl) statusEl.textContent = "Data Lokal (Atur URL di Pengaturan)";
           }
+
+          // 5. Pre-load raster logo printer di background
+          PrinterService.loadLogo().catch(() => {});
         } catch (err) {
           console.error("App.init error:", err);
           State.products = [...DEFAULT_PRODUCTS];
@@ -2934,6 +3070,8 @@
         const storeName = document.getElementById("storeNameInput").value.trim() || "TOKO LISTRIK KITA";
         const storeAddr = document.getElementById("storeAddrInput").value.trim() || "";
         const storePhone = document.getElementById("storePhoneInput").value.trim() || "";
+        const storeFooter = document.getElementById("storeFooterInput").value.trim() || "Terima Kasih Atas Kunjungan Anda\nBarang yang sudah dibeli tidak dapat ditukar/dikembalikan.";
+        const printLogo = document.getElementById("chkPrintLogoReceipt").checked;
 
         State.gasUrl = gasUrl;
         State.securityToken = securityToken;
@@ -2943,13 +3081,17 @@
         CONFIG.STORE_NAME = storeName;
         CONFIG.STORE_ADDR = storeAddr;
         CONFIG.STORE_PHONE = storePhone;
+        CONFIG.STORE_FOOTER = storeFooter;
+        CONFIG.PRINT_LOGO = printLogo;
 
         localStorage.setItem("lk_store_name", storeName);
         localStorage.setItem("lk_store_addr", storeAddr);
         localStorage.setItem("lk_store_phone", storePhone);
+        localStorage.setItem("lk_store_footer", storeFooter);
+        localStorage.setItem("lk_print_logo", printLogo ? "true" : "false");
 
         UI.closeSettingsModal();
-        UI.toast("Pengaturan toko & token keamanan berhasil disimpan!", "success");
+        UI.toast("Pengaturan toko & printer struk berhasil disimpan!", "success");
 
         if (gasUrl) {
           this.syncProducts(true);
@@ -3233,6 +3375,9 @@
         if (shouldPrint || shouldKickDrawer) {
           if (PrinterService.isConnected) {
             try {
+              if (CONFIG.PRINT_LOGO) {
+                await PrinterService.loadLogo();
+              }
               const bytes = PrinterService.buildReceiptBytes(orderData, shouldKickDrawer);
               await PrinterService.sendBytes(bytes);
               UI.toast("Struk dicetak & laci kasir dibuka!", "success");
