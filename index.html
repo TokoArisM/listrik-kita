@@ -2453,11 +2453,7 @@
           return;
         }
 
-        const btn = document.getElementById("btnSubmitRestock");
-        btn.disabled = true;
-        btn.textContent = "Menyimpan...";
-
-        // Update lokal instan
+        // 1. Update lokal instan (Zero Delay - Langsung Tutup Modal)
         const p = State.products.find(x => x.id === id);
         if (p) {
           p.stok = (Number(p.stok) || 0) + addQty;
@@ -2466,32 +2462,27 @@
           this.renderTable();
           App.filterAndRenderProducts();
         }
-
-        // Kirim ke Google Sheets
-        if (State.gasUrl) {
-          try {
-            await fetch(State.gasUrl, {
-              method: "POST",
-              mode: "no-cors",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                action: "restock_product",
-                token: State.securityToken || "",
-                id: id,
-                addQty: addQty,
-                newHargaModal: newHargaModal,
-                keterangan: keterangan
-              })
-            });
-            UI.toast(`Stok ${p ? p.nama : id} bertambah +${addQty}!`, "success");
-          } catch (err) {
-            console.warn("Restock sync warning:", err);
-          }
-        }
-
-        btn.disabled = false;
-        btn.textContent = "Simpan Stok Masuk";
         this.closeRestockModal();
+        UI.toast(`Stok ${p ? p.nama : id} bertambah +${addQty}!`, "success");
+
+        // 2. Kirim ke Google Sheets di background
+        if (State.gasUrl) {
+          fetch(State.gasUrl, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "restock_product",
+              token: State.securityToken || "",
+              id: id,
+              addQty: addQty,
+              newHargaModal: newHargaModal,
+              keterangan: keterangan
+            })
+          }).catch(err => {
+            console.warn("Restock sync warning:", err);
+          });
+        }
       },
 
       // --- TONG SAMPAH & PULIHKAN (RESTORE SAFETY) ---
@@ -2554,22 +2545,20 @@
 
         UI.toast(`Produk ${item.nama} berhasil dipulihkan ke katalog!`, "success");
 
-        // Kirim restore ke Google Sheets
+        // Kirim restore ke Google Sheets di background
         if (State.gasUrl) {
-          try {
-            await fetch(State.gasUrl, {
-              method: "POST",
-              mode: "no-cors",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                action: "restore_product",
-                token: State.securityToken || "",
-                id: id
-              })
-            });
-          } catch (err) {
+          fetch(State.gasUrl, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "restore_product",
+              token: State.securityToken || "",
+              id: id
+            })
+          }).catch(err => {
             console.warn("Restore sync warning:", err);
-          }
+          });
         }
       },
 
@@ -2779,11 +2768,7 @@
           isEdit: !!this.editingId
         };
 
-        const btnSave = document.getElementById("btnSaveProduct");
-        btnSave.disabled = true;
-        btnSave.textContent = "Menyimpan...";
-
-        // 1. Update data lokal terlebih dahulu (responsif instan)
+        // 1. Update data lokal & UI secara INSTAN (Zero Delay - Langsung Tutup Modal)
         const idx = State.products.findIndex(p => p.id === payload.id);
         if (idx >= 0) {
           State.products[idx] = { ...payload };
@@ -2794,25 +2779,20 @@
         this.renderTable();
         App.renderCategories();
         App.filterAndRenderProducts();
-
-        // 2. Kirim update ke Google Sheets
-        if (State.gasUrl) {
-          try {
-            await fetch(State.gasUrl, {
-              method: "POST",
-              mode: "no-cors",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload)
-            });
-            UI.toast("Produk berhasil disimpan ke Google Sheets!", "success");
-          } catch (err) {
-            console.warn("Gagal simpan produk ke Sheets:", err);
-          }
-        }
-
-        btnSave.disabled = false;
-        btnSave.textContent = "Simpan Produk";
         this.closeModal();
+        UI.toast("Produk berhasil disimpan!", "success");
+
+        // 2. Kirim update ke Google Sheets di LATAR BELAKANG (tidak menahan layar kasir)
+        if (State.gasUrl) {
+          fetch(State.gasUrl, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          }).catch(err => {
+            console.warn("Gagal simpan produk ke Sheets:", err);
+          });
+        }
       },
 
       async deleteProduct(id) {
@@ -2835,23 +2815,22 @@
         App.renderCategories();
         App.filterAndRenderProducts();
 
+        UI.toast(`Produk ${nama} dipindahkan ke Tong Sampah.`, "info");
+
         if (State.gasUrl) {
-          try {
-            await fetch(State.gasUrl, {
-              method: "POST",
-              mode: "no-cors",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                action: "delete_product", 
-                id: id, 
-                reason: "Dihapus dari aplikasi POS",
-                token: State.securityToken || "" 
-              })
-            });
-            UI.toast(`Produk ${nama} dipindahkan ke Tong Sampah.`, "info");
-          } catch (err) {
+          fetch(State.gasUrl, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              action: "delete_product", 
+              id: id, 
+              reason: "Dihapus dari aplikasi POS",
+              token: State.securityToken || "" 
+            })
+          }).catch(err => {
             console.warn("Delete error:", err);
-          }
+          });
         }
       }
     };
