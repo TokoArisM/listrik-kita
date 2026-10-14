@@ -1,8 +1,9 @@
-const CACHE_NAME = 'listrik-kita-pos-v26';
+const CACHE_NAME = 'listrik-kita-pos-v27';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './logo.png',
+  './logo-receipt.png',
   './manifest.json',
   './tailwind.min.js',
   './lucide.min.js',
@@ -21,7 +22,7 @@ self.addEventListener('message', (event) => {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell (v26 - Hapus Helper Text Pengaturan)...');
+      console.log('[Service Worker] Caching app shell (v27 - Logo Struk Monokrom Presisi)...');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
         console.warn('[Service Worker] Partial cache failure:', err);
       });
