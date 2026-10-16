@@ -645,17 +645,30 @@
 
               <!-- Controls -->
               <div class="flex-1 min-w-0">
-                <input type="file" id="pfPhotoInput" accept="image/*" class="hidden" onchange="ProductManager.handlePhotoSelected(event)" />
+                <!-- Input Khusus Kamera Langsung Android (capture="environment") -->
+                <input type="file" id="pfPhotoCameraInput" accept="image/*" capture="environment" class="hidden" onchange="ProductManager.handlePhotoSelected(event)" />
+                <!-- Input Khusus Galeri / File -->
+                <input type="file" id="pfPhotoGalleryInput" accept="image/*" class="hidden" onchange="ProductManager.handlePhotoSelected(event)" />
+                
                 <input type="hidden" id="pfPhotoBase64" value="" />
                 <input type="hidden" id="pfPhotoExistingUrl" value="" />
-                <div class="flex items-center gap-2">
-                  <button type="button" onclick="document.getElementById('pfPhotoInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><line x1="16" y1="5" x2="22" y2="5"/><line x1="19" y1="2" x2="19" y2="8"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                    <span id="pfBtnUploadLabel">Pilih / Jepret Foto</span>
+                
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <!-- Tombol Jepret Kamera Langsung -->
+                  <button type="button" onclick="document.getElementById('pfPhotoCameraInput').click()" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                    <span>Kamera HP</span>
                   </button>
+
+                  <!-- Tombol Pilih Galeri / File -->
+                  <button type="button" onclick="document.getElementById('pfPhotoGalleryInput').click()" class="px-2.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                    <span>Galeri</span>
+                  </button>
+
                   <span id="pfPhotoSizeInfo" class="text-[10px] text-emerald-600 font-bold hidden"></span>
                 </div>
-                <p class="text-[10px] text-slate-500 mt-1 leading-tight">Otomatis di-resize 200x200 px (format WebP) agar sangat hemat RAM dan cepat dimuat.</p>
+                <p class="text-[10px] text-slate-500 mt-1 leading-tight">Otomatis di-resize 200x200 px (WebP) agar sangat hemat RAM dan cepat dimuat.</p>
               </div>
             </div>
           </div>
@@ -877,7 +890,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v33</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v34</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -3055,8 +3068,10 @@
       },
 
       removePhoto() {
-        const input = document.getElementById("pfPhotoInput");
-        if (input) input.value = "";
+        const camInput = document.getElementById("pfPhotoCameraInput");
+        if (camInput) camInput.value = "";
+        const galInput = document.getElementById("pfPhotoGalleryInput");
+        if (galInput) galInput.value = "";
         const b64 = document.getElementById("pfPhotoBase64");
         if (b64) b64.value = "";
         const exUrl = document.getElementById("pfPhotoExistingUrl");
@@ -3065,7 +3080,6 @@
         const img = document.getElementById("pfPhotoPreviewImg");
         const placeholder = document.getElementById("pfPhotoPlaceholder");
         const btnRemove = document.getElementById("pfBtnRemovePhoto");
-        const btnLabel = document.getElementById("pfBtnUploadLabel");
         const sizeInfo = document.getElementById("pfPhotoSizeInfo");
 
         if (img) {

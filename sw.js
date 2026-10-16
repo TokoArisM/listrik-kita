@@ -1,4 +1,4 @@
-const CACHE_NAME = 'listrik-kita-pos-v33';
+const CACHE_NAME = 'listrik-kita-pos-v34';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -22,7 +22,7 @@ self.addEventListener('message', (event) => {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell (v33 - Katalog Foto Produk Ringan & Auto-Compress 15KB)...');
+      console.log('[Service Worker] Caching app shell (v34 - Tombol Kamera HP Langsung & Galeri)...');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
         console.warn('[Service Worker] Partial cache failure:', err);
       });
