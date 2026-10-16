@@ -890,7 +890,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v34</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v35</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -3039,20 +3039,22 @@
           UI.toast("Mengompres foto...", "info");
           const compressedBase64 = await ImageCompressor.compress(file, 200, 0.75);
           
-          document.getElementById("pfPhotoBase64").value = compressedBase64;
-          document.getElementById("pfPhotoExistingUrl").value = "";
+          const b64El = document.getElementById("pfPhotoBase64");
+          if (b64El) b64El.value = compressedBase64;
+          const exUrlEl = document.getElementById("pfPhotoExistingUrl");
+          if (exUrlEl) exUrlEl.value = "";
           
           const img = document.getElementById("pfPhotoPreviewImg");
           const placeholder = document.getElementById("pfPhotoPlaceholder");
           const btnRemove = document.getElementById("pfBtnRemovePhoto");
-          const btnLabel = document.getElementById("pfBtnUploadLabel");
           const sizeInfo = document.getElementById("pfPhotoSizeInfo");
 
-          img.src = compressedBase64;
-          img.classList.remove("hidden");
-          placeholder.classList.add("hidden");
-          btnRemove.classList.remove("hidden");
-          if (btnLabel) btnLabel.textContent = "Ganti Foto";
+          if (img) {
+            img.src = compressedBase64;
+            img.classList.remove("hidden");
+          }
+          if (placeholder) placeholder.classList.add("hidden");
+          if (btnRemove) btnRemove.classList.remove("hidden");
 
           // Hitung ukuran KB
           const approxKb = Math.round((compressedBase64.length * 3 / 4) / 1024);
@@ -3088,7 +3090,6 @@
         }
         if (placeholder) placeholder.classList.remove("hidden");
         if (btnRemove) btnRemove.classList.add("hidden");
-        if (btnLabel) btnLabel.textContent = "Pilih / Jepret Foto";
         if (sizeInfo) {
           sizeInfo.textContent = "";
           sizeInfo.classList.add("hidden");
@@ -3107,37 +3108,41 @@
         if (productId) {
           const p = State.products.find(x => x.id === productId);
           if (!p) return;
-          title.textContent = `Edit Produk (${p.id})`;
-          pfId.value = p.id;
-          pfId.readOnly = true;
-          pfNama.value = p.nama;
+          if (title) title.textContent = `Edit Produk (${p.id})`;
+          if (pfId) {
+            pfId.value = p.id;
+            pfId.readOnly = true;
+          }
+          if (pfNama) pfNama.value = p.nama;
           this.setupCategoryAndUnitOptions(p.kategori, p.satuan || "pcs");
           if (pfHargaModal) pfHargaModal.value = Number(p.hargaModal) > 0 ? p.hargaModal : "";
-          pfHarga.value = p.harga;
-          pfStok.value = p.stok;
+          if (pfHarga) pfHarga.value = p.harga;
+          if (pfStok) pfStok.value = p.stok;
 
           // Load Foto jika ada
           if (p.foto) {
             const img = document.getElementById("pfPhotoPreviewImg");
             const placeholder = document.getElementById("pfPhotoPlaceholder");
             const btnRemove = document.getElementById("pfBtnRemovePhoto");
-            const btnLabel = document.getElementById("pfBtnUploadLabel");
             const sizeInfo = document.getElementById("pfPhotoSizeInfo");
 
-            img.src = p.foto;
-            img.classList.remove("hidden");
-            placeholder.classList.add("hidden");
-            btnRemove.classList.remove("hidden");
-            if (btnLabel) btnLabel.textContent = "Ganti Foto";
+            if (img) {
+              img.src = p.foto;
+              img.classList.remove("hidden");
+            }
+            if (placeholder) placeholder.classList.add("hidden");
+            if (btnRemove) btnRemove.classList.remove("hidden");
             if (sizeInfo) sizeInfo.classList.add("hidden");
 
-            document.getElementById("pfPhotoExistingUrl").value = p.foto;
-            document.getElementById("pfPhotoBase64").value = "";
+            const exUrlEl = document.getElementById("pfPhotoExistingUrl");
+            if (exUrlEl) exUrlEl.value = p.foto;
+            const b64El = document.getElementById("pfPhotoBase64");
+            if (b64El) b64El.value = "";
           } else {
             this.removePhoto();
           }
         } else {
-          title.textContent = "Tambah Produk Baru";
+          if (title) title.textContent = "Tambah Produk Baru";
           let maxPidNum = 0;
           (State.products || []).forEach(p => {
             const match = String(p.id || "").match(/^P(\d+)$/i);
@@ -3146,18 +3151,21 @@
               if (num > maxPidNum) maxPidNum = num;
             }
           });
-          pfId.value = "P" + String(maxPidNum + 1).padStart(3, '0');
-          pfId.readOnly = false;
-          pfNama.value = "";
+          if (pfId) {
+            pfId.value = "P" + String(maxPidNum + 1).padStart(3, '0');
+            pfId.readOnly = false;
+          }
+          if (pfNama) pfNama.value = "";
           this.setupCategoryAndUnitOptions("Lampu", "pcs");
           if (pfHargaModal) pfHargaModal.value = "";
-          pfHarga.value = "";
-          pfStok.value = "";
+          if (pfHarga) pfHarga.value = "";
+          if (pfStok) pfStok.value = "";
           this.removePhoto();
         }
 
         this.calculateProfitPreview();
-        document.getElementById("productFormModal").classList.remove("hidden");
+        const modal = document.getElementById("productFormModal");
+        if (modal) modal.classList.remove("hidden");
       },
 
       closeModal() {
