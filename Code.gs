@@ -24,15 +24,21 @@ function setupDatabase() {
   let sheetProduk = ss.getSheetByName("Produk");
   if (!sheetProduk) {
     sheetProduk = ss.insertSheet("Produk");
-    sheetProduk.appendRow(["ID", "Nama", "Kategori", "Harga", "Stok", "Satuan", "HargaModal"]);
-    sheetProduk.appendRow(["P001", "Lampu LED Philips 10W Putih", "Lampu", 35000, 50, "pcs", 27000]);
-    sheetProduk.appendRow(["P002", "Stop Kontak Broco 4L + Kabel 3M", "Kabel & Stopkontak", 65000, 20, "pcs", 50000]);
-    sheetProduk.appendRow(["P003", "Kabel NYM Eterna 2x1.5mm (Meter)", "Kabel & Stopkontak", 12000, 100, "meter", 9500]);
-    sheetProduk.appendRow(["P004", "MCB Schneider 10A 1 Phase", "MCB & Box", 55000, 15, "pcs", 42000]);
-    sheetProduk.appendRow(["P005", "Saklar Ganda Panasonic Seri WESJ", "Saklar", 38000, 30, "pcs", 29000]);
-    sheetProduk.appendRow(["P006", "Isolasi Listrik Unibell Hitam", "Aksesoris", 7000, 80, "roll", 4500]);
-    sheetProduk.appendRow(["P007", "Fitting Lampu Plafon Broco Standard", "Lampu", 15000, 45, "pcs", 10000]);
-    sheetProduk.appendRow(["P008", "Tespen Listrik Obeng Bolak Balik", "Alat & Tool", 18000, 25, "pcs", 12000]);
+    sheetProduk.appendRow(["ID", "Nama", "Kategori", "Harga", "Stok", "Satuan", "HargaModal", "Foto"]);
+    sheetProduk.appendRow(["P001", "Lampu LED Philips 10W Putih", "Lampu", 35000, 50, "pcs", 27000, ""]);
+    sheetProduk.appendRow(["P002", "Stop Kontak Broco 4L + Kabel 3M", "Kabel & Stopkontak", 65000, 20, "pcs", 50000, ""]);
+    sheetProduk.appendRow(["P003", "Kabel NYM Eterna 2x1.5mm (Meter)", "Kabel & Stopkontak", 12000, 100, "meter", 9500, ""]);
+    sheetProduk.appendRow(["P004", "MCB Schneider 10A 1 Phase", "MCB & Box", 55000, 15, "pcs", 42000, ""]);
+    sheetProduk.appendRow(["P005", "Saklar Ganda Panasonic Seri WESJ", "Saklar", 38000, 30, "pcs", 29000, ""]);
+    sheetProduk.appendRow(["P006", "Isolasi Listrik Unibell Hitam", "Aksesoris", 7000, 80, "roll", 4500, ""]);
+    sheetProduk.appendRow(["P007", "Fitting Lampu Plafon Broco Standard", "Lampu", 15000, 45, "pcs", 10000, ""]);
+    sheetProduk.appendRow(["P008", "Tespen Listrik Obeng Bolak Balik", "Alat & Tool", 18000, 25, "pcs", 12000, ""]);
+  } else {
+    // Tambah header Foto otomatis jika belum ada di kolom 8
+    const lastCol = sheetProduk.getLastColumn();
+    if (lastCol < 8) {
+      sheetProduk.getRange(1, 8).setValue("Foto");
+    }
   }
 
   // 2. Setup Sheet Transaksi
@@ -42,7 +48,7 @@ function setupDatabase() {
     sheetTransaksi.appendRow([
       "ID Transaksi", 
       "Waktu", 
-      "Pelanggan",
+      "Pelanggan", 
       "Detail Item", 
       "Subtotal",
       "Diskon",
@@ -99,7 +105,8 @@ function doGet(e) {
         harga: Number(row[3]) || 0,
         stok: Number(row[4]) || 0,
         satuan: String(row[5] || "pcs").trim(),
-        hargaModal: Number(row[6]) || 0
+        hargaModal: Number(row[6]) || 0,
+        foto: String(row[7] || "").trim()
       });
     }
 
@@ -311,12 +318,58 @@ function handleCheckout(ss, data) {
 }
 
 /**
+ * Simpan base64 foto ke folder Google Drive toko dan kembalikan URL langsungnya
+ */
+function saveImageToDrive(base64Data, filename) {
+  try {
+    const folderName = "FOTO_PRODUK_LISTRIK_KITA";
+    let folders = DriveApp.getFoldersByName(folderName);
+    let folder;
+    if (folders.hasNext()) {
+      folder = folders.next();
+    } else {
+      folder = DriveApp.createFolder(folderName);
+      folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    }
+
+    let contentType = "image/webp";
+    let stripped = base64Data;
+    if (base64Data.indexOf(",") > -1) {
+      const parts = base64Data.split(",");
+      const match = parts[0].match(/:(.*?);/);
+      if (match) contentType = match[1];
+      stripped = parts[1];
+    }
+    const decoded = Utilities.base64Decode(stripped);
+    const blob = Utilities.newBlob(decoded, contentType, filename);
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    // Gunakan URL Google User Content yang sangat cepat dimuat
+    return "https://lh3.googleusercontent.com/d/" + file.getId();
+  } catch (err) {
+    Logger.log("Gagal simpan ke Drive: " + err.toString());
+    return "";
+  }
+}
+
+/**
  * Handle Tambah / Update Produk (Optimized Batch Update & Logging)
  */
 function handleSaveProduct(ss, payload) {
-  const { id, nama, kategori, harga, stok, satuan, hargaModal, isEdit } = payload;
+  const { id, nama, kategori, harga, stok, satuan, hargaModal, foto, fotoBase64, isEdit } = payload;
   const sheetProduk = ss.getSheetByName("Produk");
   if (!sheetProduk) throw new Error("Sheet Produk tidak ditemukan.");
+
+  // Proses upload foto ke Drive jika ada payload fotoBase64 baru
+  let finalFotoUrl = foto || "";
+  if (fotoBase64 && String(fotoBase64).startsWith("data:image")) {
+    const targetFilename = `PROD_${(id || "NEW").replace(/[^a-zA-Z0-9]/g, "_")}_${Date.now()}.webp`;
+    const uploadedUrl = saveImageToDrive(fotoBase64, targetFilename);
+    if (uploadedUrl) {
+      finalFotoUrl = uploadedUrl;
+    }
+  }
 
   const values = sheetProduk.getDataRange().getValues();
   let targetRow = -1;
@@ -340,14 +393,15 @@ function handleSaveProduct(ss, payload) {
   const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
 
   if (targetRow > 0) {
-    // Update data produk sekaligus dalam 1 batch call (kolom 2 s/d 7)
-    sheetProduk.getRange(targetRow, 2, 1, 6).setValues([[
+    // Update data produk sekaligus dalam 1 batch call (kolom 2 s/d 8)
+    sheetProduk.getRange(targetRow, 2, 1, 7).setValues([[
       nama,
       kategori || "Lainnya",
       Number(harga) || 0,
       Number(stok) || 0,
       satuan || "pcs",
-      Number(hargaModal) || 0
+      Number(hargaModal) || 0,
+      finalFotoUrl
     ]]);
 
     // Log jika ada perubahan stok saat edit
@@ -363,7 +417,11 @@ function handleSaveProduct(ss, payload) {
       });
     }
 
-    return createJsonResponse({ status: "success", message: `Produk ${id} berhasil diperbarui.` });
+    return createJsonResponse({ 
+      status: "success", 
+      message: `Produk ${id} berhasil diperbarui.`,
+      fotoUrl: finalFotoUrl
+    });
   } else {
     // Tambah baris baru dengan ID anti-bentrok
     const newId = id || ("P" + String(maxPidNum + 1).padStart(3, "0"));
@@ -374,7 +432,8 @@ function handleSaveProduct(ss, payload) {
       Number(harga) || 0,
       Number(stok) || 0,
       satuan || "pcs",
-      Number(hargaModal) || 0
+      Number(hargaModal) || 0,
+      finalFotoUrl
     ]);
 
     logStockChange(ss, {
@@ -387,7 +446,11 @@ function handleSaveProduct(ss, payload) {
       keterangan: "Produk Baru Ditambahkan"
     });
 
-    return createJsonResponse({ status: "success", message: `Produk ${newId} berhasil ditambahkan.` });
+    return createJsonResponse({ 
+      status: "success", 
+      message: `Produk ${newId} berhasil ditambahkan.`,
+      fotoUrl: finalFotoUrl
+    });
   }
 }
 
@@ -446,8 +509,8 @@ function handleDeleteProduct(ss, payload) {
   let sheetSampah = ss.getSheetByName("Produk_Sampah");
   if (!sheetSampah) {
     sheetSampah = ss.insertSheet("Produk_Sampah");
-    sheetSampah.appendRow(["ID", "Nama Produk", "Kategori", "Harga Jual", "Stok Terakhir", "Satuan", "Harga Modal", "Waktu Dihapus", "Alasan"]);
-    sheetSampah.getRange(1, 1, 1, 9).setFontWeight("bold").setBackground("#fee2e2");
+    sheetSampah.appendRow(["ID", "Nama Produk", "Kategori", "Harga Jual", "Stok Terakhir", "Satuan", "Harga Modal", "Foto", "Waktu Dihapus", "Alasan"]);
+    sheetSampah.getRange(1, 1, 1, 10).setFontWeight("bold").setBackground("#fee2e2");
   }
 
   const values = sheetProduk.getDataRange().getValues();
@@ -465,6 +528,7 @@ function handleDeleteProduct(ss, payload) {
         rowData[4], // Stok
         rowData[5], // Satuan
         rowData[6] || 0, // Modal
+        rowData[7] || "", // Foto
         nowStr,
         reason || "Dihapus oleh pengguna"
       ]);
@@ -505,8 +569,8 @@ function handleRestoreProduct(ss, payload) {
   for (let r = 1; r < values.length; r++) {
     if (String(values[r][0]).trim() === String(id).trim()) {
       const row = values[r];
-      // Kembalikan ke sheet Produk utama
-      sheetProduk.appendRow([row[0], row[1], row[2], row[3], row[4], row[5], row[6] || 0]);
+      // Kembalikan ke sheet Produk utama (termasuk kolom foto di index 7)
+      sheetProduk.appendRow([row[0], row[1], row[2], row[3], row[4], row[5], row[6] || 0, row[7] || ""]);
       sheetSampah.deleteRow(r + 1);
 
       const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");

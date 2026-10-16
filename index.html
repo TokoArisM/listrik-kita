@@ -591,150 +591,208 @@
   <!-- ========================================================================= -->
   <!-- MODAL: FORM PRODUK (TAMBAH / EDIT PRODUK)                                 -->
   <!-- ========================================================================= -->
-  <div id="productFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col animate-in fade-in duration-150">
-      <div class="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+  <div id="productFormModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh] animate-in fade-in duration-150">
+      <div class="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between flex-shrink-0">
         <h3 class="font-bold text-base" id="productFormTitle">Tambah Produk Baru</h3>
         <button onclick="ProductManager.closeModal()" class="text-slate-400 hover:text-white">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
-      <form onsubmit="ProductManager.handleSubmit(event)" class="p-5 space-y-3 text-xs">
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">Kode / Barcode Produk (ID):</label>
-          <div class="flex gap-2">
+      <form onsubmit="ProductManager.handleSubmit(event)" class="flex flex-col flex-1 overflow-hidden min-h-0">
+        <div class="p-4 sm:p-5 space-y-3 text-xs overflow-y-auto flex-1 overscroll-contain">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Kode / Barcode Produk (ID):</label>
+            <div class="flex gap-2">
+              <input 
+                type="text" 
+                id="pfId" 
+                required 
+                placeholder="Contoh: P009 atau scan barcode" 
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <button type="button" onclick="BarcodeService.toggleScannerForInput()" class="px-3 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg font-bold">
+                Scan
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Nama Produk Alat Listrik:</label>
             <input 
               type="text" 
-              id="pfId" 
+              id="pfNama" 
               required 
-              placeholder="Contoh: P009 atau scan barcode" 
+              placeholder="Contoh: Lampu LED 12W Hannochs" 
               class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
-            <button type="button" onclick="BarcodeService.toggleScannerForInput()" class="px-3 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg font-bold">
-              Scan
-            </button>
           </div>
-        </div>
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">Nama Produk Alat Listrik:</label>
-          <input 
-            type="text" 
-            id="pfNama" 
-            required 
-            placeholder="Contoh: Lampu LED 12W Hannochs" 
-            class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-        </div>
-        <div class="grid grid-cols-2 gap-3">
+
+          <!-- Foto Produk (Otomatis Kompres Ringan ~15 KB) -->
           <div>
-            <label class="block font-bold text-slate-700 mb-1">Kategori:</label>
-            <select 
-              id="pfKategori" 
-              onchange="ProductManager.handleCategoryChange()"
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-xs cursor-pointer"
-            >
-              <option value="Lampu">Lampu</option>
-              <option value="Kabel & Stopkontak">Kabel & Stopkontak</option>
-              <option value="Saklar">Saklar</option>
-              <option value="MCB & Box">MCB & Box</option>
-              <option value="Pipa & Kelistrikan">Pipa & Kelistrikan</option>
-              <option value="Aksesoris">Aksesoris</option>
-              <option value="Alat & Tool">Alat & Tool</option>
-              <option value="Elektronik">Elektronik</option>
-              <option value="Lainnya">Lainnya</option>
-              <option value="__custom__">+ Kategori Baru...</option>
-            </select>
-            <input 
-              type="text" 
-              id="pfKategoriCustom" 
-              placeholder="Ketik kategori baru..." 
-              class="w-full mt-2 px-3 py-1.5 border border-amber-400 bg-amber-50 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none hidden text-xs font-semibold text-slate-800"
-            />
+            <label class="block font-bold text-slate-700 mb-1">Foto Produk (Otomatis Kompres ~15 KB):</label>
+            <div class="flex items-center gap-3 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+              <!-- Preview Box -->
+              <div id="pfPhotoPreviewBox" class="w-16 h-16 rounded-xl border-2 border-dashed border-slate-300 bg-white flex items-center justify-center overflow-hidden flex-shrink-0 relative group">
+                <img id="pfPhotoPreviewImg" src="" alt="Preview" class="w-full h-full object-cover hidden" />
+                <div id="pfPhotoPlaceholder" class="flex flex-col items-center justify-center text-slate-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                  <span class="text-[9px] mt-0.5 font-bold">Foto</span>
+                </div>
+                <button type="button" id="pfBtnRemovePhoto" onclick="ProductManager.removePhoto()" class="hidden absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded-full p-1 shadow transition" title="Hapus Foto">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+              </div>
+
+              <!-- Controls -->
+              <div class="flex-1 min-w-0">
+                <input type="file" id="pfPhotoInput" accept="image/*" class="hidden" onchange="ProductManager.handlePhotoSelected(event)" />
+                <input type="hidden" id="pfPhotoBase64" value="" />
+                <input type="hidden" id="pfPhotoExistingUrl" value="" />
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="document.getElementById('pfPhotoInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-sm transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"/><line x1="16" y1="5" x2="22" y2="5"/><line x1="19" y1="2" x2="19" y2="8"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                    <span id="pfBtnUploadLabel">Pilih / Jepret Foto</span>
+                  </button>
+                  <span id="pfPhotoSizeInfo" class="text-[10px] text-emerald-600 font-bold hidden"></span>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-1 leading-tight">Otomatis di-resize 200x200 px (format WebP) agar sangat hemat RAM dan cepat dimuat.</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">Satuan:</label>
-            <select 
-              id="pfSatuan" 
-              onchange="ProductManager.handleUnitChange()"
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-xs cursor-pointer"
-            >
-              <option value="pcs">pcs (Pcs / Buah)</option>
-              <option value="meter">meter (Meter)</option>
-              <option value="roll">roll (Roll)</option>
-              <option value="set">set (Set)</option>
-              <option value="pack">pack (Pack / Dus)</option>
-              <option value="batang">batang (Batang)</option>
-              <option value="box">box (Box)</option>
-              <option value="unit">unit (Unit)</option>
-              <option value="pasang">pasang (Pasang)</option>
-              <option value="__custom__">+ Satuan Baru...</option>
-            </select>
-            <input 
-              type="text" 
-              id="pfSatuanCustom" 
-              placeholder="Ketik satuan baru..." 
-              class="w-full mt-2 px-3 py-1.5 border border-amber-400 bg-amber-50 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none hidden text-xs font-semibold text-slate-800"
-            />
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Kategori:</label>
+              <select 
+                id="pfKategori" 
+                onchange="ProductManager.handleCategoryChange()"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-xs cursor-pointer"
+              >
+                <option value="Lampu">Lampu</option>
+                <option value="Kabel & Stopkontak">Kabel & Stopkontak</option>
+                <option value="Saklar">Saklar</option>
+                <option value="MCB & Box">MCB & Box</option>
+                <option value="Pipa & Kelistrikan">Pipa & Kelistrikan</option>
+                <option value="Aksesoris">Aksesoris</option>
+                <option value="Alat & Tool">Alat & Tool</option>
+                <option value="Elektronik">Elektronik</option>
+                <option value="Lainnya">Lainnya</option>
+                <option value="__custom__">+ Kategori Baru...</option>
+              </select>
+              <input 
+                type="text" 
+                id="pfKategoriCustom" 
+                placeholder="Ketik kategori baru..." 
+                class="w-full mt-2 px-3 py-1.5 border border-amber-400 bg-amber-50 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none hidden text-xs font-semibold text-slate-800"
+              />
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Satuan:</label>
+              <select 
+                id="pfSatuan" 
+                onchange="ProductManager.handleUnitChange()"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-xs cursor-pointer"
+              >
+                <option value="pcs">pcs (Pcs / Buah)</option>
+                <option value="meter">meter (Meter)</option>
+                <option value="roll">roll (Roll)</option>
+                <option value="set">set (Set)</option>
+                <option value="pack">pack (Pack / Dus)</option>
+                <option value="batang">batang (Batang)</option>
+                <option value="box">box (Box)</option>
+                <option value="unit">unit (Unit)</option>
+                <option value="pasang">pasang (Pasang)</option>
+                <option value="__custom__">+ Satuan Baru...</option>
+              </select>
+              <input 
+                type="text" 
+                id="pfSatuanCustom" 
+                placeholder="Ketik satuan baru..." 
+                class="w-full mt-2 px-3 py-1.5 border border-amber-400 bg-amber-50 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none hidden text-xs font-semibold text-slate-800"
+              />
+            </div>
           </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">Harga Modal / Beli (Rp):</label>
-            <input 
-              type="number" 
-              id="pfHargaModal" 
-              min="0"
-              placeholder="0" 
-              oninput="ProductManager.calculateProfitPreview()"
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:ring-2 focus:ring-amber-500 outline-none bg-amber-50/50"
-            />
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Harga Modal / Beli (Rp):</label>
+              <input 
+                type="number" 
+                id="pfHargaModal" 
+                min="0"
+                placeholder="0" 
+                oninput="ProductManager.calculateProfitPreview()"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:ring-2 focus:ring-amber-500 outline-none bg-amber-50/50"
+              />
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Harga Jual (Rp):</label>
+              <input 
+                type="number" 
+                id="pfHarga" 
+                required 
+                min="0"
+                placeholder="0" 
+                oninput="ProductManager.calculateProfitPreview()"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
           </div>
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">Harga Jual (Rp):</label>
-            <input 
-              type="number" 
-              id="pfHarga" 
-              required 
-              min="0"
-              placeholder="0" 
-              oninput="ProductManager.calculateProfitPreview()"
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-bold text-slate-700 mb-1">Stok:</label>
-            <input 
-              type="number" 
-              id="pfStok" 
-              required 
-              min="0"
-              placeholder="0" 
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-          <div class="flex flex-col justify-end">
-            <div id="pfProfitPreview" class="px-2.5 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex items-center justify-between">
-              <span>Untung / pcs:</span>
-              <span id="pfProfitBadge" class="font-black text-emerald-700">Rp 0 (0%)</span>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Stok:</label>
+              <input 
+                type="number" 
+                id="pfStok" 
+                required 
+                min="0"
+                placeholder="0" 
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+            <div class="flex flex-col justify-end">
+              <div id="pfProfitPreview" class="px-2.5 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex items-center justify-between">
+                <span>Untung / pcs:</span>
+                <span id="pfProfitBadge" class="font-black text-emerald-700">Rp 0 (0%)</span>
+              </div>
             </div>
           </div>
         </div>
-        <div class="flex justify-end gap-2 pt-2 border-t">
-          <button type="button" onclick="ProductManager.closeModal()" class="px-4 py-2 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Batal</button>
-          <button type="submit" id="btnSaveProduct" class="px-4 py-2 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white">Simpan Produk</button>
+        <div class="p-3 sm:px-5 sm:py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
+          <button type="button" onclick="ProductManager.closeModal()" class="px-4 py-2 rounded-lg font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition">Batal</button>
+          <button type="submit" id="btnSaveProduct" class="px-4 py-2 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">Simpan Produk</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- ========================================================================= -->
+  <!-- MODAL: PERBESAR FOTO PRODUK (ZOOM PREVIEW)                                -->
+  <!-- ========================================================================= -->
+  <div id="photoPreviewModal" onclick="UI.closePhotoModal()" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 cursor-pointer">
+    <div onclick="event.stopPropagation()" class="bg-white rounded-2xl shadow-2xl max-w-xs sm:max-w-sm w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 cursor-default">
+      <div class="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2 min-w-0 pr-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400 flex-shrink-0"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+          <h3 class="font-bold text-xs truncate" id="photoModalTitle">Foto Produk</h3>
+        </div>
+        <button type="button" onclick="UI.closePhotoModal()" class="text-slate-400 hover:text-white flex-shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="p-4 flex flex-col items-center bg-slate-50">
+        <div class="w-60 h-60 sm:w-64 sm:h-64 rounded-xl overflow-hidden bg-white border border-slate-200 shadow-inner flex items-center justify-center">
+          <img id="photoModalImg" src="" alt="Foto Produk" class="w-full h-full object-contain" />
+        </div>
+        <p class="text-[11px] text-slate-500 mt-2.5 text-center font-medium" id="photoModalSubtitle">Klik di luar untuk menutup</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
   <!-- MODAL: SETTINGS (URL GOOGLE APPS SCRIPT)                                   -->
   <!-- ========================================================================= -->
-  <div id="settingsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col animate-in fade-in duration-150">
-      <div class="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
+  <div id="settingsModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh] animate-in fade-in duration-150">
+      <div class="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between flex-shrink-0">
         <h3 class="font-bold text-base flex items-center gap-2">
           <i data-lucide="database" class="w-4 h-4 text-amber-400"></i>
           Pengaturan Google Apps Script
@@ -743,7 +801,7 @@
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
-      <div class="p-5 space-y-4 text-xs">
+      <div class="p-4 sm:p-5 space-y-4 text-xs overflow-y-auto flex-1 overscroll-contain">
         <div>
           <label class="block font-bold text-slate-700 mb-1">Web App Deployment URL:</label>
           <input 
@@ -819,7 +877,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v31</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v33</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -828,11 +886,11 @@
             </button>
           </div>
         </div>
+      </div>
 
-        <div class="flex justify-end gap-2 pt-2 border-t">
-          <button onclick="UI.closeSettingsModal()" class="px-4 py-2 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Tutup</button>
-          <button onclick="App.saveSettings()" class="px-4 py-2 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white">Simpan Pengaturan</button>
-        </div>
+      <div class="p-3 sm:px-5 sm:py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
+        <button onclick="UI.closeSettingsModal()" class="px-4 py-2 rounded-lg font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition">Tutup</button>
+        <button onclick="App.saveSettings()" class="px-4 py-2 rounded-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">Simpan Pengaturan</button>
       </div>
     </div>
   </div>
@@ -840,9 +898,9 @@
   <!-- ========================================================================= -->
   <!-- MODAL: KULAKAN / RESTOCK CEPAT STOK                                       -->
   <!-- ========================================================================= -->
-  <div id="restockModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col animate-in fade-in duration-150">
-      <div class="bg-blue-900 text-white px-5 py-4 flex items-center justify-between">
+  <div id="restockModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh] animate-in fade-in duration-150">
+      <div class="bg-blue-900 text-white px-5 py-3.5 flex items-center justify-between flex-shrink-0">
         <h3 class="font-bold text-sm flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
           Restock / Tambah Stok Kulakan
@@ -851,64 +909,66 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
         </button>
       </div>
-      <form onsubmit="ProductManager.handleRestockSubmit(event)" class="p-5 space-y-3.5 text-xs">
-        <input type="hidden" id="restockProdId" />
-        
-        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-          <div class="text-[10px] text-slate-400 uppercase font-bold" id="restockProdCode">KODE: -</div>
-          <div class="font-black text-sm text-slate-800" id="restockProdName">-</div>
-          <div class="mt-1 flex justify-between text-slate-600 font-semibold">
-            <span>Stok Saat Ini:</span>
-            <span class="text-blue-700 font-black" id="restockCurrentStock">0 pcs</span>
+      <form onsubmit="ProductManager.handleRestockSubmit(event)" class="flex flex-col flex-1 overflow-hidden min-h-0">
+        <div class="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1 overscroll-contain">
+          <input type="hidden" id="restockProdId" />
+          
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div class="text-[10px] text-slate-400 uppercase font-bold" id="restockProdCode">KODE: -</div>
+            <div class="font-black text-sm text-slate-800" id="restockProdName">-</div>
+            <div class="mt-1 flex justify-between text-slate-600 font-semibold">
+              <span>Stok Saat Ini:</span>
+              <span class="text-blue-700 font-black" id="restockCurrentStock">0 pcs</span>
+            </div>
           </div>
-        </div>
 
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">Jumlah Masuk / Kulakan Baru:</label>
-          <div class="flex items-center gap-2">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Jumlah Masuk / Kulakan Baru:</label>
+            <div class="flex items-center gap-2">
+              <input 
+                type="number" 
+                id="restockAddQty" 
+                required 
+                min="1" 
+                value="10" 
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <span class="font-bold text-slate-500" id="restockUnitLabel">pcs</span>
+            </div>
+            <!-- Quick Chips -->
+            <div class="flex gap-1.5 mt-2">
+              <button type="button" onclick="ProductManager.setRestockQuickQty(5)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[11px] font-bold text-slate-700">+5</button>
+              <button type="button" onclick="ProductManager.setRestockQuickQty(10)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[11px] font-bold text-slate-700">+10</button>
+              <button type="button" onclick="ProductManager.setRestockQuickQty(20)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[11px] font-bold text-slate-700">+20</button>
+              <button type="button" onclick="ProductManager.setRestockQuickQty(50)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[11px] font-bold text-slate-700">+50</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Update Harga Modal Baru (Opsional jika harga pabrik berubah):</label>
             <input 
               type="number" 
-              id="restockAddQty" 
-              required 
-              min="1" 
-              value="10" 
-              class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
+              id="restockNewModal" 
+              min="0"
+              placeholder="Biarkan kosong jika tetap" 
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
             />
-            <span class="font-bold text-slate-500" id="restockUnitLabel">pcs</span>
           </div>
-          <!-- Quick Chips -->
-          <div class="flex gap-1.5 mt-2">
-            <button type="button" onclick="ProductManager.setRestockQuickQty(5)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[11px] font-bold text-slate-700">+5</button>
-            <button type="button" onclick="ProductManager.setRestockQuickQty(10)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[11px] font-bold text-slate-700">+10</button>
-            <button type="button" onclick="ProductManager.setRestockQuickQty(20)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[11px] font-bold text-slate-700">+20</button>
-            <button type="button" onclick="ProductManager.setRestockQuickQty(50)" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-[11px] font-bold text-slate-700">+50</button>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Catatan / Supplier (Opsional):</label>
+            <input 
+              type="text" 
+              id="restockKeterangan" 
+              placeholder="Contoh: Kulakan Toko Grosir Jaya" 
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            />
           </div>
         </div>
 
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">Update Harga Modal Baru (Opsional jika harga pabrik berubah):</label>
-          <input 
-            type="number" 
-            id="restockNewModal" 
-            min="0"
-            placeholder="Biarkan kosong jika tetap" 
-            class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-        </div>
-
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">Catatan / Supplier (Opsional):</label>
-          <input 
-            type="text" 
-            id="restockKeterangan" 
-            placeholder="Contoh: Kulakan Toko Grosir Jaya" 
-            class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-          />
-        </div>
-
-        <div class="flex justify-end gap-2 pt-2 border-t">
-          <button type="button" onclick="ProductManager.closeRestockModal()" class="px-4 py-2 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Batal</button>
-          <button type="submit" id="btnSubmitRestock" class="px-4 py-2 rounded-lg font-bold bg-blue-600 hover:bg-blue-700 text-white shadow">Simpan Stok Masuk</button>
+        <div class="p-3 sm:px-5 sm:py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
+          <button type="button" onclick="ProductManager.closeRestockModal()" class="px-4 py-2 rounded-lg font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition">Batal</button>
+          <button type="submit" id="btnSubmitRestock" class="px-4 py-2 rounded-lg font-bold bg-blue-600 hover:bg-blue-700 text-white shadow transition">Simpan Stok Masuk</button>
         </div>
       </form>
     </div>
@@ -948,9 +1008,9 @@
   <!-- ========================================================================= -->
   <!-- MODAL: PELUNASAN KASBON / HUTANG PELANGGAN                                -->
   <!-- ========================================================================= -->
-  <div id="payDebtModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col animate-in fade-in duration-150">
-      <div class="bg-amber-600 text-white px-5 py-4 flex items-center justify-between">
+  <div id="payDebtModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh] animate-in fade-in duration-150">
+      <div class="bg-amber-600 text-white px-5 py-3.5 flex items-center justify-between flex-shrink-0">
         <h3 class="font-bold text-sm flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Pelunasan Kasbon / Bon Tempo
@@ -960,47 +1020,49 @@
         </button>
       </div>
 
-      <form onsubmit="Reports.handlePayDebtSubmit(event)" class="p-5 space-y-3.5 text-xs">
-        <input type="hidden" id="debtTrxId" />
+      <form onsubmit="Reports.handlePayDebtSubmit(event)" class="flex flex-col flex-1 overflow-hidden min-h-0">
+        <div class="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1 overscroll-contain">
+          <input type="hidden" id="debtTrxId" />
 
-        <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
-          <div class="flex justify-between items-center">
-            <span class="font-mono font-bold text-amber-900 text-[11px]" id="debtModalInvoice">LK-...</span>
-            <span class="text-[10px] text-amber-700 font-semibold" id="debtModalWaktu">-</span>
+          <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
+            <div class="flex justify-between items-center">
+              <span class="font-mono font-bold text-amber-900 text-[11px]" id="debtModalInvoice">LK-...</span>
+              <span class="text-[10px] text-amber-700 font-semibold" id="debtModalWaktu">-</span>
+            </div>
+            <div class="mt-1 font-black text-sm text-slate-800" id="debtModalPelanggan">Pelanggan: -</div>
+            <div class="mt-2 pt-2 border-t border-amber-200/80 flex justify-between items-center">
+              <span class="font-bold text-slate-600">Total Kasbon:</span>
+              <span class="text-base font-black text-amber-800" id="debtModalTotal">Rp 0</span>
+            </div>
           </div>
-          <div class="mt-1 font-black text-sm text-slate-800" id="debtModalPelanggan">Pelanggan: -</div>
-          <div class="mt-2 pt-2 border-t border-amber-200/80 flex justify-between items-center">
-            <span class="font-bold text-slate-600">Total Kasbon:</span>
-            <span class="text-base font-black text-amber-800" id="debtModalTotal">Rp 0</span>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Nominal yang Dibayarkan (Rp):</label>
+            <input 
+              type="number" 
+              id="debtPayNominal" 
+              required 
+              min="1" 
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
+            />
+            <div class="flex gap-1.5 mt-2">
+              <button type="button" onclick="Reports.setDebtQuickPay('lunas')" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 rounded text-[11px] font-bold text-amber-900">Bayar Lunas</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Metode Pelunasan:</label>
+            <select id="debtPayMethod" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-semibold outline-none focus:ring-2 focus:ring-amber-500">
+              <option value="Tunai">Tunai</option>
+              <option value="QRIS">QRIS</option>
+              <option value="Transfer Bank">Transfer Bank</option>
+            </select>
           </div>
         </div>
 
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">Nominal yang Dibayarkan (Rp):</label>
-          <input 
-            type="number" 
-            id="debtPayNominal" 
-            required 
-            min="1" 
-            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
-          />
-          <div class="flex gap-1.5 mt-2">
-            <button type="button" onclick="Reports.setDebtQuickPay('lunas')" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 rounded text-[11px] font-bold text-amber-900">Bayar Lunas</button>
-          </div>
-        </div>
-
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">Metode Pelunasan:</label>
-          <select id="debtPayMethod" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-semibold outline-none focus:ring-2 focus:ring-amber-500">
-            <option value="Tunai">Tunai</option>
-            <option value="QRIS">QRIS</option>
-            <option value="Transfer Bank">Transfer Bank</option>
-          </select>
-        </div>
-
-        <div class="flex justify-end gap-2 pt-2 border-t">
-          <button type="button" onclick="Reports.closePayDebtModal()" class="px-4 py-2 rounded-lg font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700">Batal</button>
-          <button type="submit" id="btnSubmitDebt" class="px-4 py-2 rounded-lg font-bold bg-amber-600 hover:bg-amber-700 text-white shadow">Simpan Pelunasan</button>
+        <div class="p-3 sm:px-5 sm:py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
+          <button type="button" onclick="Reports.closePayDebtModal()" class="px-4 py-2 rounded-lg font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition">Batal</button>
+          <button type="submit" id="btnSubmitDebt" class="px-4 py-2 rounded-lg font-bold bg-amber-600 hover:bg-amber-700 text-white shadow transition">Simpan Pelunasan</button>
         </div>
       </form>
     </div>
@@ -1031,15 +1093,86 @@
     };
 
     const DEFAULT_PRODUCTS = [
-      { id: "P001", nama: "Lampu LED Philips 10W Putih", kategori: "Lampu", harga: 35000, stok: 50, satuan: "pcs", hargaModal: 27000 },
-      { id: "P002", nama: "Stop Kontak Broco 4L + Kabel 3M", kategori: "Kabel & Stopkontak", harga: 65000, stok: 20, satuan: "pcs", hargaModal: 50000 },
-      { id: "P003", nama: "Kabel NYM Eterna 2x1.5mm (Meter)", kategori: "Kabel & Stopkontak", harga: 12000, stok: 100, satuan: "meter", hargaModal: 9500 },
-      { id: "P004", nama: "MCB Schneider 10A 1 Phase", kategori: "MCB & Box", harga: 55000, stok: 15, satuan: "pcs", hargaModal: 42000 },
-      { id: "P005", nama: "Saklar Ganda Panasonic Seri WESJ", kategori: "Saklar", harga: 38000, stok: 30, satuan: "pcs", hargaModal: 29000 },
-      { id: "P006", nama: "Isolasi Listrik Unibell Hitam", kategori: "Aksesoris", harga: 7000, stok: 80, satuan: "roll", hargaModal: 4500 },
-      { id: "P007", nama: "Fitting Lampu Plafon Broco Standard", kategori: "Lampu", harga: 15000, stok: 45, satuan: "pcs", hargaModal: 10000 },
-      { id: "P008", nama: "Tespen Listrik Obeng Bolak Balik", kategori: "Alat & Tool", harga: 18000, stok: 25, satuan: "pcs", hargaModal: 12000 }
+      { id: "P001", nama: "Lampu LED Philips 10W Putih", kategori: "Lampu", harga: 35000, stok: 50, satuan: "pcs", hargaModal: 27000, foto: "" },
+      { id: "P002", nama: "Stop Kontak Broco 4L + Kabel 3M", kategori: "Kabel & Stopkontak", harga: 65000, stok: 20, satuan: "pcs", hargaModal: 50000, foto: "" },
+      { id: "P003", nama: "Kabel NYM Eterna 2x1.5mm (Meter)", kategori: "Kabel & Stopkontak", harga: 12000, stok: 100, satuan: "meter", hargaModal: 9500, foto: "" },
+      { id: "P004", nama: "MCB Schneider 10A 1 Phase", kategori: "MCB & Box", harga: 55000, stok: 15, satuan: "pcs", hargaModal: 42000, foto: "" },
+      { id: "P005", nama: "Saklar Ganda Panasonic Seri WESJ", kategori: "Saklar", harga: 38000, stok: 30, satuan: "pcs", hargaModal: 29000, foto: "" },
+      { id: "P006", nama: "Isolasi Listrik Unibell Hitam", kategori: "Aksesoris", harga: 7000, stok: 80, satuan: "roll", hargaModal: 4500, foto: "" },
+      { id: "P007", nama: "Fitting Lampu Plafon Broco Standard", kategori: "Lampu", harga: 15000, stok: 45, satuan: "pcs", hargaModal: 10000, foto: "" },
+      { id: "P008", nama: "Tespen Listrik Obeng Bolak Balik", kategori: "Alat & Tool", harga: 18000, stok: 25, satuan: "pcs", hargaModal: 12000, foto: "" }
     ];
+
+    /**
+     * =========================================================================
+     * 0. IMAGE COMPRESSOR & HELPER KATALOG FOTO PRODUK
+     * =========================================================================
+     * Otomatis memotong 1:1 dan mengompres ke WebP 200x200 (~15 KB)
+     */
+    const ImageCompressor = {
+      async compress(file, maxDimension = 200, quality = 0.75) {
+        return new Promise((resolve, reject) => {
+          if (!file || !file.type.startsWith("image/")) {
+            return reject(new Error("File bukan gambar yang valid"));
+          }
+
+          const reader = new FileReader();
+          reader.onerror = () => reject(new Error("Gagal membaca file gambar"));
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onerror = () => reject(new Error("Gagal memuat elemen gambar"));
+            img.onload = () => {
+              try {
+                const canvas = document.createElement("canvas");
+                canvas.width = maxDimension;
+                canvas.height = maxDimension;
+                const ctx = canvas.getContext("2d");
+
+                // Center crop 1:1 persegi agar tampilan katalog rapi seragam
+                const minSide = Math.min(img.width, img.height);
+                const sx = (img.width - minSide) / 2;
+                const sy = (img.height - minSide) / 2;
+
+                ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, maxDimension, maxDimension);
+
+                let dataUrl = canvas.toDataURL("image/webp", quality);
+                if (!dataUrl.startsWith("data:image/webp")) {
+                  dataUrl = canvas.toDataURL("image/jpeg", quality);
+                }
+                resolve(dataUrl);
+              } catch (err) {
+                reject(err);
+              }
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    };
+
+    function getCategoryIcon(kategori = "") {
+      const k = String(kategori).toLowerCase();
+      if (k.includes("lampu")) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-500"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>`;
+      }
+      if (k.includes("kabel") || k.includes("stop")) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500"><rect width="16" height="16" x="4" y="4" rx="2"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/></svg>`;
+      }
+      if (k.includes("saklar")) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-500"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="12" cy="9" r="2"/></svg>`;
+      }
+      if (k.includes("mcb") || k.includes("box")) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-500"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>`;
+      }
+      if (k.includes("pipa")) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-teal-500"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>`;
+      }
+      if (k.includes("alat") || k.includes("tool")) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600"><path d="m14.7 10.7 5 5a1 1 0 0 1-1.4 1.4l-5-5"/><path d="m3 21 9-9"/></svg>`;
+      }
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>`;
+    }
 
     /**
      * =========================================================================
@@ -1754,6 +1887,30 @@
 
       closeSettingsModal() {
         document.getElementById("settingsModal").classList.add("hidden");
+      },
+
+      showPhotoModal(urlEncoded, namaEncoded, katEncoded) {
+        const url = decodeURIComponent(urlEncoded || "");
+        const nama = decodeURIComponent(namaEncoded || "Foto Produk");
+        const kat = decodeURIComponent(katEncoded || "");
+        if (!url) return;
+
+        const modal = document.getElementById("photoPreviewModal");
+        const img = document.getElementById("photoModalImg");
+        const title = document.getElementById("photoModalTitle");
+        const subtitle = document.getElementById("photoModalSubtitle");
+
+        if (img) img.src = url;
+        if (title) title.textContent = nama;
+        if (subtitle) subtitle.textContent = kat ? `Kategori: ${kat}` : "Klik di luar untuk menutup";
+        if (modal) modal.classList.remove("hidden");
+      },
+
+      closePhotoModal() {
+        const modal = document.getElementById("photoPreviewModal");
+        if (modal) modal.classList.add("hidden");
+        const img = document.getElementById("photoModalImg");
+        if (img) img.src = "";
       },
 
       toast(msg, type = "info") {
@@ -2500,6 +2657,7 @@
         const stokNum = Number(p.stok) || 0;
         const isLow = stokNum <= 5;
         const isOut = stokNum <= 0;
+        const fotoStr = String(p.foto || "");
 
         let stockBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700">${stokNum}</span>`;
         if (isOut) {
@@ -2512,8 +2670,21 @@
           <tr class="hover:bg-slate-50 transition ${isLow ? 'bg-amber-50/20' : ''}">
             <td class="p-3 font-mono font-bold text-slate-700">${p.id}</td>
             <td class="p-3">
-              <div class="font-bold text-slate-800">${p.nama}</div>
-              ${isLow ? `<div class="text-[10px] text-amber-700 font-semibold flex items-center gap-1">⚠️ Segera kulakan</div>` : ''}
+              <div class="flex items-center gap-2.5">
+                <div 
+                  ${fotoStr ? `onclick="UI.showPhotoModal('${encodeURIComponent(fotoStr)}', '${encodeURIComponent(p.nama)}', '${encodeURIComponent(p.kategori)}');"` : ''}
+                  class="w-10 h-10 rounded-lg bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-200 flex items-center justify-center ${fotoStr ? 'cursor-pointer hover:opacity-80 transition' : ''}" 
+                  title="${fotoStr ? 'Klik untuk perbesar foto' : ''}">
+                  ${fotoStr 
+                    ? `<img src="${fotoStr}" loading="lazy" alt="${p.nama}" class="w-full h-full object-cover" />`
+                    : `<div class="text-slate-300 scale-75">${getCategoryIcon(p.kategori)}</div>`
+                  }
+                </div>
+                <div class="min-w-0">
+                  <div class="font-bold text-slate-800 leading-snug">${p.nama}</div>
+                  ${isLow ? `<div class="text-[10px] text-amber-700 font-semibold flex items-center gap-1 mt-0.5">⚠️ Segera kulakan</div>` : ''}
+                </div>
+              </div>
             </td>
             <td class="p-3"><span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">${p.kategori}</span></td>
             <td class="p-3 font-bold text-slate-900">
@@ -2847,6 +3018,69 @@
         }
       },
 
+      async handlePhotoSelected(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        try {
+          UI.toast("Mengompres foto...", "info");
+          const compressedBase64 = await ImageCompressor.compress(file, 200, 0.75);
+          
+          document.getElementById("pfPhotoBase64").value = compressedBase64;
+          document.getElementById("pfPhotoExistingUrl").value = "";
+          
+          const img = document.getElementById("pfPhotoPreviewImg");
+          const placeholder = document.getElementById("pfPhotoPlaceholder");
+          const btnRemove = document.getElementById("pfBtnRemovePhoto");
+          const btnLabel = document.getElementById("pfBtnUploadLabel");
+          const sizeInfo = document.getElementById("pfPhotoSizeInfo");
+
+          img.src = compressedBase64;
+          img.classList.remove("hidden");
+          placeholder.classList.add("hidden");
+          btnRemove.classList.remove("hidden");
+          if (btnLabel) btnLabel.textContent = "Ganti Foto";
+
+          // Hitung ukuran KB
+          const approxKb = Math.round((compressedBase64.length * 3 / 4) / 1024);
+          if (sizeInfo) {
+            sizeInfo.textContent = `✓ ${approxKb} KB`;
+            sizeInfo.classList.remove("hidden");
+          }
+          UI.toast(`Foto berhasil dikompres (${approxKb} KB)!`, "success");
+        } catch (err) {
+          console.error("Gagal kompres foto:", err);
+          UI.toast("Gagal memproses gambar: " + err.message, "error");
+        }
+      },
+
+      removePhoto() {
+        const input = document.getElementById("pfPhotoInput");
+        if (input) input.value = "";
+        const b64 = document.getElementById("pfPhotoBase64");
+        if (b64) b64.value = "";
+        const exUrl = document.getElementById("pfPhotoExistingUrl");
+        if (exUrl) exUrl.value = "";
+        
+        const img = document.getElementById("pfPhotoPreviewImg");
+        const placeholder = document.getElementById("pfPhotoPlaceholder");
+        const btnRemove = document.getElementById("pfBtnRemovePhoto");
+        const btnLabel = document.getElementById("pfBtnUploadLabel");
+        const sizeInfo = document.getElementById("pfPhotoSizeInfo");
+
+        if (img) {
+          img.src = "";
+          img.classList.add("hidden");
+        }
+        if (placeholder) placeholder.classList.remove("hidden");
+        if (btnRemove) btnRemove.classList.add("hidden");
+        if (btnLabel) btnLabel.textContent = "Pilih / Jepret Foto";
+        if (sizeInfo) {
+          sizeInfo.textContent = "";
+          sizeInfo.classList.add("hidden");
+        }
+      },
+
       openModal(productId = null) {
         this.editingId = productId;
         const title = document.getElementById("productFormTitle");
@@ -2867,6 +3101,27 @@
           if (pfHargaModal) pfHargaModal.value = Number(p.hargaModal) > 0 ? p.hargaModal : "";
           pfHarga.value = p.harga;
           pfStok.value = p.stok;
+
+          // Load Foto jika ada
+          if (p.foto) {
+            const img = document.getElementById("pfPhotoPreviewImg");
+            const placeholder = document.getElementById("pfPhotoPlaceholder");
+            const btnRemove = document.getElementById("pfBtnRemovePhoto");
+            const btnLabel = document.getElementById("pfBtnUploadLabel");
+            const sizeInfo = document.getElementById("pfPhotoSizeInfo");
+
+            img.src = p.foto;
+            img.classList.remove("hidden");
+            placeholder.classList.add("hidden");
+            btnRemove.classList.remove("hidden");
+            if (btnLabel) btnLabel.textContent = "Ganti Foto";
+            if (sizeInfo) sizeInfo.classList.add("hidden");
+
+            document.getElementById("pfPhotoExistingUrl").value = p.foto;
+            document.getElementById("pfPhotoBase64").value = "";
+          } else {
+            this.removePhoto();
+          }
         } else {
           title.textContent = "Tambah Produk Baru";
           let maxPidNum = 0;
@@ -2884,6 +3139,7 @@
           if (pfHargaModal) pfHargaModal.value = "";
           pfHarga.value = "";
           pfStok.value = "";
+          this.removePhoto();
         }
 
         this.calculateProfitPreview();
@@ -2896,6 +3152,7 @@
         const pfSatuanCustom = document.getElementById("pfSatuanCustom");
         if (pfKategoriCustom) pfKategoriCustom.classList.add("hidden");
         if (pfSatuanCustom) pfSatuanCustom.classList.add("hidden");
+        this.removePhoto();
         this.editingId = null;
       },
 
@@ -2921,6 +3178,10 @@
           }
         }
 
+        const photoBase64 = document.getElementById("pfPhotoBase64")?.value || "";
+        const photoExisting = document.getElementById("pfPhotoExistingUrl")?.value || "";
+        const fotoVal = photoBase64 || photoExisting || "";
+
         const payload = {
           action: "save_product",
           token: State.securityToken || "",
@@ -2931,6 +3192,8 @@
           hargaModal: hargaModalVal,
           harga: hargaJualVal,
           stok: Number(document.getElementById("pfStok").value) || 0,
+          foto: fotoVal,
+          fotoBase64: photoBase64, // Sertakan base64 untuk backend Google Drive
           isEdit: !!this.editingId
         };
 
@@ -3146,8 +3409,20 @@
           const json = await res.json();
 
           if (json.status === "success" && Array.isArray(json.data) && json.data.length > 0) {
-            State.products = json.data;
-            localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(json.data));
+            // Smart merge agar foto produk lokal tidak hilang bila kolom Sheets belum ter-update
+            const localMap = {};
+            (State.products || []).forEach(lp => {
+              if (lp && lp.id && lp.foto) localMap[lp.id] = lp.foto;
+            });
+
+            State.products = json.data.map(p => {
+              if (!p.foto && localMap[p.id]) {
+                p.foto = localMap[p.id];
+              }
+              return p;
+            });
+
+            localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(State.products));
             this.renderCategories();
             this.filterAndRenderProducts();
             if (statusEl) statusEl.textContent = `Online: ${json.data.length} Produk`;
@@ -3229,23 +3504,44 @@
           const idStr = String(p.id || "");
           const isOut = stokNum <= 0;
           const isLow = stokNum > 0 && stokNum <= 5;
+          const fotoStr = String(p.foto || "");
 
           return `
-            <div class="bg-white border ${isOut ? 'border-red-200 bg-red-50/20' : isLow ? 'border-amber-200' : 'border-slate-200'} rounded-xl p-3 flex flex-col justify-between hover:shadow-md hover:border-blue-400 transition group relative">
+            <div class="bg-white border ${isOut ? 'border-red-200 bg-red-50/20' : isLow ? 'border-amber-200' : 'border-slate-200'} rounded-xl p-2.5 sm:p-3 flex flex-col justify-between hover:shadow-md hover:border-blue-400 transition group relative">
               <div>
-                <div class="flex items-center justify-between gap-1 mb-1.5">
-                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">${katStr}</span>
-                  <span class="text-[10px] font-extrabold px-1.5 py-0.5 rounded ${isOut ? 'bg-red-100 text-red-700' : isLow ? 'bg-amber-100 text-amber-800' : 'text-slate-400'}">
-                    ${isOut ? 'Habis' : `Stok: ${stokNum}`}
-                  </span>
+                <div class="flex gap-2.5 items-start mb-2">
+                  <!-- Thumbnail Foto / Icon Kategori -->
+                  <div 
+                    ${fotoStr ? `onclick="UI.showPhotoModal('${encodeURIComponent(fotoStr)}', '${encodeURIComponent(namaStr)}', '${encodeURIComponent(katStr)}'); event.stopPropagation();"` : ''}
+                    class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-slate-100 flex-shrink-0 overflow-hidden border border-slate-200 flex items-center justify-center relative ${fotoStr ? 'cursor-pointer hover:opacity-90 transition' : ''}"
+                    title="${fotoStr ? 'Klik untuk perbesar foto' : katStr}">
+                    ${fotoStr 
+                      ? `<img src="${fotoStr}" loading="lazy" alt="${namaStr}" class="w-full h-full object-cover" />
+                         <span class="absolute bottom-0.5 right-0.5 bg-slate-900/60 text-white rounded p-0.5 leading-none shadow">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                         </span>`
+                      : getCategoryIcon(katStr)
+                    }
+                  </div>
+
+                  <!-- Info Produk -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-1 mb-1">
+                      <span class="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 truncate max-w-[85px]">${katStr}</span>
+                      <span class="text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded ${isOut ? 'bg-red-100 text-red-700' : isLow ? 'bg-amber-100 text-amber-800' : 'text-slate-400'}">
+                        ${isOut ? 'Habis' : `Stok: ${stokNum}`}
+                      </span>
+                    </div>
+                    <h3 class="font-bold text-xs text-slate-800 line-clamp-2 leading-snug group-hover:text-blue-700 transition" title="${namaStr}">
+                      ${namaStr}
+                    </h3>
+                  </div>
                 </div>
-                <h3 class="font-bold text-xs text-slate-800 line-clamp-2 leading-snug group-hover:text-blue-700 transition" title="${namaStr}">
-                  ${namaStr}
-                </h3>
               </div>
-              <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+
+              <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
                 <div>
-                  <span class="text-[10px] text-slate-400 block">Harga</span>
+                  <span class="text-[9px] sm:text-[10px] text-slate-400 block">Harga</span>
                   <span class="font-black text-xs text-slate-900">Rp ${hargaNum.toLocaleString('id-ID')}</span>
                 </div>
                 <button 
