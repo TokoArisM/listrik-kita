@@ -971,7 +971,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v43</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v44</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -1140,6 +1140,17 @@
                 <span class="text-sm sm:text-base font-mono text-red-600 font-black" id="debtModalSisa">Rp 0</span>
               </div>
             </div>
+
+            <!-- Riwayat Pembayaran Sebelumnya (DP & Cicilan) -->
+            <div id="debtModalHistoryContainer" class="pt-2 border-t border-amber-200/80 space-y-1.5">
+              <div class="text-[11px] font-bold text-amber-950 flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-amber-700"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>Riwayat Pembayaran Sebelumnya:</span>
+              </div>
+              <div id="debtModalHistoryList" class="space-y-1 bg-white/90 p-2.5 rounded-lg border border-amber-200/80">
+                <!-- Diisi via JS: Daftar riwayat DP dll -->
+              </div>
+            </div>
           </div>
 
           <!-- Nominal Pelunasan -->
@@ -1282,6 +1293,20 @@
           <div class="flex justify-between text-slate-600 text-[11px]">
             <span>Kembalian / Status:</span>
             <span class="font-semibold font-mono" id="invDetailKembalian">Rp 0</span>
+          </div>
+        </div>
+
+        <!-- Kartu Riwayat Pembayaran (DP & Pelunasan) -->
+        <div id="invDetailPaymentHistoryCard" class="bg-amber-50/70 border border-amber-200 rounded-xl p-3 space-y-2 hidden">
+          <div class="flex items-center justify-between text-xs font-bold text-amber-900">
+            <span class="flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Riwayat Pembayaran (DP & Pelunasan)
+            </span>
+            <span id="invDetailHistoryBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-300">Belum Lunas</span>
+          </div>
+          <div id="invDetailPaymentHistoryList" class="space-y-1 text-xs">
+            <!-- Diisi via JS: Daftar pembayaran (DP & Pelunasan) -->
           </div>
         </div>
 
@@ -2244,13 +2269,22 @@
         };
 
         appendText(formatRow("TOTAL TRANSAKSI", trx.total || 0));
+        appendText("--------------------------------\n");
+        appendText("RINCIAN PEMBAYARAN:\n");
         if (info.bayarLama > 0) {
-          appendText(formatRow("DP / TITIPAN AWAL", info.bayarLama));
+          const waktuAwal = (trx.waktu || "").substring(0, 10);
+          appendText(formatRow(`1. DP Awal (${waktuAwal})`, info.bayarLama));
+        } else {
+          appendText("1. DP Awal                     Rp 0\n");
         }
 
         append(27, 69, 1);
-        appendText(formatRow("DIBAYAR HARI INI", info.pelunasanHariIni || 0));
+        appendText(formatRow("2. Pelunasan Hari Ini", info.pelunasanHariIni || 0));
         append(27, 69, 0);
+
+        appendText("--------------------------------\n");
+        const totalMasuk = (info.bayarLama || 0) + (info.pelunasanHariIni || 0);
+        appendText(formatRow("TOTAL DIBAYAR", Math.min(trx.total || 0, totalMasuk)));
 
         append(27, 69, 1);
         appendText(formatRow("SISA TAGIHAN", info.sisaAkhir || 0));
@@ -3324,6 +3358,85 @@
         window.open(waUrl, "_blank");
       },
 
+      // --- HELPER RIWAYAT PEMBAYARAN (DP & PELUNASAN) ---
+      parsePaymentHistory(trx) {
+        if (!trx) return [];
+        if (Array.isArray(trx.riwayatPembayaran) && trx.riwayatPembayaran.length > 0) {
+          return trx.riwayatPembayaran;
+        }
+
+        const total = Number(trx.total) || 0;
+        const bayar = Number(trx.bayar) || 0;
+        const m = String(trx.metode || "Tunai");
+        const list = [];
+
+        // Cek pola: Lunas (DP Rp X + Pelunasan ... Rp Y - Waktu)
+        const matchLunasWithDP = m.match(/Lunas\s*\(DP\s*Rp\s*([\d\.]+)\s*\+\s*Pelunasan\s*([^\d]+)?\s*Rp\s*([\d\.]+)(?:\s*-\s*([^)]+))?\)/i);
+        if (matchLunasWithDP) {
+          const dpVal = Number(matchLunasWithDP[1].replace(/\./g, "")) || 0;
+          const pelunasanVal = Number(matchLunasWithDP[3].replace(/\./g, "")) || 0;
+          const metodePelunasan = (matchLunasWithDP[2] || "Tunai").trim();
+          const waktuPelunasan = matchLunasWithDP[4] || "-";
+
+          list.push({
+            tahap: "Uang Muka (DP)",
+            nominal: dpVal,
+            waktu: trx.waktu || "-",
+            metode: "Uang Muka"
+          });
+          list.push({
+            tahap: "Pelunasan",
+            nominal: pelunasanVal,
+            waktu: waktuPelunasan,
+            metode: metodePelunasan
+          });
+          return list;
+        }
+
+        // Cek pola: Tunai (DP Rp 3.000.000)
+        const matchDP = m.match(/DP\s*Rp\s*([\d\.]+)/i);
+        if (matchDP) {
+          const dpVal = Number(matchDP[1].replace(/\./g, "")) || 0;
+          list.push({
+            tahap: "Uang Muka (DP)",
+            nominal: dpVal,
+            waktu: trx.waktu || "-",
+            metode: m.split("(")[0].trim() || "Tunai"
+          });
+          if (bayar > dpVal) {
+            list.push({
+              tahap: (bayar >= total) ? "Pelunasan" : "Pembayaran Lanjutan",
+              nominal: bayar - dpVal,
+              waktu: "-",
+              metode: "Pelunasan"
+            });
+          }
+          return list;
+        }
+
+        // Cek jika bayar < total (DP belum lunas)
+        if (bayar > 0 && bayar < total) {
+          list.push({
+            tahap: "Uang Muka (DP)",
+            nominal: bayar,
+            waktu: trx.waktu || "-",
+            metode: m
+          });
+          return list;
+        }
+
+        // Default: Pembayaran penuh
+        if (bayar > 0) {
+          list.push({
+            tahap: "Pembayaran Penuh",
+            nominal: bayar,
+            waktu: trx.waktu || "-",
+            metode: m
+          });
+        }
+        return list;
+      },
+
       // --- PELUNASAN KASBON / HUTANG TEMPO / SISA DP ---
       openPayDebtModal(trxId) {
         const trx = (this.transactions || []).find(t => t.transactionId === trxId) ||
@@ -3354,6 +3467,25 @@
 
         const sisaEl = document.getElementById("debtModalSisa");
         if (sisaEl) sisaEl.textContent = `Rp ${sisa.toLocaleString('id-ID')}`;
+
+        // Render riwayat pembayaran sebelumnya di modal pelunasan
+        const history = this.parsePaymentHistory(trx);
+        const histContainer = document.getElementById("debtModalHistoryList");
+        if (histContainer) {
+          if (history.length > 0) {
+            histContainer.innerHTML = history.map((h, i) => `
+              <div class="flex justify-between items-center text-[11px] py-1 border-b border-amber-200/50 last:border-0">
+                <div>
+                  <span class="font-bold text-slate-800">${i + 1}. ${h.tahap}</span>
+                  <span class="text-[10px] text-slate-500 block">${h.metode || 'Tunai'} ${h.waktu && h.waktu !== '-' ? `• ${h.waktu}` : ''}</span>
+                </div>
+                <span class="font-bold font-mono text-emerald-700">Rp ${Number(h.nominal).toLocaleString('id-ID')}</span>
+              </div>
+            `).join("");
+          } else {
+            histContainer.innerHTML = `<div class="text-[10.5px] text-slate-500 italic py-0.5">Belum ada pembayaran DP sebelumnya (Tagihan Tempo Penuh).</div>`;
+          }
+        }
 
         const payInp = document.getElementById("debtPayNominal");
         if (payInp) {
@@ -3447,12 +3579,39 @@
         const sisaBaru = Math.max(0, totalTagihan - bayarBaru);
         const kembalian = Math.max(0, bayarBaru - totalTagihan);
 
+        const pad = (n) => String(n).padStart(2, '0');
+        const now = new Date();
+        const nowStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+        // Simpan riwayat pembayaran terstruktur
+        if (!Array.isArray(trx.riwayatPembayaran) || trx.riwayatPembayaran.length === 0) {
+          trx.riwayatPembayaran = [];
+          if (bayarLama > 0) {
+            trx.riwayatPembayaran.push({
+              tahap: "Uang Muka (DP)",
+              nominal: bayarLama,
+              waktu: trx.waktu || "-",
+              metode: (trx.metode || "Tunai").split(" (DP")[0]
+            });
+          }
+        }
+        trx.riwayatPembayaran.push({
+          tahap: sisaBaru === 0 ? "Pelunasan" : `Cicilan ke-${trx.riwayatPembayaran.length + 1}`,
+          nominal: bayarNominal,
+          waktu: nowStr,
+          metode: metodePelunasan
+        });
+
         // Update objek transaksi lokal
         trx.bayar = Math.min(totalTagihan, bayarBaru);
         trx.kembalian = kembalian;
         trx.sisaTagihan = sisaBaru;
         if (sisaBaru === 0) {
-          trx.metode = `Lunas (${metodePelunasan})`;
+          if (bayarLama > 0 && bayarLama < totalTagihan) {
+            trx.metode = `Lunas (DP Rp ${bayarLama.toLocaleString('id-ID')} + Pelunasan ${metodePelunasan} Rp ${bayarNominal.toLocaleString('id-ID')} - ${nowStr})`;
+          } else {
+            trx.metode = `Lunas (${metodePelunasan} - ${nowStr})`;
+          }
           trx.status = "Lunas";
         } else {
           trx.metode = `Cicil (${bayarBaru.toLocaleString('id-ID')}/${totalTagihan.toLocaleString('id-ID')})`;
@@ -3726,6 +3885,38 @@
         // Pastikan accordion penyesuaian tertutup by default
         this.toggleCustomInvoiceSection(false);
         this.updateCustomDPSisa();
+
+        // Render riwayat pembayaran (DP & Pelunasan) di modal rincian invoice
+        const history = this.parsePaymentHistory(trx);
+        const histCard = document.getElementById("invDetailPaymentHistoryCard");
+        const histList = document.getElementById("invDetailPaymentHistoryList");
+        const histBadge = document.getElementById("invDetailHistoryBadge");
+        if (histCard && histList) {
+          if (history.length > 0) {
+            histCard.classList.remove("hidden");
+            const sisaNow = Math.max(0, total - (Number(trx.bayar) || 0));
+            if (histBadge) {
+              if (sisaNow === 0) {
+                histBadge.textContent = "LUNAS";
+                histBadge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300";
+              } else {
+                histBadge.textContent = `Belum Lunas (Sisa Rp ${sisaNow.toLocaleString('id-ID')})`;
+                histBadge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-300";
+              }
+            }
+            histList.innerHTML = history.map((h, i) => `
+              <div class="flex justify-between items-center py-1.5 border-b border-amber-200/50 last:border-0 text-xs">
+                <div>
+                  <span class="font-bold text-slate-800">${i + 1}. ${h.tahap}</span>
+                  <span class="text-[10px] text-slate-500 block">${h.metode || 'Tunai'} ${h.waktu && h.waktu !== '-' ? `• ${h.waktu}` : ''}</span>
+                </div>
+                <span class="font-black font-mono text-emerald-700 text-xs">Rp ${Number(h.nominal).toLocaleString('id-ID')}</span>
+              </div>
+            `).join("");
+          } else {
+            histCard.classList.add("hidden");
+          }
+        }
 
         // Cek tombol Lunasi di footer Rincian Invoice
         const sisaPelunasan = Math.max(0, total - (Number(trx.bayar) || 0));
@@ -4133,6 +4324,33 @@
         const rawNotes = customOptions.notes || `• Garansi produk panel selama 6 bulan.\n• Terima kasih atas kepercayaan & dukungan Anda.\n• Kepuasan pelanggan adalah keutamaan kami.`;
         const notesList = rawNotes.split("\n").map(n => n.trim().replace(/^[\•\-\*]\s*/, "")).filter(Boolean);
 
+        // Riwayat Pembayaran (DP & Pelunasan)
+        const paymentHistory = Reports.parsePaymentHistory(trx);
+        let paymentBreakdownHtml = "";
+
+        if (paymentHistory.length > 1) {
+          paymentBreakdownHtml = paymentHistory.map((h, i) => `
+            <div style="display: flex; justify-content: space-between; padding: 4px 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 10px; color: #334155;">
+              <span>${i + 1}. ${h.tahap}</span>
+              <span style="font-family: monospace; font-weight: 700; color: #0f172a;">Rp ${Number(h.nominal).toLocaleString('id-ID')}</span>
+            </div>
+          `).join('');
+        } else if (dpAmount < total) {
+          paymentBreakdownHtml = `
+            <div style="display: flex; justify-content: space-between; padding: 4px 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 10px; font-weight: 700; color: #0f172a;">
+              <span>DP / UANG MUKA</span>
+              <span style="font-family: monospace;">Rp ${dpAmount.toLocaleString('id-ID')}</span>
+            </div>
+          `;
+        } else {
+          paymentBreakdownHtml = `
+            <div style="display: flex; justify-content: space-between; padding: 4px 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 10px; font-weight: 700; color: #0f172a;">
+              <span>STATUS PEMBAYARAN</span>
+              <span style="font-family: monospace; color: #16a34a;">LUNAS</span>
+            </div>
+          `;
+        }
+
         // Format tanggal Indonesia
         const tglIndo = this.formatDateIndo(trx.waktu);
 
@@ -4211,19 +4429,16 @@
                 ${notesList.map(n => `<div style="color: #475569;">• ${n}</div>`).join('')}
               </div>
 
-              <!-- Kolom Kanan: Total Belanja, DP, Sisa Tagihan -->
-              <div style="width: 300px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; font-size: 10.5px;">
+              <!-- Kolom Kanan: Total Belanja, DP / Pelunasan, Sisa Tagihan -->
+              <div style="width: 310px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; font-size: 10px;">
                 <div style="display: flex; justify-content: space-between; padding: 5px 10px; background: #ffffff; font-weight: 800; color: #0f172a;">
                   <span>TOTAL BELANJA & JASA</span>
-                  <span style="font-family: monospace; font-size: 11.5px;">Rp ${total.toLocaleString('id-ID')}</span>
+                  <span style="font-family: monospace; font-size: 11px;">Rp ${total.toLocaleString('id-ID')}</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; padding: 5px 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-weight: 700; color: #0f172a;">
-                  <span>DP / UANG MUKA</span>
-                  <span style="font-family: monospace; font-size: 11.5px;">Rp ${dpAmount.toLocaleString('id-ID')}</span>
-                </div>
+                ${paymentBreakdownHtml}
                 <div style="display: flex; justify-content: space-between; padding: 5px 10px; background: #ffffff; border-top: 1px solid #cbd5e1; font-weight: 800; color: ${sisaTagihan > 0 ? '#dc2626' : '#16a34a'};">
                   <span>SISA TAGIHAN</span>
-                  <span style="font-family: monospace; font-size: 12px;">Rp ${sisaTagihan.toLocaleString('id-ID')} ${sisaTagihan === 0 ? '(LUNAS)' : ''}</span>
+                  <span style="font-family: monospace; font-size: 11.5px;">Rp ${sisaTagihan.toLocaleString('id-ID')} ${sisaTagihan === 0 ? '(LUNAS)' : ''}</span>
                 </div>
               </div>
             </div>

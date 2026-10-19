@@ -697,9 +697,16 @@ function handlePayDebt(ss, payload) {
       const kembalian = Math.max(0, bayarBaru - totalTagihan);
 
       const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "Asia/Jakarta", "yyyy-MM-dd HH:mm");
-      const metodeStr = bayarBaru >= totalTagihan 
-        ? `Lunas (${metodePelunasan || "Tunai"} - ${nowStr})` 
-        : `Cicil (${bayarBaru}/${totalTagihan} - ${nowStr})`;
+      let metodeStr = "";
+      if (bayarBaru >= totalTagihan) {
+        if (bayarLama > 0 && bayarLama < totalTagihan) {
+          metodeStr = `Lunas (DP Rp ${bayarLama.toLocaleString('id-ID')} + Pelunasan ${metodePelunasan || "Tunai"} Rp ${Number(bayarNominal).toLocaleString('id-ID')} - ${nowStr})`;
+        } else {
+          metodeStr = `Lunas (${metodePelunasan || "Tunai"} - ${nowStr})`;
+        }
+      } else {
+        metodeStr = `Cicil (${bayarBaru}/${totalTagihan} - ${nowStr})`;
+      }
 
       // Update kolom Bayar (8), Kembalian (9), Metode (10)
       sheetTransaksi.getRange(r + 1, 8).setValue(bayarBaru);
