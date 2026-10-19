@@ -109,6 +109,10 @@
         <button onclick="UI.switchView('pos')" id="tabNavPos" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white transition flex items-center gap-1.5">
           <i data-lucide="store" class="w-4 h-4"></i> Kasir
         </button>
+        <button onclick="RabManager.openListModal()" id="tabNavRab" class="px-3 py-1.5 rounded-lg text-blue-200 hover:text-white transition flex items-center gap-1.5 relative" title="Daftar Estimasi & Surat Penawaran Harga (RAB)">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Penawaran RAB
+          <span id="badgeRabPending" class="hidden ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-900 text-[10px] font-extrabold leading-tight">0</span>
+        </button>
         <button onclick="UI.switchView('reports')" id="tabNavReports" class="px-3 py-1.5 rounded-lg text-blue-200 hover:text-white transition flex items-center gap-1.5">
           <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Riwayat & Laporan
         </button>
@@ -153,6 +157,10 @@
     <div class="md:hidden flex border-t border-blue-800 bg-blue-950 px-2 py-1 justify-around text-[11px] font-semibold">
       <button onclick="UI.switchView('pos')" id="mTabNavPos" class="py-1 px-3 text-amber-400 flex flex-col items-center">
         <i data-lucide="store" class="w-4 h-4"></i> Kasir
+      </button>
+      <button onclick="RabManager.openListModal()" id="mTabNavRab" class="py-1 px-2 text-blue-200 flex flex-col items-center relative">
+        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> RAB
+        <span id="mBadgeRabPending" class="hidden absolute top-0 right-2 px-1 rounded-full bg-amber-500 text-slate-900 text-[9px] font-extrabold leading-tight">0</span>
       </button>
       <button onclick="UI.switchView('reports')" id="mTabNavReports" class="py-1 px-3 text-blue-200 flex flex-col items-center">
         <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Laporan
@@ -244,25 +252,50 @@
 
       <!-- Cart Summary & Checkout -->
       <div class="p-4 border-t border-slate-100 bg-slate-50/80 lg:rounded-b-2xl flex-none space-y-3">
+        <!-- Revision Banner (Hanya muncul jika sedang mode revisi RAB) -->
+        <div id="rabRevisionBanner" class="hidden p-2 rounded-xl bg-amber-100 border border-amber-300 text-[11px] flex items-center justify-between text-amber-900 shadow-sm animate-in fade-in">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="font-black px-1.5 py-0.5 rounded bg-amber-600 text-white text-[9px] flex-shrink-0">REVISI RAB</span>
+            <span class="font-mono font-bold truncate text-[11px]" id="rabRevisionCode">RAB-...</span>
+          </div>
+          <button type="button" onclick="RabManager.cancelRevisionMode()" class="text-amber-800 hover:text-red-700 font-bold text-[10px] underline ml-2 flex-shrink-0">
+            Batal
+          </button>
+        </div>
+
         <div class="space-y-1.5 text-xs">
           <div class="flex justify-between text-slate-500">
             <span>Jumlah Item:</span>
-            <span id="cartTotalItems" class="font-medium">0 pcs</span>
+            <span id="cartTotalItems" class="font-medium">0 item</span>
           </div>
           <div class="flex justify-between text-base font-black text-slate-900 pt-1 border-t border-slate-200">
-            <span>Total Bayar:</span>
+            <span id="cartTotalLabel">Total Estimasi:</span>
             <span id="cartTotalPrice" class="text-blue-700 text-lg">Rp 0</span>
           </div>
         </div>
 
-        <button 
-          id="btnCheckout" 
-          onclick="UI.openPaymentModal()" 
-          disabled
-          class="w-full py-3 px-4 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed transition flex items-center justify-center gap-2 tap-highlight-none">
-          <i data-lucide="banknote" class="w-4 h-4"></i>
-          Bayar / Selesaikan (F2)
-        </button>
+        <div class="grid grid-cols-5 gap-2">
+          <button 
+            id="btnMakeRab" 
+            type="button"
+            onclick="RabManager.openCreateModal()" 
+            disabled
+            class="col-span-2 py-3 px-2 rounded-xl font-bold text-xs bg-amber-50 hover:bg-amber-100 active:scale-95 text-amber-900 border border-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center gap-1.5 shadow-sm tap-highlight-none"
+            title="Buat Estimasi / Rencana Anggaran Biaya untuk Pelanggan (Tidak memotong stok)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-amber-700 flex-shrink-0"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>
+            <span id="btnMakeRabText">Buat RAB</span>
+          </button>
+
+          <button 
+            id="btnCheckout" 
+            type="button"
+            onclick="UI.openPaymentModal()" 
+            disabled
+            class="col-span-3 py-3 px-3 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 active:scale-95 text-white shadow-lg shadow-blue-500/25 disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed transition flex items-center justify-center gap-1.5 tap-highlight-none">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+            <span>Bayar (F2)</span>
+          </button>
+        </div>
       </div>
     </aside>
   </div>
@@ -934,7 +967,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v39</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v40</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -1512,6 +1545,145 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: BUAT / REVISI RENCANA ANGGARAN BIAYA (RAB) / SURAT PENAWARAN       -->
+  <!-- ========================================================================= -->
+  <div id="rabModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh] animate-in fade-in duration-150">
+      <div class="bg-gradient-to-r from-amber-600 to-amber-700 text-white px-5 py-3.5 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>
+          <div>
+            <h3 class="font-extrabold text-sm sm:text-base leading-tight" id="rabModalTitle">Buat Rencana Anggaran Biaya (RAB)</h3>
+            <p class="text-[11px] text-amber-100">Surat estimasi penawaran harga resmi (tidak memotong stok toko)</p>
+          </div>
+        </div>
+        <button type="button" onclick="RabManager.closeCreateModal()" class="text-amber-200 hover:text-white p-1 rounded-lg hover:bg-amber-800 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <form onsubmit="RabManager.handleSubmit(event)" class="flex flex-col flex-1 overflow-hidden min-h-0">
+        <div class="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1 overscroll-contain">
+          <!-- Ringkasan Anggaran dari Keranjang -->
+          <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-center justify-between">
+            <div>
+              <span class="text-slate-500 font-semibold block text-[11px]">Rincian Material & Jasa:</span>
+              <span class="font-bold text-slate-800 text-xs" id="rabModalSummaryCount">0 Item / Pekerjaan</span>
+            </div>
+            <div class="text-right">
+              <span class="text-slate-500 font-semibold block text-[11px]">Total Estimasi Biaya:</span>
+              <span class="font-black text-amber-700 font-mono text-base" id="rabModalSummaryTotal">Rp 0</span>
+            </div>
+          </div>
+
+          <!-- No. RAB & Masa Berlaku -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">No. Penawaran / RAB</label>
+              <input type="text" id="rabId" required class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-slate-50 text-slate-900 font-mono font-bold focus:ring-2 focus:ring-amber-500 outline-none" />
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Masa Berlaku Penawaran</label>
+              <select id="rabValidityDays" onchange="RabManager.onValidDaysChange()" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 outline-none">
+                <option value="7">7 Hari (1 Minggu)</option>
+                <option value="14" selected>14 Hari (2 Minggu) - Standar</option>
+                <option value="30">30 Hari (1 Bulan)</option>
+                <option value="60">60 Hari (2 Bulan)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Ditujukan Kepada & Kontak -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Ditujukan Kepada (Nama / Instansi) <span class="text-red-500">*</span></label>
+              <input type="text" id="rabCustomer" required placeholder="Contoh: Bpk. H. Risyono / Pengurus Masjid" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none font-semibold" />
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">No. Kontak / WhatsApp</label>
+              <input type="text" id="rabContact" placeholder="Contoh: 0858-6714-0945" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none" />
+            </div>
+          </div>
+
+          <!-- Nama Proyek / Pekerjaan -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Nama Proyek / Keperluan Pekerjaan</label>
+            <input type="text" id="rabProject" placeholder="Contoh: Pengadaan Instalasi Listrik Gedung Baru & Plumbing Pompa" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none font-medium" />
+          </div>
+
+          <!-- Syarat & Ketentuan Penawaran -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Ketentuan & Catatan Penawaran</label>
+            <textarea id="rabNotes" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none leading-relaxed resize-none"></textarea>
+          </div>
+
+          <div class="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-[11px] text-blue-900 flex items-start gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600 flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>RAB tersimpan sebagai draft penawaran. Jika ada penambahan atau pengurangan barang, klik <strong>Edit / Revisi</strong> untuk membukanya kembali ke kasir.</span>
+          </div>
+        </div>
+
+        <div class="p-3 sm:px-5 sm:py-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
+          <button type="button" onclick="RabManager.closeCreateModal()" class="px-4 py-2 rounded-xl font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition">Batal</button>
+          
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="RabManager.submitAndAction('save_only')" class="px-3.5 py-2 rounded-xl font-bold bg-slate-200 hover:bg-slate-300 text-slate-800 transition">
+              Simpan Saja
+            </button>
+            <button type="button" onclick="RabManager.submitAndAction('print_pdf')" class="px-4 py-2 rounded-xl font-bold bg-amber-600 hover:bg-amber-700 text-white shadow transition flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <span id="btnRabSubmitActionText">Simpan & Cetak PDF A4</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: DAFTAR RENCANA ANGGARAN BIAYA (RAB) & PENAWARAN HARGA               -->
+  <!-- ========================================================================= -->
+  <div id="rabListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh] animate-in fade-in duration-150">
+      <div class="bg-gradient-to-r from-amber-700 to-amber-800 text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2.5">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-amber-300"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>
+          <div>
+            <h3 class="font-extrabold text-base sm:text-lg leading-tight">Daftar Rencana Anggaran Biaya (RAB)</h3>
+            <p class="text-[11px] text-amber-200">Kelola penawaran proyek, revisi tambah/kurang barang, cetak PDF, atau proses jadi penjualan</p>
+          </div>
+        </div>
+        <button onclick="RabManager.closeListModal()" class="text-amber-200 hover:text-white p-1 rounded-lg hover:bg-amber-900 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Controls: Filter & Search -->
+      <div class="p-3 sm:px-5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+        <div class="flex items-center gap-1.5 bg-slate-200/80 p-0.5 rounded-xl font-semibold">
+          <button id="btnRabFilterAll" onclick="RabManager.setFilter('all')" class="px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition">Semua (<span id="countRabAll">0</span>)</button>
+          <button id="btnRabFilterPending" onclick="RabManager.setFilter('pending')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">Menunggu Deal (<span id="countRabPending">0</span>)</button>
+          <button id="btnRabFilterDeal" onclick="RabManager.setFilter('deal')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">Sudah Deal (<span id="countRabDeal">0</span>)</button>
+        </div>
+
+        <div class="flex items-center gap-2 flex-1 sm:flex-initial justify-end">
+          <input type="text" id="rabSearchInput" oninput="RabManager.renderList()" placeholder="Cari pemohon / no RAB..." class="px-3 py-1.5 border border-slate-300 rounded-xl text-xs bg-white text-slate-800 outline-none focus:ring-2 focus:ring-amber-500 w-full sm:w-56" />
+        </div>
+      </div>
+
+      <!-- List Container -->
+      <div class="p-4 sm:p-5 overflow-y-auto flex-1 space-y-3 text-xs" id="rabListContainer">
+        <!-- Rendered via JS -->
+      </div>
+
+      <div class="p-3 sm:px-5 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs">
+        <span class="text-slate-400 font-medium">Tips: Klik <strong>Edit / Revisi</strong> untuk menambah atau mengurangi barang langsung lewat keranjang kasir.</span>
+        <button onclick="RabManager.closeListModal()" class="px-4 py-2 rounded-xl font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 transition">Tutup</button>
+      </div>
     </div>
   </div>
 
@@ -2148,6 +2320,9 @@
         if (!State.cart.length) return;
         if (confirm("Kosongkan semua item di keranjang?")) {
           State.cart = [];
+          if (typeof RabManager !== 'undefined') {
+            RabManager.cancelRevisionMode();
+          }
           this.render();
         }
       },
@@ -2164,6 +2339,7 @@
         const listEl = document.getElementById("cartItemList");
         const emptyNotice = document.getElementById("emptyCartNotice");
         const checkoutBtn = document.getElementById("btnCheckout");
+        const makeRabBtn = document.getElementById("btnMakeRab");
         const totalItemsEl = document.getElementById("cartTotalItems");
         const totalPriceEl = document.getElementById("cartTotalPrice");
         const mobileBadge = document.getElementById("mobileCartCount");
@@ -2179,11 +2355,13 @@
           listEl.innerHTML = "";
           emptyNotice.classList.remove("hidden");
           checkoutBtn.disabled = true;
+          if (makeRabBtn) makeRabBtn.disabled = true;
           return;
         }
 
         emptyNotice.classList.add("hidden");
         checkoutBtn.disabled = false;
+        if (makeRabBtn) makeRabBtn.disabled = false;
 
         listEl.innerHTML = State.cart.map(item => `
           <div class="bg-slate-50 border ${item.isJasa ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/80'} rounded-xl p-3 flex flex-col gap-2">
@@ -4129,6 +4307,830 @@
 
     /**
      * =========================================================================
+     * 6D. RAB & PENAWARAN HARGA MANAGER (QUOTATION & ESTIMATION SYSTEM)
+     * =========================================================================
+     */
+    const RabManager = {
+      STORAGE_KEY: "lk_rab_list",
+      editingRabId: null,
+      currentFilter: 'all',
+      tempSubmitAction: 'print_pdf',
+
+      getRabs() {
+        try {
+          const raw = localStorage.getItem(this.STORAGE_KEY);
+          if (!raw) return [];
+          const list = JSON.parse(raw);
+          return Array.isArray(list) ? list : [];
+        } catch (e) {
+          console.warn("Gagal membaca lk_rab_list:", e);
+          return [];
+        }
+      },
+
+      saveRabs(list) {
+        try {
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(list || []));
+          this.updateBadge();
+        } catch (e) {
+          console.error("Gagal menyimpan lk_rab_list:", e);
+        }
+      },
+
+      updateBadge() {
+        try {
+          const list = this.getRabs();
+          const pending = list.filter(r => r.status === 'Menunggu Deal').length;
+          const bDesk = document.getElementById("badgeRabPending");
+          const bMob = document.getElementById("mBadgeRabPending");
+          if (bDesk) {
+            if (pending > 0) {
+              bDesk.textContent = pending;
+              bDesk.classList.remove("hidden");
+            } else {
+              bDesk.classList.add("hidden");
+            }
+          }
+          if (bMob) {
+            if (pending > 0) {
+              bMob.textContent = pending;
+              bMob.classList.remove("hidden");
+            } else {
+              bMob.classList.add("hidden");
+            }
+          }
+        } catch (e) {}
+      },
+
+      generateRabId() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const prefix = `RAB-${y}${m}${d}-`;
+        const list = this.getRabs();
+        const todays = list.filter(r => r.id && r.id.startsWith(prefix));
+        const nextNum = todays.length + 1;
+        return `${prefix}${String(nextNum).padStart(2, '0')}`;
+      },
+
+      getDefaultNotes(validDays = 14) {
+        return [
+          `• Penawaran harga ini berlaku selama ${validDays} hari sejak tanggal diterbitkan.`,
+          "• Harga sewaktu-waktu dapat berubah mengikuti fluktuasi harga material pabrik/pasar.",
+          "• Ketentuan Pembayaran: DP min 50% saat PO disepakati, pelunasan saat serah terima barang/instalasi.",
+          "• Garansi resmi toko & pabrik berlaku sesuai ketentuan unit yang bergaransi.",
+          "• Terima kasih atas kepercayaan & kerjasama Anda dengan Toko Listrik Kita."
+        ].join("\n");
+      },
+
+      onValidDaysChange() {
+        const selDays = Number(document.getElementById("rabValidityDays")?.value) || 14;
+        const notesEl = document.getElementById("rabNotes");
+        if (notesEl) {
+          notesEl.value = this.getDefaultNotes(selDays);
+        }
+      },
+
+      openCreateModal() {
+        if (!State.cart || State.cart.length === 0) {
+          UI.toast("Keranjang belanja masih kosong! Pilih barang / jasa terlebih dahulu untuk membuat RAB.", "warning");
+          return;
+        }
+
+        const modal = document.getElementById("rabModal");
+        if (!modal) return;
+
+        const total = State.cart.reduce((s, it) => s + ((Number(it.qty) || 1) * (Number(it.harga) || 0)), 0);
+        const count = State.cart.length;
+
+        const sumCountEl = document.getElementById("rabModalSummaryCount");
+        const sumTotalEl = document.getElementById("rabModalSummaryTotal");
+        if (sumCountEl) sumCountEl.textContent = `${count} Item / Pekerjaan`;
+        if (sumTotalEl) sumTotalEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+
+        const titleEl = document.getElementById("rabModalTitle");
+        const numEl = document.getElementById("rabId");
+        const daysEl = document.getElementById("rabValidityDays");
+        const custEl = document.getElementById("rabCustomer");
+        const contEl = document.getElementById("rabContact");
+        const projEl = document.getElementById("rabProject");
+        const notesEl = document.getElementById("rabNotes");
+        const btnSubmitText = document.getElementById("btnRabSubmitActionText");
+
+        if (this.editingRabId) {
+          const list = this.getRabs();
+          const existing = list.find(r => r.id === this.editingRabId);
+          if (titleEl) titleEl.textContent = "Revisi Rencana Anggaran Biaya (RAB)";
+          if (existing) {
+            if (numEl) numEl.value = existing.id;
+            if (daysEl) daysEl.value = existing.validDays || 14;
+            if (custEl) custEl.value = existing.customer || "";
+            if (contEl) contEl.value = existing.contact || "";
+            if (projEl) projEl.value = existing.project || "";
+            if (notesEl) notesEl.value = existing.notes || this.getDefaultNotes(existing.validDays || 14);
+            if (btnSubmitText) btnSubmitText.textContent = "Simpan Revisi & Cetak";
+          }
+        } else {
+          if (titleEl) titleEl.textContent = "Buat Rencana Anggaran Biaya (RAB)";
+          if (numEl) numEl.value = this.generateRabId();
+          if (daysEl) daysEl.value = "14";
+          if (custEl) custEl.value = "";
+          if (contEl) contEl.value = "";
+          if (projEl) projEl.value = "Pengadaan & Pemasangan Instalasi Listrik";
+          if (notesEl) notesEl.value = this.getDefaultNotes(14);
+          if (btnSubmitText) btnSubmitText.textContent = "Simpan & Cetak PDF A4";
+        }
+
+        modal.classList.remove("hidden");
+        setTimeout(() => {
+          if (custEl) custEl.focus();
+        }, 100);
+      },
+
+      closeCreateModal() {
+        const modal = document.getElementById("rabModal");
+        if (modal) modal.classList.add("hidden");
+      },
+
+      submitAndAction(actionType = 'print_pdf') {
+        this.tempSubmitAction = actionType;
+        const form = document.querySelector("#rabModal form");
+        if (form) {
+          if (typeof form.requestSubmit === "function") {
+            form.requestSubmit();
+          } else {
+            this.handleSubmit(new Event("submit"));
+          }
+        }
+      },
+
+      handleSubmit(e) {
+        if (e && e.preventDefault) e.preventDefault();
+
+        const customer = (document.getElementById("rabCustomer")?.value || "").trim();
+        if (!customer) {
+          UI.toast("Nama pemesan / klien / instansi harus diisi!", "error");
+          document.getElementById("rabCustomer")?.focus();
+          return;
+        }
+
+        const rabId = (document.getElementById("rabId")?.value || "").trim() || this.generateRabId();
+        const contact = (document.getElementById("rabContact")?.value || "").trim();
+        const project = (document.getElementById("rabProject")?.value || "").trim() || "Pengadaan Barang & Jasa Listrik";
+        const validDays = Number(document.getElementById("rabValidityDays")?.value) || 14;
+        const notes = (document.getElementById("rabNotes")?.value || "").trim() || this.getDefaultNotes(validDays);
+
+        const items = State.cart.map(it => {
+          const q = Number(it.qty) || 1;
+          const p = Number(it.harga) || 0;
+          return {
+            id: it.id,
+            nama: it.nama,
+            harga: p,
+            hargaModal: Number(it.hargaModal) || 0,
+            satuan: it.satuan || 'pcs',
+            qty: q,
+            isJasa: Boolean(it.isJasa),
+            hideQty: Boolean(it.hideQty),
+            subtotal: q * p
+          };
+        });
+
+        const total = items.reduce((s, it) => s + it.subtotal, 0);
+        const list = this.getRabs();
+
+        if (this.editingRabId) {
+          const idx = list.findIndex(r => r.id === this.editingRabId);
+          let target = null;
+          if (idx >= 0) {
+            list[idx].customer = customer;
+            list[idx].contact = contact;
+            list[idx].project = project;
+            list[idx].validDays = validDays;
+            list[idx].notes = notes;
+            list[idx].items = items;
+            list[idx].total = total;
+            list[idx].updatedAt = new Date().toISOString();
+            list[idx].revisionCount = (list[idx].revisionCount || 0) + 1;
+            target = list[idx];
+          }
+          this.saveRabs(list);
+          const revNum = target?.revisionCount || 1;
+          UI.toast(`Revisi ke-${revNum} untuk RAB ${this.editingRabId} berhasil disimpan!`, "success");
+          
+          this.cancelRevisionMode();
+          State.cart = [];
+          Cart.render();
+          this.closeCreateModal();
+
+          if (this.tempSubmitAction === 'print_pdf' && target) {
+            this.printA4(target);
+          }
+        } else {
+          const newRab = {
+            id: rabId,
+            tanggal: new Date().toISOString(),
+            customer,
+            contact,
+            project,
+            validDays,
+            notes,
+            items,
+            total,
+            status: 'Menunggu Deal',
+            revisionCount: 0
+          };
+          list.unshift(newRab);
+          this.saveRabs(list);
+          UI.toast(`Surat Penawaran / RAB ${rabId} berhasil dibuat!`, "success");
+
+          State.cart = [];
+          Cart.render();
+          this.closeCreateModal();
+
+          if (this.tempSubmitAction === 'print_pdf') {
+            this.printA4(newRab);
+          }
+        }
+
+        const listModal = document.getElementById("rabListModal");
+        if (listModal && !listModal.classList.contains("hidden")) {
+          this.renderList();
+        }
+      },
+
+      loadForRevision(rabId) {
+        const list = this.getRabs();
+        const rab = list.find(r => r.id === rabId);
+        if (!rab) {
+          UI.toast("Data RAB tidak ditemukan", "error");
+          return;
+        }
+
+        if (State.cart.length > 0) {
+          if (!confirm(`Keranjang kasir saat ini berisi ${State.cart.length} item.\nKosongkan keranjang dan muat item dari RAB ${rabId} untuk direvisi (tambah/kurang barang)?`)) {
+            return;
+          }
+        }
+
+        this.editingRabId = rab.id;
+        State.cart = (rab.items || []).map(it => {
+          const prod = State.products.find(p => p.id === it.id);
+          return {
+            id: it.id,
+            nama: it.nama,
+            harga: Number(it.harga) || 0,
+            hargaModal: Number(it.hargaModal) || 0,
+            stok: it.isJasa ? 999999 : (prod && typeof prod.stok === 'number' ? prod.stok : 999),
+            satuan: it.satuan || 'pcs',
+            qty: Number(it.qty) || 1,
+            isJasa: Boolean(it.isJasa),
+            hideQty: Boolean(it.hideQty)
+          };
+        });
+
+        // Tampilkan Banner Revisi di kasir
+        const banner = document.getElementById("rabRevisionBanner");
+        const codeEl = document.getElementById("rabRevisionCode");
+        const btnMakeRabText = document.getElementById("btnMakeRabText");
+        if (banner) banner.classList.remove("hidden");
+        if (codeEl) codeEl.textContent = `${rab.id} (${rab.customer})`;
+        if (btnMakeRabText) btnMakeRabText.textContent = "Simpan Revisi";
+
+        Cart.render();
+        this.closeListModal();
+        UI.switchView('pos');
+        UI.toast(`Mode Revisi Aktif untuk ${rab.id}. Anda dapat menambah produk baru, hapus barang, atau ubah jumlah di keranjang. Klik "Simpan Revisi" jika sudah selesai!`, "info");
+      },
+
+      cancelRevisionMode() {
+        this.editingRabId = null;
+        const banner = document.getElementById("rabRevisionBanner");
+        const btnMakeRabText = document.getElementById("btnMakeRabText");
+        if (banner) banner.classList.add("hidden");
+        if (btnMakeRabText) btnMakeRabText.textContent = "Buat RAB";
+      },
+
+      convertToSale(rabId) {
+        const list = this.getRabs();
+        const rab = list.find(r => r.id === rabId);
+        if (!rab) {
+          UI.toast("Data RAB tidak ditemukan", "error");
+          return;
+        }
+
+        if (!confirm(`Proses RAB ${rab.id} (${rab.customer}) menjadi transaksi penjualan resmi sekarang?\n(Stok barang akan dipotong secara riil saat pembayaran diselesaikan di kasir)`)) {
+          return;
+        }
+
+        rab.status = 'Deal (Disetujui)';
+        rab.convertedAt = new Date().toISOString();
+        this.saveRabs(list);
+
+        this.cancelRevisionMode();
+        State.cart = (rab.items || []).map(it => {
+          const prod = State.products.find(p => p.id === it.id);
+          return {
+            id: it.id,
+            nama: it.nama,
+            harga: Number(it.harga) || 0,
+            hargaModal: Number(it.hargaModal) || 0,
+            stok: it.isJasa ? 999999 : (prod && typeof prod.stok === 'number' ? prod.stok : 999),
+            satuan: it.satuan || 'pcs',
+            qty: Number(it.qty) || 1,
+            isJasa: Boolean(it.isJasa),
+            hideQty: Boolean(it.hideQty)
+          };
+        });
+
+        Cart.render();
+        this.closeListModal();
+        UI.switchView('pos');
+
+        setTimeout(() => {
+          UI.openPaymentModal();
+          const custInput = document.getElementById("custName");
+          if (custInput) custInput.value = rab.customer;
+          UI.toast(`RAB ${rab.id} disetujui (Deal) dan telah dimuat ke pembayaran!`, "success");
+        }, 150);
+      },
+
+      updateStatus(rabId, newStatus) {
+        const list = this.getRabs();
+        const rab = list.find(r => r.id === rabId);
+        if (!rab) return;
+        rab.status = newStatus;
+        this.saveRabs(list);
+        this.renderList();
+        UI.toast(`Status ${rab.id} diubah menjadi: ${newStatus}`, "info");
+      },
+
+      deleteRab(rabId) {
+        if (!confirm(`Hapus berkas penawaran ${rabId}? Data yang dihapus tidak dapat dipulihkan.`)) return;
+        let list = this.getRabs();
+        list = list.filter(r => r.id !== rabId);
+        this.saveRabs(list);
+        if (this.editingRabId === rabId) {
+          this.cancelRevisionMode();
+        }
+        this.renderList();
+        UI.toast(`RAB ${rabId} berhasil dihapus`, "success");
+      },
+
+      openListModal() {
+        const modal = document.getElementById("rabListModal");
+        if (!modal) return;
+        modal.classList.remove("hidden");
+        this.renderList();
+      },
+
+      closeListModal() {
+        const modal = document.getElementById("rabListModal");
+        if (modal) modal.classList.add("hidden");
+      },
+
+      setFilter(filter) {
+        this.currentFilter = filter;
+        const bAll = document.getElementById("btnRabFilterAll");
+        const bPen = document.getElementById("btnRabFilterPending");
+        const bDeal = document.getElementById("btnRabFilterDeal");
+
+        [bAll, bPen, bDeal].forEach(b => {
+          if (b) {
+            b.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition";
+          }
+        });
+
+        if (filter === 'all' && bAll) bAll.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition";
+        if (filter === 'pending' && bPen) bPen.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition";
+        if (filter === 'deal' && bDeal) bDeal.className = "px-3 py-1.5 rounded-lg bg-white text-slate-900 shadow-sm transition";
+
+        this.renderList();
+      },
+
+      formatDateIndo(dateStr) {
+        try {
+          const d = dateStr ? new Date(dateStr) : new Date();
+          const bulan = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+          ];
+          const tgl = d.getDate();
+          const bln = bulan[d.getMonth()];
+          const thn = d.getFullYear();
+          return `${tgl} ${bln} ${thn}`;
+        } catch (e) {
+          return dateStr || "-";
+        }
+      },
+
+      calculateExpiry(tanggalStr, days = 14) {
+        try {
+          const d = new Date(tanggalStr);
+          d.setDate(d.getDate() + (Number(days) || 14));
+          return this.formatDateIndo(d.toISOString());
+        } catch (e) {
+          return "-";
+        }
+      },
+
+      renderList() {
+        const container = document.getElementById("rabListContainer");
+        if (!container) return;
+
+        const allRabs = this.getRabs();
+        const countAll = allRabs.length;
+        const countPending = allRabs.filter(r => r.status === 'Menunggu Deal').length;
+        const countDeal = allRabs.filter(r => r.status === 'Deal (Disetujui)').length;
+
+        const elAll = document.getElementById("countRabAll");
+        const elPen = document.getElementById("countRabPending");
+        const elDeal = document.getElementById("countRabDeal");
+        if (elAll) elAll.textContent = countAll;
+        if (elPen) elPen.textContent = countPending;
+        if (elDeal) elDeal.textContent = countDeal;
+
+        const q = (document.getElementById("rabSearchInput")?.value || "").toLowerCase().trim();
+
+        let filtered = allRabs.filter(r => {
+          if (this.currentFilter === 'pending' && r.status !== 'Menunggu Deal') return false;
+          if (this.currentFilter === 'deal' && r.status !== 'Deal (Disetujui)') return false;
+          if (q) {
+            const matchId = (r.id || "").toLowerCase().includes(q);
+            const matchCust = (r.customer || "").toLowerCase().includes(q);
+            const matchProj = (r.project || "").toLowerCase().includes(q);
+            const matchContact = (r.contact || "").toLowerCase().includes(q);
+            return matchId || matchCust || matchProj || matchContact;
+          }
+          return true;
+        });
+
+        if (filtered.length === 0) {
+          container.innerHTML = `
+            <div class="py-12 text-center text-slate-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-2 text-slate-300"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>
+              <p class="font-bold text-slate-600">Belum ada dokumen penawaran RAB</p>
+              <p class="text-xs text-slate-400 mt-1">Buat penawaran baru dengan memasukkan barang ke keranjang kasir lalu klik tombol "Buat RAB".</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = filtered.map(r => {
+          const isDeal = r.status === 'Deal (Disetujui)';
+          const isCanceled = r.status === 'Batal / Kadaluarsa';
+          let statusBadgeClass = "bg-amber-100 text-amber-800 border-amber-300";
+          if (isDeal) statusBadgeClass = "bg-emerald-100 text-emerald-800 border-emerald-300";
+          if (isCanceled) statusBadgeClass = "bg-slate-100 text-slate-600 border-slate-300";
+
+          const tglStr = this.formatDateIndo(r.tanggal);
+          const expStr = this.calculateExpiry(r.tanggal, r.validDays);
+          const itemCount = (r.items || []).length;
+          const totalRp = Number(r.total || 0).toLocaleString('id-ID');
+          const revCount = r.revisionCount || 0;
+
+          return `
+            <div class="bg-white border ${isDeal ? 'border-emerald-200 shadow-sm' : 'border-slate-200'} rounded-2xl p-4 hover:shadow-md transition flex flex-col md:flex-row justify-between gap-4">
+              <div class="space-y-1.5 flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="font-extrabold text-slate-900 font-mono text-sm">${r.id}</span>
+                  <span class="px-2.5 py-0.5 rounded-full border text-[10px] font-bold ${statusBadgeClass}">
+                    ${r.status || 'Menunggu Deal'}
+                  </span>
+                  ${revCount > 0 ? `
+                    <span class="px-2 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold">
+                      Revisi ke-${revCount}
+                    </span>
+                  ` : ''}
+                </div>
+
+                <div class="flex flex-wrap items-baseline gap-x-3 text-xs text-slate-600">
+                  <span class="font-bold text-slate-900">${r.customer}</span>
+                  ${r.contact ? `<span class="text-slate-400">• Kontak: ${r.contact}</span>` : ''}
+                </div>
+
+                <div class="text-xs text-slate-500 font-medium">
+                  <span class="font-semibold text-slate-700">Perihal:</span> ${r.project || "Pengadaan Barang & Jasa"}
+                </div>
+
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 pt-1">
+                  <span>Dibuat: <strong class="text-slate-600">${tglStr}</strong></span>
+                  <span>Berlaku s/d: <strong class="text-slate-600">${expStr} (${r.validDays || 14} hari)</strong></span>
+                  <span>Rincian: <strong class="text-slate-600">${itemCount} item</strong></span>
+                </div>
+              </div>
+
+              <!-- Right: Total & Action Buttons -->
+              <div class="flex flex-col md:items-end justify-between gap-2.5 flex-shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                <div class="text-left md:text-right">
+                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Penawaran</div>
+                  <div class="text-base sm:text-lg font-black text-amber-600 font-mono leading-tight">Rp ${totalRp}</div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <!-- Tombol Revisi (Tambah / Kurangi Barang) -->
+                  <button 
+                    onclick="RabManager.loadForRevision('${r.id}')"
+                    class="px-2.5 py-1.5 rounded-xl font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs transition flex items-center gap-1"
+                    title="Buka kembali di keranjang kasir untuk menambah atau mengurangi barang">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    <span>Edit / Revisi</span>
+                  </button>
+
+                  <!-- Tombol Cetak PDF A4 -->
+                  <button 
+                    onclick="RabManager.printA4Direct('${r.id}')"
+                    class="px-2.5 py-1.5 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 text-white text-xs transition flex items-center gap-1 shadow-sm"
+                    title="Cetak Surat Penawaran Resmi A4 atau simpan PDF">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <span>Cetak PDF</span>
+                  </button>
+
+                  <!-- Tombol Kirim WhatsApp -->
+                  <button 
+                    onclick="RabManager.shareWA('${r.id}')"
+                    class="px-2.5 py-1.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white text-xs transition flex items-center gap-1 shadow-sm"
+                    title="Kirim rincian penawaran ke WhatsApp pelanggan">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>
+                    <span>Kirim WA</span>
+                  </button>
+
+                  <!-- Tombol Proses Jadi Penjualan (Deal) -->
+                  ${!isDeal ? `
+                    <button 
+                      onclick="RabManager.convertToSale('${r.id}')"
+                      class="px-2.5 py-1.5 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white text-xs transition flex items-center gap-1 shadow-sm"
+                      title="Pelanggan setuju! Proses penawaran ini menjadi penjualan riil dan potong stok">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                      <span>Proses Deal</span>
+                    </button>
+                  ` : ''}
+
+                  <!-- Tombol Hapus -->
+                  <button 
+                    onclick="RabManager.deleteRab('${r.id}')"
+                    class="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                    title="Hapus berkas RAB">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      },
+
+      printA4Direct(rabId) {
+        const list = this.getRabs();
+        const rab = list.find(r => r.id === rabId);
+        if (!rab) {
+          UI.toast("Data RAB tidak ditemukan", "error");
+          return;
+        }
+        this.printA4(rab);
+      },
+
+      async printA4(rab) {
+        if (!rab) return;
+        const storeName = CONFIG.STORE_NAME || "TOKO LISTRIK KITA";
+        const storeTagline = CONFIG.STORE_TAGLINE || "Solusi Tenaga Listrik Anda";
+        const storeAddr = CONFIG.STORE_ADDR || "Jl. Raya Parakan - Wonosobo No. 55, Kwadungan Jurang\nKec. Kledung, Kab. Temanggung, Jawa Tengah 56264";
+        const storePhone = CONFIG.STORE_PHONE || "085659549991";
+
+        const items = Array.isArray(rab.items) ? rab.items : [];
+        const total = Number(rab.total) || 0;
+        const tglIndo = this.formatDateIndo(rab.tanggal);
+        const expIndo = this.calculateExpiry(rab.tanggal, rab.validDays);
+
+        const notesList = (rab.notes || this.getDefaultNotes(rab.validDays || 14))
+          .split("\n")
+          .map(n => n.trim().replace(/^[\•\-\*]\s*/, ""))
+          .filter(Boolean);
+
+        const revBadgeHtml = (rab.revisionCount && rab.revisionCount > 0)
+          ? `<span style="display: inline-block; font-size: 10px; background: #e0f2fe; color: #0369a1; border: 1px solid #7dd3fc; border-radius: 4px; padding: 2px 6px; font-weight: 700; margin-left: 6px;">REVISI KE-${rab.revisionCount}</span>`
+          : '';
+
+        const html = `
+          <div style="font-family: Arial, Helvetica, sans-serif; color: #0f172a; background: #ffffff; padding: 24px; max-width: 820px; margin: 0 auto; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+            <!-- KOP TOKO RESMI DENGAN LOGO -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <img src="logo.png" alt="Logo" style="width: 62px; height: 62px; object-fit: contain; border-radius: 8px; flex-shrink: 0;" onerror="this.style.display='none'" />
+                <div>
+                  <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: 0.5px; text-transform: uppercase;">${storeName}</h1>
+                  <div style="font-size: 11px; font-style: italic; color: #b45309; font-weight: 600; margin-top: 1px;">${storeTagline}</div>
+                  <div style="font-size: 9.5px; color: #475569; margin-top: 3px; line-height: 1.35; white-space: pre-line;">${storeAddr}</div>
+                  <div style="font-size: 9.5px; color: #475569; margin-top: 1px;">Telp/WA: ${storePhone}</div>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 22px; font-weight: 900; color: #b45309; letter-spacing: 1px; line-height: 1;">SURAT PENAWARAN</div>
+                <div style="font-size: 11px; font-weight: 800; color: #475569; letter-spacing: 0.5px; margin-top: 2px;">( QUOTATION / RAB )</div>
+                <div style="font-size: 10.5px; font-weight: 700; color: #0f172a; margin-top: 6px;">No. RAB: <span style="font-weight: 800; font-family: monospace;">${rab.id}</span> ${revBadgeHtml}</div>
+                <div style="font-size: 10.5px; font-weight: 700; color: #0f172a; margin-top: 2px;">Tanggal: <span style="font-weight: 600;">${tglIndo}</span></div>
+                <div style="font-size: 10px; font-weight: 700; color: #dc2626; margin-top: 2px;">Berlaku S/D: <span style="font-weight: 600; color: #b91c1c;">${expIndo}</span></div>
+              </div>
+            </div>
+
+            <!-- GARIS PEMISAH KOP -->
+            <div style="border-bottom: 2px solid #b45309; margin-top: 10px; margin-bottom: 12px;"></div>
+
+            <!-- KOTAK TUJUAN PENAWARAN & PROYEK -->
+            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; font-size: 10.5px;">
+              <div style="max-width: 58%;">
+                <div style="margin-bottom: 2px;">
+                  <span style="color: #0f172a; font-weight: 700; width: 110px; display: inline-block;">Kepada Yth:</span>
+                  <span style="font-weight: 800; color: #0f172a; font-size: 11px;">${rab.customer}</span>
+                </div>
+                ${rab.contact ? `
+                  <div style="margin-bottom: 2px;">
+                    <span style="color: #475569; font-weight: 700; width: 110px; display: inline-block;">Kontak / Telp:</span>
+                    <span style="color: #0f172a; font-weight: 600;">${rab.contact}</span>
+                  </div>
+                ` : ''}
+              </div>
+              <div style="text-align: right; max-width: 40%;">
+                <div style="color: #475569; font-weight: 700; font-size: 10px; text-transform: uppercase;">Perihal / Pekerjaan:</div>
+                <div style="font-weight: 800; color: #b45309; font-size: 11px; margin-top: 2px;">${rab.project || "Pengadaan Barang & Jasa Listrik"}</div>
+              </div>
+            </div>
+
+            <!-- PENGANTAR PENAWARAN -->
+            <div style="font-size: 10px; color: #475569; margin-bottom: 10px; line-height: 1.4;">
+              Dengan hormat,<br/>
+              Bersama surat ini, kami dari <strong>${storeName}</strong> mengajukan rincian estimasi anggaran biaya (RAB) dan penawaran harga pengadaan barang maupun jasa dengan spesifikasi sebagai berikut:
+            </div>
+
+            <!-- TABEL RINCIAN BARANG & JASA (WARNA AMBER ELEGAN) -->
+            <table style="width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 16px;">
+              <thead>
+                <tr style="background: #b45309; color: #ffffff;">
+                  <th style="padding: 7px 6px; border: 1px solid #b45309; width: 34px; text-align: center;">No</th>
+                  <th style="padding: 7px 10px; border: 1px solid #b45309; text-align: left;">Nama Barang / Spesifikasi Layanan</th>
+                  <th style="padding: 7px 6px; border: 1px solid #b45309; width: 65px; text-align: center;">Qty</th>
+                  <th style="padding: 7px 10px; border: 1px solid #b45309; width: 130px; text-align: right;">Harga Satuan (Rp)</th>
+                  <th style="padding: 7px 10px; border: 1px solid #b45309; width: 140px; text-align: right;">Total Harga (Rp)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${items.map((it, i) => {
+                  const isJasaWithoutQty = (it.isJasa && it.hideQty) || !it.harga || Number(it.harga) <= 0 || !it.qty || Number(it.qty) <= 0;
+                  const qtyStr = isJasaWithoutQty ? '-' : (it.satuan && it.satuan !== 'pcs' ? `${it.qty} ${it.satuan}` : String(it.qty));
+                  const hargaStr = isJasaWithoutQty ? '-' : Number(it.harga).toLocaleString('id-ID');
+                  const subtotal = Number(it.subtotal || (it.qty * it.harga));
+                  const totalStr = subtotal.toLocaleString('id-ID');
+
+                  return `
+                    <tr style="background: ${i % 2 === 0 ? '#ffffff' : '#fefdfa'};">
+                      <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; color: #475569;">${i + 1}</td>
+                      <td style="padding: 6px 10px; border: 1px solid #cbd5e1; color: #0f172a;">
+                        ${it.nama}
+                        ${it.isJasa ? '<span style="font-size: 9px; color: #b45309; font-weight: 700; margin-left: 4px;">(Jasa)</span>' : ''}
+                      </td>
+                      <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">${qtyStr}</td>
+                      <td style="padding: 6px 10px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-family: monospace;">${hargaStr}</td>
+                      <td style="padding: 6px 10px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-weight: 700; font-family: monospace;">${totalStr}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+
+            <!-- BAGIAN BAWAH: SYARAT PENAWARAN (KIRI) & TOTAL RAB (KANAN) -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px;">
+              <!-- Kolom Kiri: Syarat & Ketentuan -->
+              <div style="flex: 1; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 10px; line-height: 1.5;">
+                <div style="font-weight: 800; color: #0f172a; margin-bottom: 4px; text-transform: uppercase;">Ketentuan & Syarat Penawaran:</div>
+                ${notesList.map(n => `<div style="color: #475569;">• ${n}</div>`).join('')}
+              </div>
+
+              <!-- Kolom Kanan: Total Estimasi Biaya -->
+              <div style="width: 320px; border: 1px solid #b45309; border-radius: 6px; overflow: hidden; font-size: 11px;">
+                <div style="padding: 8px 12px; background: #fffbeb; font-weight: 700; color: #92400e; font-size: 10.5px; border-bottom: 1px solid #fde68a;">
+                  ESTIMASI TOTAL ANGGARAN
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #ffffff; font-weight: 900; color: #b45309;">
+                  <span style="font-size: 11px; text-transform: uppercase;">TOTAL RAB</span>
+                  <span style="font-family: monospace; font-size: 16px;">Rp ${total.toLocaleString('id-ID')}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- PENUTUP -->
+            <div style="font-size: 10px; color: #475569; margin-bottom: 20px;">
+              Demikian surat penawaran harga ini kami sampaikan. Atas perhatian dan kesempatannya, kami ucapkan banyak terima kasih.
+            </div>
+
+            <!-- KOLOM TANDA TANGAN -->
+            <div style="display: flex; justify-content: space-between; text-align: center; font-size: 11px; margin-top: 16px; padding: 0 40px;">
+              <div style="width: 220px;">
+                <div style="color: #475569; font-weight: 600; font-size: 10px; margin-bottom: 2px;">Menyetujui / Deal,</div>
+                <div style="color: #0f172a; font-weight: 800; margin-bottom: 60px;">Pemesan (Klien)</div>
+                <div style="color: #0f172a; font-weight: 700;">( ${rab.customer} )</div>
+              </div>
+              <div style="width: 220px;">
+                <div style="color: #475569; font-weight: 600; font-size: 10px; margin-bottom: 2px;">Hormat Kami,</div>
+                <div style="color: #0f172a; font-weight: 800; margin-bottom: 60px;">${storeName}</div>
+                <div style="color: #0f172a;">( ________________________ )</div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        let printArea = document.getElementById("invoicePrintAreaA4");
+        if (!printArea) {
+          printArea = document.createElement("div");
+          printArea.id = "invoicePrintAreaA4";
+          document.body.appendChild(printArea);
+        }
+        printArea.innerHTML = html;
+        printArea.classList.remove("hidden");
+
+        UI.toast("Menyiapkan dokumen penawaran...", "info");
+
+        // Tunggu logo selesai dimuat
+        const images = Array.from(printArea.querySelectorAll("img"));
+        await Promise.all(images.map(img => {
+          if (img.complete) return Promise.resolve();
+          return new Promise(res => {
+            img.onload = res;
+            img.onerror = res;
+            setTimeout(res, 300);
+          });
+        }));
+
+        setTimeout(() => {
+          window.print();
+          setTimeout(() => {
+            if (printArea) {
+              printArea.classList.add("hidden");
+              printArea.innerHTML = "";
+            }
+          }, 800);
+        }, 150);
+      },
+
+      shareWA(rabId) {
+        const list = this.getRabs();
+        const rab = list.find(r => r.id === rabId);
+        if (!rab) {
+          UI.toast("Data RAB tidak ditemukan", "error");
+          return;
+        }
+
+        const storeName = CONFIG.STORE_NAME || "TOKO LISTRIK KITA";
+        const tgl = this.formatDateIndo(rab.tanggal);
+        const exp = this.calculateExpiry(rab.tanggal, rab.validDays);
+
+        let msg = `*SURAT PENAWARAN HARGA / RAB*\n`;
+        msg += `*${storeName.toUpperCase()}*\n`;
+        msg += `-------------------------------------------\n`;
+        msg += `*No. Dokumen:* ${rab.id}\n`;
+        msg += `*Tanggal:* ${tgl}\n`;
+        msg += `*Masa Berlaku:* s/d ${exp} (${rab.validDays || 14} hari)\n`;
+        msg += `*Kepada Yth:* ${rab.customer}\n`;
+        if (rab.contact) msg += `*Kontak:* ${rab.contact}\n`;
+        msg += `*Perihal:* ${rab.project || "Pengadaan Barang & Jasa Listrik"}\n`;
+        msg += `-------------------------------------------\n`;
+        msg += `*RINCIAN ESTIMASI BARANG & JASA:*\n`;
+
+        (rab.items || []).forEach((it, i) => {
+          const subtotal = Number(it.subtotal || (it.qty * it.harga)).toLocaleString('id-ID');
+          const isJasaNoQty = (it.isJasa && it.hideQty) || !it.qty || Number(it.qty) <= 0;
+          if (isJasaNoQty) {
+            msg += `${i + 1}. *${it.nama}*: Rp ${subtotal}\n`;
+          } else {
+            msg += `${i + 1}. *${it.nama}* (${it.qty} ${it.satuan || 'pcs'} @ Rp ${Number(it.harga).toLocaleString('id-ID')}): Rp ${subtotal}\n`;
+          }
+        });
+
+        msg += `-------------------------------------------\n`;
+        msg += `*TOTAL ANGGARAN: Rp ${Number(rab.total || 0).toLocaleString('id-ID')}*\n`;
+        msg += `-------------------------------------------\n`;
+        if (rab.notes) {
+          msg += `*Ketentuan Penawaran:*\n${rab.notes}\n\n`;
+        }
+        msg += `Mohon konfirmasi jika ada spesifikasi yang ingin ditambahkan atau disesuaikan. Terima kasih atas kepercayaan Anda!`;
+
+        let phoneNum = "";
+        if (rab.contact) {
+          const m = rab.contact.match(/(?:\+62|62|08)[0-9\-\s]{8,15}/);
+          if (m) {
+            phoneNum = m[0].replace(/[^0-9]/g, "");
+            if (phoneNum.startsWith("0")) phoneNum = "62" + phoneNum.slice(1);
+          }
+        }
+
+        const encoded = encodeURIComponent(msg);
+        const url = phoneNum ? `https://wa.me/${phoneNum}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+        window.open(url, "_blank");
+      }
+    };
+
+    /**
+     * =========================================================================
      * 7. PRODUK MANAGER (CRUD CONTROLLER)
      * =========================================================================
      */
@@ -5383,6 +6385,7 @@
       try {
         App.init();
         ReturnsManager.updateBadge();
+        RabManager.updateBadge();
       } catch (err) {
         console.error("Bootstrap App.init error:", err);
       }
