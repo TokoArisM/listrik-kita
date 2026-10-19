@@ -925,7 +925,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v36</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v37</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -1209,6 +1209,42 @@
             <span class="font-semibold font-mono" id="invDetailKembalian">Rp 0</span>
           </div>
         </div>
+
+        <!-- Penyesuaian Faktur Proyek / A4 (DP, Sisa Tagihan & Catatan) -->
+        <div class="bg-blue-50/70 border border-blue-200 rounded-xl p-3.5 space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Penyesuaian Faktur Proyek / A4 (DP & Ketentuan)
+            </h4>
+            <span class="text-[10px] text-blue-700 font-bold bg-blue-100 px-2 py-0.5 rounded-full">Format Faktur Resmi</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="block font-bold text-slate-700 text-[11px] mb-1">Ditagihkan Kepada (Instansi & Alamat):</label>
+              <input type="text" id="invCustomCustomer" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Pamsimas KKM Mitra Sejahtera, Desa Kledung" />
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 text-[11px] mb-1">Kontak PIC / Telp/WA Pemesan:</label>
+              <input type="text" id="invCustomContact" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Risyono Usman Tohirr / +62 858-6714-0945" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="block font-bold text-slate-700 text-[11px] mb-1">DP / Uang Muka yang Diterima (Rp):</label>
+              <input type="number" id="invCustomDP" oninput="Reports.updateCustomDPSisa()" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-black text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0" />
+              <div class="text-[11px] font-bold mt-1" id="invCustomSisaPreview">
+                Sisa Tagihan: <span class="text-amber-800 font-mono">Rp 0</span>
+              </div>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 text-[11px] mb-1">Catatan & Keterangan Khusus (Garansi dll):</label>
+              <textarea id="invCustomNotes" rows="2" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none resize-none leading-relaxed" placeholder="• Garansi produk panel selama 6 bulan.&#10;• Terima kasih atas kepercayaan & dukungan Anda.&#10;• Kepuasan pelanggan adalah keutamaan kami."></textarea>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Modal Footer (Action Buttons) -->
@@ -1396,8 +1432,9 @@
 
     const CONFIG = {
       STORE_NAME: localStorage.getItem("lk_store_name") || "TOKO LISTRIK KITA",
-      STORE_ADDR: localStorage.getItem("lk_store_addr") || "Jl. Raya Listrik No. 88, Cibinong",
-      STORE_PHONE: localStorage.getItem("lk_store_phone") || "0856-5954-9991",
+      STORE_TAGLINE: localStorage.getItem("lk_store_tagline") || "Solusi Tenaga Listrik Anda",
+      STORE_ADDR: localStorage.getItem("lk_store_addr") || "Jl. Raya Parakan - Wonosobo No. 55, Kwadungan Jurang, Kec. Kledung, Kab. Temanggung, Jawa Tengah 56264",
+      STORE_PHONE: localStorage.getItem("lk_store_phone") || "085659549991",
       STORE_FOOTER: localStorage.getItem("lk_store_footer") !== null
         ? localStorage.getItem("lk_store_footer")
         : "Terima Kasih Atas Kunjungan Anda\nBarang yang sudah dibeli tidak dapat ditukar/dikembalikan.",
@@ -3031,8 +3068,43 @@
         const kembalianEl = document.getElementById("invDetailKembalian");
         if (kembalianEl) kembalianEl.textContent = `Rp ${kembalian.toLocaleString('id-ID')}`;
 
+        // Isi penyesuaian custom
+        const customCust = document.getElementById("invCustomCustomer");
+        if (customCust) customCust.value = trx.pelanggan || "Umum";
+        const customCont = document.getElementById("invCustomContact");
+        if (customCont) customCont.value = "";
+        const customDP = document.getElementById("invCustomDP");
+        if (customDP) {
+          const isDebt = String(trx.metode || "").toLowerCase().includes("bon") || 
+                         String(trx.metode || "").toLowerCase().includes("hutang") ||
+                         String(trx.metode || "").toLowerCase().includes("tempo") ||
+                         String(trx.metode || "").toLowerCase().includes("cicil");
+          customDP.value = isDebt ? (Number(trx.bayar) || 0) : total;
+        }
+        const customNotes = document.getElementById("invCustomNotes");
+        if (customNotes) {
+          customNotes.value = "• Garansi produk panel selama 6 bulan.\n• Terima kasih atas kepercayaan & dukungan Anda.\n• Kepuasan pelanggan adalah keutamaan kami.";
+        }
+        this.updateCustomDPSisa();
+
         const modal = document.getElementById("invoiceDetailModal");
         if (modal) modal.classList.remove("hidden");
+      },
+
+      updateCustomDPSisa() {
+        if (!this.selectedDetailTrx) return;
+        const total = Number(this.selectedDetailTrx.total) || 0;
+        const dpInp = document.getElementById("invCustomDP");
+        const dp = dpInp ? (Number(dpInp.value) || 0) : 0;
+        const sisa = Math.max(0, total - dp);
+        const sisaEl = document.getElementById("invCustomSisaPreview");
+        if (sisaEl) {
+          if (sisa > 0) {
+            sisaEl.innerHTML = `Sisa Tagihan: <span class="text-red-600 font-mono font-bold">Rp ${sisa.toLocaleString('id-ID')}</span>`;
+          } else {
+            sisaEl.innerHTML = `Sisa Tagihan: <span class="text-emerald-700 font-mono font-bold">Rp 0 (LUNAS)</span>`;
+          }
+        }
       },
 
       closeInvoiceDetailModal() {
@@ -3047,12 +3119,87 @@
 
       shareWAFromDetail() {
         if (!this.selectedDetailTrx) return;
-        this.shareInvoiceWA(0, this.selectedDetailTrx);
+        const trx = this.selectedDetailTrx;
+        const items = InvoicePrinter.normalizeItems(trx);
+        const storeName = CONFIG.STORE_NAME || "TOKO LISTRIK KITA";
+        const storeTagline = CONFIG.STORE_TAGLINE || "Solusi Tenaga Listrik Anda";
+        const storePhone = CONFIG.STORE_PHONE || "085659549991";
+        const total = Number(trx.total) || 0;
+
+        const custInp = document.getElementById("invCustomCustomer");
+        const contactInp = document.getElementById("invCustomContact");
+        const dpInp = document.getElementById("invCustomDP");
+        const notesInp = document.getElementById("invCustomNotes");
+
+        const customer = (custInp ? custInp.value.trim() : "") || trx.pelanggan || "Umum";
+        const contact = (contactInp ? contactInp.value.trim() : "") || "-";
+        const dp = dpInp ? (Number(dpInp.value) || 0) : (Number(trx.bayar) || 0);
+        const sisa = Math.max(0, total - dp);
+        const notes = (notesInp ? notesInp.value.trim() : "") || "• Garansi produk panel selama 6 bulan.\n• Terima kasih atas kepercayaan & dukungan Anda.";
+
+        const tglIndo = InvoicePrinter.formatDateIndo(trx.waktu);
+
+        // Ekstrak no HP dari kontak jika ada
+        let targetPhone = "";
+        const mPhone = (contact + " " + customer).match(/(?:\+62|62|08)[0-9\-\s]{8,15}/);
+        if (mPhone) {
+          targetPhone = mPhone[0].replace(/[^0-9]/g, "");
+          if (targetPhone.startsWith("08")) targetPhone = "628" + targetPhone.slice(2);
+        }
+
+        let lines = [
+          `*${storeName}*`,
+          `_${storeTagline}_`,
+          `Telp/WA: ${storePhone}`,
+          "----------------------------------------",
+          `*FAKTUR INVOICE RESMI*`,
+          `No. Invoice : *${trx.transactionId}*`,
+          `Tanggal     : ${tglIndo}`,
+          `Ditagihkan  : *${customer}*`,
+          contact && contact !== "-" ? `Kontak      : ${contact}` : "",
+          "----------------------------------------",
+          `*RINCIAN BARANG & JASA:*`
+        ].filter(Boolean);
+
+        items.forEach((it, idx) => {
+          const isJasa = !it.harga || Number(it.harga) <= 0;
+          if (isJasa) {
+            lines.push(`${idx + 1}. ${it.nama}\n   = Rp${Number(it.subtotal || it.harga).toLocaleString('id-ID')}`);
+          } else {
+            lines.push(`${idx + 1}. ${it.nama}\n   ${it.qty} ${it.satuan || 'pcs'} x Rp${Number(it.harga).toLocaleString('id-ID')} = Rp${Number(it.subtotal).toLocaleString('id-ID')}`);
+          }
+        });
+
+        lines.push("----------------------------------------");
+        lines.push(`*TOTAL BELANJA & JASA : Rp ${total.toLocaleString('id-ID')}*`);
+        lines.push(`*DP / UANG MUKA       : Rp ${dp.toLocaleString('id-ID')}*`);
+        lines.push(`*SISA TAGIHAN         : Rp ${sisa.toLocaleString('id-ID')}* ${sisa <= 0 ? '(LUNAS)' : ''}`);
+        lines.push("----------------------------------------");
+        lines.push(`*Catatan & Keterangan:*\n${notes}`);
+        lines.push("\n_Dokumen PDF Faktur Penjualan resmi telah dicetak dari sistem Toko Listrik Kita._");
+
+        const msg = lines.join("\n");
+        const waUrl = targetPhone 
+          ? `https://wa.me/${targetPhone}?text=${encodeURIComponent(msg)}`
+          : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+
+        window.open(waUrl, "_blank");
+        UI.toast("Membuka WhatsApp! File PDF yang sudah disimpan bisa langsung dilampirkan via ikon klip (📎).", "success");
       },
 
       printA4InvoiceFromDetail() {
         if (!this.selectedDetailTrx) return;
-        InvoicePrinter.printA4Invoice(this.selectedDetailTrx);
+        const customCust = document.getElementById("invCustomCustomer")?.value;
+        const customCont = document.getElementById("invCustomContact")?.value;
+        const customDP = document.getElementById("invCustomDP")?.value;
+        const customNotes = document.getElementById("invCustomNotes")?.value;
+
+        InvoicePrinter.printA4Invoice(this.selectedDetailTrx, {
+          customer: customCust,
+          contact: customCont,
+          dp: customDP,
+          notes: customNotes
+        });
       },
 
       openReturnWarrantyModal() {
@@ -3125,6 +3272,42 @@
         });
       },
 
+      formatDateIndo(dateInput) {
+        let d = null;
+        if (dateInput instanceof Date) {
+          d = dateInput;
+        } else if (typeof dateInput === 'string' && dateInput.trim()) {
+          const s = dateInput.trim();
+          const mSlash = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+          if (mSlash) {
+            d = new Date(parseInt(mSlash[3], 10), parseInt(mSlash[2], 10) - 1, parseInt(mSlash[1], 10));
+          } else {
+            const mIso = s.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+            if (mIso) {
+              d = new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10));
+            } else {
+              const mId = s.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+              if (mId) {
+                d = new Date(parseInt(mId[3], 10), parseInt(mId[2], 10) - 1, parseInt(mId[1], 10));
+              } else {
+                const parsed = new Date(s);
+                if (!isNaN(parsed.getTime())) d = parsed;
+              }
+            }
+          }
+        }
+
+        if (!d || isNaN(d.getTime())) {
+          d = new Date();
+        }
+
+        const months = [
+          "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+          "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+        ];
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+      },
+
       terbilang(angka) {
         const bilangan = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
         angka = Math.floor(Math.abs(Number(angka) || 0));
@@ -3145,137 +3328,157 @@
         return konversi(angka).replace(/\s+/g, " ").trim() + " Rupiah";
       },
 
-      printA4Invoice(trx) {
+      printA4Invoice(trx, customOptions = {}) {
         if (!trx) return;
         const items = this.normalizeItems(trx);
         const storeName = CONFIG.STORE_NAME || "TOKO LISTRIK KITA";
-        const storeAddr = CONFIG.STORE_ADDR || "Jl. Raya Listrik No. 88";
-        const storePhone = CONFIG.STORE_PHONE || "0856-5954-9991";
+        const storeTagline = CONFIG.STORE_TAGLINE || "Solusi Tenaga Listrik Anda";
+        const storeAddr = CONFIG.STORE_ADDR || "Jl. Raya Parakan - Wonosobo No. 55, Kwadungan Jurang\nKec. Kledung, Kab. Temanggung, Jawa Tengah 56264";
+        const storePhone = CONFIG.STORE_PHONE || "085659549991";
+        
         const total = Number(trx.total) || 0;
-        const subtotal = Number(trx.subtotal) || total;
-        const diskon = Number(trx.diskon) || 0;
-        const bayar = Number(trx.bayar) || 0;
-        const kembalian = Number(trx.kembalian) || 0;
-        const metode = String(trx.metode || "Tunai");
-        const pelanggan = String(trx.pelanggan || "Umum");
-        const terbilangStr = this.terbilang(total);
+        
+        // Data pelanggan & kontak
+        const customerFull = (customOptions.customer || trx.pelanggan || "Umum").trim();
+        let customerName = customerFull;
+        let customerAddress = "";
+        if (customerFull.includes(",")) {
+          const parts = customerFull.split(",");
+          customerName = parts[0].trim();
+          customerAddress = parts.slice(1).join(",").trim();
+        } else if (customerFull.includes("\n")) {
+          const parts = customerFull.split("\n");
+          customerName = parts[0].trim();
+          customerAddress = parts.slice(1).join("\n").trim();
+        }
+
+        const contactFull = (customOptions.contact || "-").trim();
+        let contactName = contactFull;
+        let contactPhone = "";
+        const mPhone = contactFull.match(/(?:\+62|62|08)[0-9\-\s]{8,15}/);
+        if (mPhone) {
+          contactPhone = mPhone[0].trim();
+          contactName = contactFull.replace(contactPhone, "").replace(/[\-\/:\(\)]+/g, " ").trim() || contactName;
+        }
+
+        // DP dan Sisa Tagihan
+        let dpAmount = 0;
+        if (customOptions.dp !== undefined && customOptions.dp !== null && customOptions.dp !== "") {
+          dpAmount = Number(customOptions.dp) || 0;
+        } else {
+          const m = String(trx.metode || "Tunai").toLowerCase();
+          const isDebt = m.includes("bon") || m.includes("hutang") || m.includes("tempo") || m.includes("cicil");
+          dpAmount = isDebt ? (Number(trx.bayar) || 0) : total;
+        }
+
+        const sisaTagihan = Math.max(0, total - dpAmount);
+
+        // Catatan
+        const rawNotes = customOptions.notes || `• Garansi produk panel selama 6 bulan.\n• Terima kasih atas kepercayaan & dukungan Anda.\n• Kepuasan pelanggan adalah keutamaan kami.`;
+        const notesList = rawNotes.split("\n").map(n => n.trim().replace(/^[\•\-\*]\s*/, "")).filter(Boolean);
+
+        // Format tanggal Indonesia
+        const tglIndo = this.formatDateIndo(trx.waktu);
 
         const html = `
-          <div style="font-family: Arial, Helvetica, sans-serif; color: #1e293b; background: #fff; padding: 20px; max-width: 800px; margin: 0 auto; line-height: 1.4;">
-            <!-- KOP FAKTUR RESMI -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 14px;">
-              <div style="display: flex; align-items: center; gap: 14px;">
-                <img src="logo.png" style="width: 52px; height: 52px; object-fit: contain;" alt="Logo" onerror="this.style.display='none'" />
-                <div>
-                  <h1 style="font-size: 19px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: 0.5px;">${storeName}</h1>
-                  <p style="font-size: 11px; color: #475569; margin: 2px 0 0 0;">${storeAddr}</p>
-                  <p style="font-size: 11px; color: #475569; margin: 2px 0 0 0;">WhatsApp/Telp: <strong>${storePhone}</strong></p>
-                </div>
+          <div style="font-family: Arial, Helvetica, sans-serif; color: #0f172a; background: #ffffff; padding: 24px; max-width: 820px; margin: 0 auto; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+            <!-- KOP TOKO -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <h1 style="font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: 0.5px; text-transform: uppercase;">${storeName}</h1>
+                <div style="font-size: 11px; font-style: italic; color: #0284c7; font-weight: 600; margin-top: 2px;">${storeTagline}</div>
+                <div style="font-size: 9.5px; color: #475569; margin-top: 4px; line-height: 1.35; white-space: pre-line;">${storeAddr}</div>
+                <div style="font-size: 9.5px; color: #475569; margin-top: 1px;">Telp/WA: ${storePhone}</div>
               </div>
               <div style="text-align: right;">
-                <div style="font-size: 17px; font-weight: 900; color: #1e3a8a; letter-spacing: 1px;">FAKTUR PENJUALAN</div>
-                <div style="font-size: 12px; font-family: monospace; font-weight: 700; color: #0f172a; margin-top: 4px;">No: ${trx.transactionId}</div>
-                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Tgl: ${trx.waktu || new Date().toLocaleString('id-ID')}</div>
+                <div style="font-size: 26px; font-weight: 900; color: #0284c7; letter-spacing: 1px;">INVOICE</div>
+                <div style="font-size: 10.5px; font-weight: 700; color: #0f172a; margin-top: 4px;">No. Invoice: <span style="font-weight: 600;">${trx.transactionId}</span></div>
+                <div style="font-size: 10.5px; font-weight: 700; color: #0f172a; margin-top: 2px;">Tanggal: <span style="font-weight: 600;">${tglIndo}</span></div>
               </div>
             </div>
 
-            <!-- INFO PEMBELI & PEMBAYARAN -->
-            <div style="display: flex; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; font-size: 11px;">
-              <div>
-                <span style="color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px; display: block;">Kepada Yth:</span>
-                <strong style="font-size: 13px; color: #0f172a;">${pelanggan}</strong>
-              </div>
-              <div>
-                <span style="color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px; display: block;">Metode Pembayaran:</span>
-                <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; background: #e0f2fe; color: #0369a1;">${metode}</span>
+            <!-- GARIS PEMISAH KOP -->
+            <div style="border-bottom: 2px solid #0f172a; margin-top: 10px; margin-bottom: 12px;"></div>
+
+            <!-- KOTAK DITAGIHKAN & KONTAK -->
+            <div style="background: #f0f7ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; font-size: 10.5px;">
+              <div style="max-width: 55%;">
+                <span style="color: #0f172a; font-weight: 700;">Ditagihkan:</span>
+                <span style="font-weight: 700; color: #0f172a; margin-left: 12px;">${customerName}</span>
+                ${customerAddress ? `<div style="color: #475569; margin-left: 78px; margin-top: 2px;">${customerAddress}</div>` : ''}
               </div>
               <div style="text-align: right;">
-                <span style="color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px; display: block;">Status Faktur:</span>
-                <strong style="color: ${metode.toLowerCase().includes('bon') || metode.toLowerCase().includes('hutang') ? '#b45309' : '#15803d'}; font-size: 12px;">
-                  ${metode.toLowerCase().includes('bon') || metode.toLowerCase().includes('hutang') ? 'TEMPO / BELUM LUNAS' : 'LUNAS'}
-                </strong>
+                <div><span style="color: #0f172a; font-weight: 700;">Kontak:</span> <span style="font-weight: 700; color: #0f172a;">${contactName}</span></div>
+                ${contactPhone ? `<div style="color: #475569; margin-top: 2px;"><span style="color: #0f172a; font-weight: 700;">Telp/WA:</span> ${contactPhone}</div>` : ''}
               </div>
             </div>
 
-            <!-- TABEL BARANG -->
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 14px;">
+            <!-- TABEL BARANG / JASA (WARNA BIRU ELEGAN) -->
+            <table style="width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 16px;">
               <thead>
-                <tr style="background: #0f172a; color: #ffffff;">
-                  <th style="padding: 7px; border: 1px solid #0f172a; width: 30px; text-align: center;">NO</th>
-                  <th style="padding: 7px; border: 1px solid #0f172a; text-align: left;">NAMA BARANG / ALAT LISTRIK</th>
-                  <th style="padding: 7px; border: 1px solid #0f172a; width: 45px; text-align: center;">QTY</th>
-                  <th style="padding: 7px; border: 1px solid #0f172a; width: 55px; text-align: center;">SATUAN</th>
-                  <th style="padding: 7px; border: 1px solid #0f172a; width: 90px; text-align: right;">HARGA (RP)</th>
-                  <th style="padding: 7px; border: 1px solid #0f172a; width: 95px; text-align: right;">JUMLAH (RP)</th>
+                <tr style="background: #1e6091; color: #ffffff;">
+                  <th style="padding: 7px 6px; border: 1px solid #1e6091; width: 34px; text-align: center;">No</th>
+                  <th style="padding: 7px 10px; border: 1px solid #1e6091; text-align: left;">Nama Barang / Jasa</th>
+                  <th style="padding: 7px 6px; border: 1px solid #1e6091; width: 65px; text-align: center;">Qty</th>
+                  <th style="padding: 7px 10px; border: 1px solid #1e6091; width: 130px; text-align: right;">Harga Satuan (Rp)</th>
+                  <th style="padding: 7px 10px; border: 1px solid #1e6091; width: 140px; text-align: right;">Total Harga (Rp)</th>
                 </tr>
               </thead>
               <tbody>
-                ${items.map((it, i) => `
-                  <tr style="background: ${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                    <td style="padding: 6px 7px; border: 1px solid #cbd5e1; text-align: center;">${i + 1}</td>
-                    <td style="padding: 6px 7px; border: 1px solid #cbd5e1; font-weight: 600; color: #0f172a;">${it.nama}</td>
-                    <td style="padding: 6px 7px; border: 1px solid #cbd5e1; text-align: center; font-weight: 700;">${it.qty}</td>
-                    <td style="padding: 6px 7px; border: 1px solid #cbd5e1; text-align: center; color: #64748b;">${it.satuan || 'pcs'}</td>
-                    <td style="padding: 6px 7px; border: 1px solid #cbd5e1; text-align: right;">${it.harga.toLocaleString('id-ID')}</td>
-                    <td style="padding: 6px 7px; border: 1px solid #cbd5e1; text-align: right; font-weight: 700;">${it.subtotal.toLocaleString('id-ID')}</td>
-                  </tr>
-                `).join('')}
+                ${items.map((it, i) => {
+                  const isJasa = !it.harga || Number(it.harga) <= 0 || !it.qty || Number(it.qty) <= 0;
+                  const qtyStr = isJasa ? '-' : (it.satuan && it.satuan !== 'pcs' ? `${it.qty} ${it.satuan}` : String(it.qty));
+                  const hargaStr = isJasa ? '-' : Number(it.harga).toLocaleString('id-ID');
+                  const totalStr = Number(it.subtotal || (it.qty * it.harga)).toLocaleString('id-ID');
+
+                  return `
+                    <tr style="background: ${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                      <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; color: #475569;">${i + 1}</td>
+                      <td style="padding: 6px 10px; border: 1px solid #cbd5e1; color: #0f172a;">${it.nama}</td>
+                      <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">${qtyStr}</td>
+                      <td style="padding: 6px 10px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-family: monospace;">${hargaStr}</td>
+                      <td style="padding: 6px 10px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-weight: 700; font-family: monospace;">${totalStr}</td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
 
-            <!-- BAGIAN BAWAH: TERBILANG & TOTAL -->
-            <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 20px;">
-              <!-- Kolom Kiri: Terbilang & Catatan Garansi -->
-              <div style="flex: 1; font-size: 10px; color: #475569;">
-                <div style="background: #f1f5f9; border-left: 3px solid #1e3a8a; padding: 6px 8px; margin-bottom: 8px;">
-                  <span style="font-weight: 700; color: #0f172a; font-size: 9px; text-transform: uppercase; display: block;">Terbilang:</span>
-                  <span style="font-style: italic; font-weight: 600; color: #1e3a8a;"># ${terbilangStr} #</span>
-                </div>
-                <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 6px 8px; line-height: 1.4;">
-                  <strong style="color: #0f172a; display: block; margin-bottom: 2px;">Ketentuan Garansi & Toko:</strong>
-                  <ul style="margin: 0; padding-left: 14px;">
-                    <li>Barang bergaransi (Lampu LED) wajib menyertakan faktur ini & kardus asli saat klaim.</li>
-                    <li>Kabel yang sudah dipotong per meter tidak dapat ditukar/dikembalikan.</li>
-                    <li>Retur barang cacat pabrik dilayani maksimal 3 hari setelah tanggal faktur.</li>
-                  </ul>
-                </div>
+            <!-- BAGIAN BAWAH: CATATAN (KIRI) & REKAP DP / SISA (KANAN) -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 28px;">
+              <!-- Kolom Kiri: Catatan & Keterangan -->
+              <div style="flex: 1; background: #fffdfa; border: 1px solid #fed7aa; border-radius: 6px; padding: 10px 14px; font-size: 10px; line-height: 1.5;">
+                <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">Catatan & Keterangan:</div>
+                ${notesList.map(n => `<div style="color: #475569;">• ${n}</div>`).join('')}
               </div>
 
-              <!-- Kolom Kanan: Rincian Angka Total -->
-              <div style="width: 250px; font-size: 11px;">
-                <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e2e8f0;">
-                  <span>Subtotal:</span>
-                  <strong style="font-family: monospace;">Rp ${subtotal.toLocaleString('id-ID')}</strong>
+              <!-- Kolom Kanan: Total Belanja, DP, Sisa Tagihan -->
+              <div style="width: 320px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; font-size: 11px;">
+                <div style="display: flex; justify-content: space-between; padding: 7px 12px; background: #ffffff; font-weight: 800; color: #0f172a;">
+                  <span>TOTAL BELANJA & JASA</span>
+                  <span style="font-family: monospace; font-size: 12px;">Rp ${total.toLocaleString('id-ID')}</span>
                 </div>
-                ${diskon > 0 ? `
-                <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e2e8f0; color: #dc2626;">
-                  <span>Diskon:</span>
-                  <strong style="font-family: monospace;">-Rp ${diskon.toLocaleString('id-ID')}</strong>
-                </div>` : ''}
-                <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 2px solid #0f172a; font-size: 12.5px; font-weight: 800; color: #0f172a;">
-                  <span>TOTAL AKHIR:</span>
-                  <span style="font-family: monospace; color: #1e3a8a;">Rp ${total.toLocaleString('id-ID')}</span>
+                <div style="display: flex; justify-content: space-between; padding: 7px 12px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-weight: 700; color: #0f172a;">
+                  <span>DP / UANG MUKA</span>
+                  <span style="font-family: monospace; font-size: 12px;">Rp ${dpAmount.toLocaleString('id-ID')}</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e2e8f0; color: #64748b;">
-                  <span>Bayar:</span>
-                  <span style="font-family: monospace;">Rp ${bayar.toLocaleString('id-ID')}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 3px 0; color: #64748b;">
-                  <span>Kembalian / Sisa:</span>
-                  <span style="font-family: monospace;">Rp ${kembalian.toLocaleString('id-ID')}</span>
+                <div style="display: flex; justify-content: space-between; padding: 7px 12px; background: #ffffff; border-top: 1px solid #cbd5e1; font-weight: 800; color: ${sisaTagihan > 0 ? '#dc2626' : '#16a34a'};">
+                  <span>SISA TAGIHAN</span>
+                  <span style="font-family: monospace; font-size: 13px;">Rp ${sisaTagihan.toLocaleString('id-ID')} ${sisaTagihan === 0 ? '(LUNAS)' : ''}</span>
                 </div>
               </div>
             </div>
 
-            <!-- KOLOM TANDA TANGAN RESMI -->
-            <div style="display: flex; justify-content: space-between; text-align: center; font-size: 11px; margin-top: 24px;">
-              <div style="width: 180px;">
-                <div style="color: #64748b; margin-bottom: 45px;">Penerima / Pembeli,</div>
-                <div style="border-bottom: 1px solid #0f172a; font-weight: 700; color: #0f172a;">( ${pelanggan} )</div>
+            <!-- KOLOM TANDA TANGAN -->
+            <div style="display: flex; justify-content: space-between; text-align: center; font-size: 11px; margin-top: 24px; padding: 0 40px;">
+              <div style="width: 220px;">
+                <div style="color: #0f172a; font-weight: 700; margin-bottom: 60px;">Penerima / Pelanggan</div>
+                <div style="color: #0f172a;">( ________________________ )</div>
               </div>
-              <div style="width: 180px;">
-                <div style="color: #64748b; margin-bottom: 45px;">Hormat Kami,</div>
-                <div style="border-bottom: 1px solid #0f172a; font-weight: 700; color: #0f172a;">( ${storeName} )</div>
+              <div style="width: 220px;">
+                <div style="color: #0f172a; font-weight: 700; margin-bottom: 2px;">Hormat Kami,</div>
+                <div style="color: #0f172a; font-weight: 700; margin-bottom: 50px;">${storeName}</div>
+                <div style="color: #0f172a;">( ________________________ )</div>
               </div>
             </div>
           </div>
