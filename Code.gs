@@ -78,6 +78,26 @@ function setupDatabase() {
       "Status"
     ]);
   }
+
+  // 4. Setup Sheet RAB (Rencana Anggaran Biaya)
+  let sheetRab = ss.getSheetByName("RAB");
+  if (!sheetRab) {
+    sheetRab = ss.insertSheet("RAB");
+    sheetRab.appendRow([
+      "ID RAB", 
+      "Tanggal", 
+      "Pelanggan", 
+      "Kontak", 
+      "Proyek", 
+      "Masa Berlaku (Hari)", 
+      "Catatan", 
+      "Total", 
+      "Status", 
+      "Revisi", 
+      "RawItemsJSON",
+      "UpdatedAt"
+    ]);
+  }
 }
 
 /**
@@ -85,6 +105,7 @@ function setupDatabase() {
  * - ?action=products (default: daftar produk & stok)
  * - ?action=transactions (daftar riwayat transaksi)
  * - ?action=returns (daftar riwayat retur & klaim garansi)
+ * - ?action=rabs (daftar riwayat penawaran RAB)
  */
 function doGet(e) {
   try {
@@ -103,6 +124,8 @@ function doGet(e) {
       return getTransactionsData(ss);
     } else if (action === "returns") {
       return getReturnsData(ss);
+    } else if (action === "rabs") {
+      return getRabsData(ss);
     }
 
     // Default: Ambil data produk
@@ -287,6 +310,10 @@ function doPost(e) {
       return handlePayDebt(ss, postData);
     } else if (action === "return_product") {
       return handleReturnProduct(ss, postData);
+    } else if (action === "save_rab") {
+      return handleSaveRab(ss, postData);
+    } else if (action === "delete_rab") {
+      return handleDeleteRab(ss, postData);
     } else {
       return handleCheckout(ss, postData);
     }
@@ -808,6 +835,155 @@ function handleReturnProduct(ss, data) {
     message: `Retur ${retId} berhasil dicatat di sistem & Google Sheets.`,
     returnId: retId
   });
+}
+
+/**
+ * getRabsData() - Mengambil daftar berkas penawaran RAB dari sheet RAB
+ */
+function getRabsData(ss) {
+  let sheetRab = ss.getSheetByName("RAB");
+  if (!sheetRab) {
+    sheetRab = ss.insertSheet("RAB");
+    sheetRab.appendRow([
+      "ID RAB", "Tanggal", "Pelanggan", "Kontak", "Proyek", 
+      "Masa Berlaku (Hari)", "Catatan", "Total", "Status", "Revisi", "RawItemsJSON", "UpdatedAt"
+    ]);
+    return createJsonResponse({ status: "success", count: 0, data: [] });
+  }
+
+  const lastRow = sheetRab.getLastRow();
+  if (lastRow <= 1) {
+    return createJsonResponse({ status: "success", count: 0, data: [] });
+  }
+
+  const numRows = Math.min(lastRow - 1, 200);
+  const startRow = lastRow - numRows + 1;
+  const values = sheetRab.getRange(startRow, 1, numRows, 12).getValues();
+
+  const rabs = [];
+  for (let i = values.length - 1; i >= 0; i--) {
+    const row = values[i];
+    if (!row[0]) continue;
+
+    let itemsParsed = [];
+    if (row[10]) {
+      try {
+        itemsParsed = JSON.parse(row[10]);
+      } catch (e) {}
+    }
+
+    rabs.push({
+      id: String(row[0]).trim(),
+      tanggal: String(row[1] || ""),
+      customer: String(row[2] || "Umum").trim(),
+      contact: String(row[3] || "").trim(),
+      project: String(row[4] || "").trim(),
+      validDays: Number(row[5]) || 14,
+      notes: String(row[6] || ""),
+      total: Number(row[7]) || 0,
+      status: String(row[8] || "Menunggu Deal"),
+      revisionCount: Number(row[9]) || 0,
+      items: itemsParsed,
+      updatedAt: String(row[11] || "")
+    });
+  }
+
+  return createJsonResponse({ status: "success", count: rabs.length, data: rabs });
+}
+
+/**
+ * handleSaveRab() - Menyimpan atau memperbarui dokumen RAB di cloud Google Sheets
+ */
+function handleSaveRab(ss, data) {
+  let sheetRab = ss.getSheetByName("RAB");
+  if (!sheetRab) {
+    sheetRab = ss.insertSheet("RAB");
+    sheetRab.appendRow([
+      "ID RAB", "Tanggal", "Pelanggan", "Kontak", "Proyek", 
+      "Masa Berlaku (Hari)", "Catatan", "Total", "Status", "Revisi", "RawItemsJSON", "UpdatedAt"
+    ]);
+  }
+
+  const {
+    id,
+    tanggal,
+    customer,
+    contact,
+    project,
+    validDays,
+    notes,
+    total,
+    status,
+    revisionCount,
+    items,
+    updatedAt
+  } = data;
+
+  if (!id) {
+    return createJsonResponse({ status: "error", message: "ID RAB tidak boleh kosong" });
+  }
+
+  const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
+  const itemsJson = JSON.stringify(items || []);
+
+  const lastRow = sheetRab.getLastRow();
+  let foundRow = -1;
+  if (lastRow > 1) {
+    const ids = sheetRab.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]).trim().toUpperCase() === String(id).trim().toUpperCase()) {
+        foundRow = i + 2;
+        break;
+      }
+    }
+  }
+
+  const rowData = [
+    String(id).trim(),
+    tanggal || nowStr,
+    customer || "Umum",
+    contact || "",
+    project || "",
+    Number(validDays) || 14,
+    notes || "",
+    Number(total) || 0,
+    status || "Menunggu Deal",
+    Number(revisionCount) || 0,
+    itemsJson,
+    updatedAt || nowStr
+  ];
+
+  if (foundRow > 0) {
+    sheetRab.getRange(foundRow, 1, 1, 12).setValues([rowData]);
+  } else {
+    sheetRab.appendRow(rowData);
+  }
+
+  return createJsonResponse({ status: "success", message: `RAB ${id} berhasil disimpan di Google Sheets`, id: id });
+}
+
+/**
+ * handleDeleteRab() - Menghapus dokumen RAB dari sheet Google Sheets
+ */
+function handleDeleteRab(ss, data) {
+  const sheetRab = ss.getSheetByName("RAB");
+  if (!sheetRab) return createJsonResponse({ status: "error", message: "Sheet RAB tidak ditemukan" });
+
+  const { id } = data;
+  if (!id) return createJsonResponse({ status: "error", message: "ID RAB tidak boleh kosong" });
+
+  const lastRow = sheetRab.getLastRow();
+  if (lastRow > 1) {
+    const ids = sheetRab.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]).trim().toUpperCase() === String(id).trim().toUpperCase()) {
+        sheetRab.deleteRow(i + 2);
+        return createJsonResponse({ status: "success", message: `RAB ${id} berhasil dihapus dari Google Sheets.` });
+      }
+    }
+  }
+
+  return createJsonResponse({ status: "error", message: `RAB ${id} tidak ditemukan di Google Sheets.` });
 }
 
 function createJsonResponse(data) {
