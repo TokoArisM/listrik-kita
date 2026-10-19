@@ -971,7 +971,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v41</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v42</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -1256,38 +1256,49 @@
           </div>
         </div>
 
-        <!-- Penyesuaian Faktur Proyek / A4 (DP, Sisa Tagihan & Catatan) -->
-        <div class="bg-blue-50/70 border border-blue-200 rounded-xl p-3.5 space-y-3">
-          <div class="flex items-center justify-between">
-            <h4 class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              Penyesuaian Faktur Proyek / A4 (DP & Ketentuan)
-            </h4>
-            <span class="text-[10px] text-blue-700 font-bold bg-blue-100 px-2 py-0.5 rounded-full">Format Faktur Resmi</span>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div>
-              <label class="block font-bold text-slate-700 text-[11px] mb-1">Ditagihkan Kepada (Instansi & Alamat):</label>
-              <input type="text" id="invCustomCustomer" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Pamsimas KKM Mitra Sejahtera, Desa Kledung" />
-            </div>
-            <div>
-              <label class="block font-bold text-slate-700 text-[11px] mb-1">Kontak PIC / Telp/WA Pemesan:</label>
-              <input type="text" id="invCustomContact" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Risyono Usman Tohirr / +62 858-6714-0945" />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div>
-              <label class="block font-bold text-slate-700 text-[11px] mb-1">DP / Uang Muka yang Diterima (Rp):</label>
-              <input type="number" id="invCustomDP" oninput="Reports.updateCustomDPSisa()" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-black text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0" />
-              <div class="text-[11px] font-bold mt-1" id="invCustomSisaPreview">
-                Sisa Tagihan: <span class="text-amber-800 font-mono">Rp 0</span>
+        <!-- Penyesuaian Faktur Proyek / A4 (Collapsible Accordion - Opsi 1) -->
+        <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+          <button type="button" onclick="Reports.toggleCustomInvoiceSection()" class="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-blue-50/60 transition flex items-center justify-between text-left group">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </span>
+              <div>
+                <span class="font-bold text-slate-800 text-xs block">Penyesuaian Faktur Proyek / A4 (Opsional)</span>
+                <span class="text-[10px] text-slate-500 block">Atur Nama Instansi, Kontak PIC, DP & Garansi jika diperlukan</span>
               </div>
             </div>
-            <div>
-              <label class="block font-bold text-slate-700 text-[11px] mb-1">Catatan & Keterangan Khusus (Garansi dll):</label>
-              <textarea id="invCustomNotes" rows="2" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none resize-none leading-relaxed" placeholder="• Garansi produk panel selama 6 bulan.&#10;• Terima kasih atas kepercayaan & dukungan Anda.&#10;• Kepuasan pelanggan adalah keutamaan kami."></textarea>
+            <div class="flex items-center gap-2">
+              <span id="invCustomSectionBadge" class="text-[10px] text-slate-600 font-semibold bg-slate-200/80 px-2 py-0.5 rounded-full">Otomatis Kasir</span>
+              <svg id="invCustomToggleIcon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400 transition-transform duration-200"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </button>
+
+          <!-- Isi Form Penyesuaian (Hidden by default) -->
+          <div id="invCustomSection" class="p-3.5 space-y-3 bg-blue-50/40 border-t border-slate-200 hidden">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label class="block font-bold text-slate-700 text-[11px] mb-1">Ditagihkan Kepada (Instansi & Alamat):</label>
+                <input type="text" id="invCustomCustomer" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Pamsimas KKM Mitra Sejahtera, Desa Kledung" />
+              </div>
+              <div>
+                <label class="block font-bold text-slate-700 text-[11px] mb-1">Kontak PIC / Telp/WA Pemesan:</label>
+                <input type="text" id="invCustomContact" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Risyono Usman Tohirr / +62 858-6714-0945" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label class="block font-bold text-slate-700 text-[11px] mb-1">DP / Uang Muka yang Diterima (Rp):</label>
+                <input type="number" id="invCustomDP" oninput="Reports.updateCustomDPSisa()" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-black text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0" />
+                <div class="text-[11px] font-bold mt-1" id="invCustomSisaPreview">
+                  Sisa Tagihan: <span class="text-amber-800 font-mono">Rp 0</span>
+                </div>
+              </div>
+              <div>
+                <label class="block font-bold text-slate-700 text-[11px] mb-1">Catatan & Keterangan Khusus (Garansi dll):</label>
+                <textarea id="invCustomNotes" rows="2" class="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none resize-none leading-relaxed" placeholder="• Garansi produk panel selama 6 bulan.&#10;• Terima kasih atas kepercayaan & dukungan Anda.&#10;• Kepuasan pelanggan adalah keutamaan kami."></textarea>
+              </div>
             </div>
           </div>
         </div>
@@ -3444,22 +3455,41 @@
         if (customCust) customCust.value = trx.pelanggan || "Umum";
         const customCont = document.getElementById("invCustomContact");
         if (customCont) customCont.value = "";
+        
+        // DP Otomatis: Sinkron dengan pembayaran riil kasir
         const customDP = document.getElementById("invCustomDP");
         if (customDP) {
-          const isDebt = String(trx.metode || "").toLowerCase().includes("bon") || 
-                         String(trx.metode || "").toLowerCase().includes("hutang") ||
-                         String(trx.metode || "").toLowerCase().includes("tempo") ||
-                         String(trx.metode || "").toLowerCase().includes("cicil");
-          customDP.value = isDebt ? (Number(trx.bayar) || 0) : total;
+          const actualPaid = (trx.bayar !== undefined && trx.bayar !== null && trx.bayar !== "") ? Number(trx.bayar) : total;
+          // Bila bayar kurang dari total, DP otomatis = actualPaid. Bila lunas/lebih, DP = total.
+          customDP.value = Math.min(total, Math.max(0, actualPaid));
         }
         const customNotes = document.getElementById("invCustomNotes");
         if (customNotes) {
           customNotes.value = "• Garansi produk panel selama 6 bulan.\n• Terima kasih atas kepercayaan & dukungan Anda.\n• Kepuasan pelanggan adalah keutamaan kami.";
         }
+        // Pastikan accordion penyesuaian tertutup by default
+        this.toggleCustomInvoiceSection(false);
         this.updateCustomDPSisa();
 
         const modal = document.getElementById("invoiceDetailModal");
         if (modal) modal.classList.remove("hidden");
+      },
+
+      toggleCustomInvoiceSection(forceOpen) {
+        const section = document.getElementById("invCustomSection");
+        const icon = document.getElementById("invCustomToggleIcon");
+        if (!section) return;
+
+        const isCurrentlyHidden = section.classList.contains("hidden");
+        const shouldOpen = forceOpen !== undefined ? Boolean(forceOpen) : isCurrentlyHidden;
+
+        if (shouldOpen) {
+          section.classList.remove("hidden");
+          if (icon) icon.classList.add("rotate-180");
+        } else {
+          section.classList.add("hidden");
+          if (icon) icon.classList.remove("rotate-180");
+        }
       },
 
       updateCustomDPSisa() {
@@ -3474,6 +3504,17 @@
             sisaEl.innerHTML = `Sisa Tagihan: <span class="text-red-600 font-mono font-bold">Rp ${sisa.toLocaleString('id-ID')}</span>`;
           } else {
             sisaEl.innerHTML = `Sisa Tagihan: <span class="text-emerald-700 font-mono font-bold">Rp 0 (LUNAS)</span>`;
+          }
+        }
+        // Update badge status di tombol accordion
+        const badge = document.getElementById("invCustomSectionBadge");
+        if (badge) {
+          if (sisa > 0) {
+            badge.textContent = `DP: Rp ${dp.toLocaleString('id-ID')}`;
+            badge.className = "text-[10px] text-amber-800 font-bold bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300";
+          } else {
+            badge.textContent = "Lunas (Kasir)";
+            badge.className = "text-[10px] text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300";
           }
         }
       },
