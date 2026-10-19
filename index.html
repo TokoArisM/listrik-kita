@@ -213,7 +213,11 @@
           <i data-lucide="shopping-bag" class="w-5 h-5 text-blue-700"></i>
           <h2 class="font-bold text-base text-slate-800">Keranjang Kasir</h2>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1.5">
+          <button type="button" onclick="ServiceManager.openModal()" class="text-xs bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-semibold px-2.5 py-1 rounded-lg transition flex items-center gap-1 shadow-sm" title="Tambah Jasa / Ongkos Pasang / Service">
+            <i data-lucide="wrench" class="w-3.5 h-3.5"></i>
+            <span>+ Jasa</span>
+          </button>
           <button onclick="Cart.clear()" class="text-xs text-red-500 hover:text-red-700 font-semibold px-2 py-1 rounded hover:bg-red-50 transition" title="Hapus semua item">
             Kosongkan
           </button>
@@ -925,7 +929,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v37</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v38</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -1417,7 +1421,94 @@
   <!-- ========================================================================= -->
   <!-- AREA CETAK FAKTUR A4 / SIMPAN KE PDF (DITAMPILKAN HANYA SAAT PRINT)        -->
   <!-- ========================================================================= -->
-  <div id="invoicePrintAreaA4" class="hidden"></div>
+  <!-- ========================================================================= -->
+  <!-- MODAL: TAMBAH JASA / ONGKOS PASANG / SERVICE KE KERANJANG                  -->
+  <!-- ========================================================================= -->
+  <div id="serviceModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh] animate-in fade-in duration-150">
+      <div class="bg-gradient-to-r from-amber-600 to-amber-700 text-white px-5 py-3.5 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          <h3 class="font-extrabold text-sm sm:text-base leading-tight">Tambah Jasa / Layanan</h3>
+        </div>
+        <button type="button" onclick="ServiceManager.closeModal()" class="text-amber-200 hover:text-white p-1 rounded-lg hover:bg-amber-800 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <form onsubmit="ServiceManager.handleSubmit(event)" class="flex flex-col flex-1 overflow-hidden min-h-0">
+        <div class="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1 overscroll-contain">
+          <!-- Quick Preset Chips -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1.5">Pilihan Cepat (Klik untuk isi otomatis):</label>
+            <div class="flex flex-wrap gap-1.5">
+              <button type="button" onclick="ServiceManager.applyChip('Service & Penggantian Parts Pompa', 1150000, 1, 'jasa', true)" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-semibold text-[11px] transition">🔧 Service Pompa Air</button>
+              <button type="button" onclick="ServiceManager.applyChip('Jasa pemasangan dan perakitan plumbing', 350000, 1, 'jasa', true)" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-semibold text-[11px] transition">🛠️ Rakit Plumbing</button>
+              <button type="button" onclick="ServiceManager.applyChip('Jasa Pasang Lampu & Fitting', 25000, 1, 'titik', false)" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-semibold text-[11px] transition">💡 Pasang Lampu</button>
+              <button type="button" onclick="ServiceManager.applyChip('Jasa Pasang MCB & Box Panel', 75000, 1, 'unit', false)" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-semibold text-[11px] transition">⚡ Pasang MCB/Panel</button>
+              <button type="button" onclick="ServiceManager.applyChip('Jasa Bubut Flange & Pengelasan', 150000, 1, 'set', true)" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-semibold text-[11px] transition">🔩 Bubut & Las</button>
+              <button type="button" onclick="ServiceManager.applyChip('Ongkos Kirim & Pengantaran', 50000, 1, 'trip', false)" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-semibold text-[11px] transition">🚚 Ongkir / Transport</button>
+            </div>
+          </div>
+
+          <!-- Input Nama Jasa -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Nama Jasa / Keterangan Layanan <span class="text-red-500">*</span></label>
+            <input type="text" id="svcName" required placeholder="Contoh: Jasa pemasangan dan perakitan plumbing" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none font-medium" />
+          </div>
+
+          <!-- Biaya / Harga Jasa & Satuan -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Tarif / Biaya Jasa (Rp) <span class="text-red-500">*</span></label>
+              <input type="number" id="svcPrice" required min="0" step="500" placeholder="0" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-900 font-bold focus:ring-2 focus:ring-amber-500 outline-none" />
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Satuan Unit</label>
+              <select id="svcUnit" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 outline-none">
+                <option value="jasa">jasa (Layanan)</option>
+                <option value="titik">titik (Titik Instalasi)</option>
+                <option value="set">set (Set / Paket)</option>
+                <option value="unit">unit (Unit)</option>
+                <option value="pcs">pcs (Pcs)</option>
+                <option value="jam">jam (Jam)</option>
+                <option value="hari">hari (Hari)</option>
+                <option value="trip">trip (Trip Pengiriman)</option>
+                <option value="ls">ls (Lump Sum)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Jumlah Qty -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Jumlah (Qty)</label>
+              <input type="number" id="svcQty" value="1" min="1" step="1" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-900 font-bold focus:ring-2 focus:ring-amber-500 outline-none" />
+            </div>
+            <div class="flex items-center pt-5">
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" id="svcHideQty" class="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-slate-300" checked />
+                <span class="text-[11px] text-slate-700 font-semibold leading-tight">Strip (-) Qty di Cetak Invoice A4</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-[11px] text-amber-900 flex items-start gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600 flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Item Jasa tidak terikat stok gudang. Dapat langsung ditambahkan ke kasir dan masuk faktur resmi / struk.</span>
+          </div>
+        </div>
+
+        <div class="p-3 sm:px-5 sm:py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
+          <button type="button" onclick="ServiceManager.closeModal()" class="px-4 py-2 rounded-xl font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition">Batal</button>
+          <button type="submit" class="px-4 py-2 rounded-xl font-bold bg-amber-600 hover:bg-amber-700 text-white shadow transition flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            <span>Tambah ke Keranjang</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- TOAST CONTAINER -->
   <div id="toastContainer" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none"></div>
@@ -1802,8 +1893,13 @@
         // Daftar Item (Format 32 Kolom)
         (orderData.items || []).forEach(item => {
           appendText(item.nama + "\n");
-          const qtyPrice = `  ${item.qty} x ${Number(item.harga).toLocaleString('id-ID')}`;
-          const subtotal = (item.qty * item.harga).toLocaleString('id-ID');
+          let qtyPrice = `  ${item.qty} x ${Number(item.harga).toLocaleString('id-ID')}`;
+          if (item.isJasa && item.hideQty) {
+            qtyPrice = "  Jasa / Layanan";
+          } else if (item.satuan && item.satuan !== 'pcs') {
+            qtyPrice = `  ${item.qty} ${item.satuan} @${Number(item.harga).toLocaleString('id-ID')}`;
+          }
+          const subtotal = Number(item.subtotal || (item.qty * item.harga)).toLocaleString('id-ID');
           const spacesCount = Math.max(1, 32 - qtyPrice.length - subtotal.length);
           appendText(qtyPrice + " ".repeat(spacesCount) + subtotal + "\n");
         });
@@ -1985,14 +2081,16 @@
         const product = State.products.find(p => p.id === productId);
         if (!product) return;
 
-        if (product.stok <= 0) {
+        const isService = Boolean(product.isJasa || product.kategori === 'Jasa & Layanan' || product.satuan === 'jasa');
+
+        if (!isService && product.stok <= 0) {
           UI.toast("Stok produk habis!", "error");
           return;
         }
 
         const existing = State.cart.find(c => c.id === productId);
         if (existing) {
-          if (existing.qty >= product.stok) {
+          if (!isService && existing.qty >= product.stok) {
             UI.toast(`Jumlah melebihi stok tersedia (${product.stok})`, "error");
             return;
           }
@@ -2003,7 +2101,9 @@
             nama: product.nama,
             harga: product.harga,
             hargaModal: product.hargaModal || 0,
-            stok: product.stok,
+            stok: isService ? 999999 : product.stok,
+            satuan: product.satuan || (isService ? "jasa" : "pcs"),
+            isJasa: isService,
             qty: 1
           });
         }
@@ -2022,7 +2122,7 @@
           return;
         }
 
-        if (newQty > item.stok) {
+        if (!item.isJasa && newQty > item.stok) {
           UI.toast(`Maksimal stok: ${item.stok}`, "error");
           return;
         }
@@ -2063,7 +2163,7 @@
         const totalQty = this.getTotalQty();
         const subtotal = this.getSubtotal();
 
-        totalItemsEl.textContent = `${totalQty} pcs`;
+        totalItemsEl.textContent = `${totalQty} item`;
         totalPriceEl.textContent = `Rp ${subtotal.toLocaleString('id-ID')}`;
         mobileBadge.textContent = totalQty;
 
@@ -2078,15 +2178,18 @@
         checkoutBtn.disabled = false;
 
         listEl.innerHTML = State.cart.map(item => `
-          <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex flex-col gap-2">
+          <div class="bg-slate-50 border ${item.isJasa ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/80'} rounded-xl p-3 flex flex-col gap-2">
             <div class="flex justify-between items-start gap-2">
-              <span class="font-bold text-xs text-slate-800 leading-snug">${item.nama}</span>
-              <button onclick="Cart.removeItem('${item.id}')" class="text-slate-400 hover:text-red-600 transition">
+              <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                ${item.isJasa ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-200 text-amber-900 border border-amber-300 flex-shrink-0">JASA</span>' : ''}
+                <span class="font-bold text-xs text-slate-800 leading-snug truncate" title="${item.nama}">${item.nama}</span>
+              </div>
+              <button onclick="Cart.removeItem('${item.id}')" class="text-slate-400 hover:text-red-600 transition flex-shrink-0">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
               </button>
             </div>
             <div class="flex justify-between items-center text-xs">
-              <span class="text-slate-500 font-medium">Rp ${item.harga.toLocaleString('id-ID')}</span>
+              <span class="text-slate-500 font-medium">Rp ${Number(item.harga).toLocaleString('id-ID')}${item.satuan && item.satuan !== 'pcs' ? '/' + item.satuan : ''}</span>
               <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-1.5 py-0.5 shadow-sm">
                 <button onclick="Cart.changeQty('${item.id}', -1)" class="w-5 h-5 flex items-center justify-center font-bold text-slate-600 hover:text-blue-600">-</button>
                 <span class="font-bold text-slate-800 w-5 text-center">${item.qty}</span>
@@ -3002,7 +3105,7 @@
         const subTitle = document.getElementById("invDetailSubTitle");
         if (subTitle) subTitle.textContent = trx.transactionId;
         const waktuEl = document.getElementById("invDetailWaktu");
-        if (waktuEl) waktuEl.textContent = trx.waktu || "-";
+        if (waktuEl) waktuEl.textContent = InvoicePrinter.formatDateTimeIndo(trx.waktu);
         const custEl = document.getElementById("invDetailPelanggan");
         if (custEl) custEl.textContent = trx.pelanggan || "Umum";
         
@@ -3034,18 +3137,31 @@
         // Render tabel item
         const tbody = document.getElementById("invDetailTableBody");
         if (tbody) {
-          tbody.innerHTML = items.map((it, idx) => `
-            <tr class="hover:bg-slate-50 transition">
-              <td class="p-2.5 sm:px-3 text-center text-slate-400 font-semibold">${idx + 1}</td>
-              <td class="p-2.5 sm:px-3 font-bold text-slate-800">
-                ${it.nama}
-                ${it.id ? `<span class="block text-[10px] font-mono text-slate-400">${it.id}</span>` : ''}
-              </td>
-              <td class="p-2.5 sm:px-3 text-center font-bold text-slate-800">${it.qty} <span class="text-[10px] text-slate-400 font-normal">${it.satuan || 'pcs'}</span></td>
-              <td class="p-2.5 sm:px-3 text-right text-slate-600 font-mono">Rp ${it.harga.toLocaleString('id-ID')}</td>
-              <td class="p-2.5 sm:px-3 text-right font-black text-slate-900 font-mono">Rp ${it.subtotal.toLocaleString('id-ID')}</td>
-            </tr>
-          `).join("");
+          tbody.innerHTML = items.map((it, idx) => {
+            const isJasaItem = it.isJasa || (it.id && String(it.id).startsWith("jasa_")) || (!it.harga || Number(it.harga) <= 0);
+            const qtyDisplay = (isJasaItem && it.hideQty) 
+              ? `<span class="text-slate-400 font-bold">-</span>` 
+              : `${it.qty} <span class="text-[10px] text-slate-400 font-normal">${it.satuan || 'pcs'}</span>`;
+            const hargaDisplay = (isJasaItem && it.hideQty)
+              ? `<span class="text-slate-400 font-bold">-</span>`
+              : `Rp ${Number(it.harga).toLocaleString('id-ID')}`;
+
+            return `
+              <tr class="hover:bg-slate-50 transition">
+                <td class="p-2.5 sm:px-3 text-center text-slate-400 font-semibold">${idx + 1}</td>
+                <td class="p-2.5 sm:px-3 font-bold text-slate-800">
+                  <div class="flex items-center gap-1.5">
+                    ${isJasaItem ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">JASA</span>' : ''}
+                    <span>${it.nama}</span>
+                  </div>
+                  ${it.id ? `<span class="block text-[10px] font-mono text-slate-400">${it.id}</span>` : ''}
+                </td>
+                <td class="p-2.5 sm:px-3 text-center font-bold text-slate-800">${qtyDisplay}</td>
+                <td class="p-2.5 sm:px-3 text-right text-slate-600 font-mono">${hargaDisplay}</td>
+                <td class="p-2.5 sm:px-3 text-right font-black text-slate-900 font-mono">Rp ${Number(it.subtotal).toLocaleString('id-ID')}</td>
+              </tr>
+            `;
+          }).join("");
         }
 
         // Angka summary
@@ -3162,11 +3278,12 @@
         ].filter(Boolean);
 
         items.forEach((it, idx) => {
-          const isJasa = !it.harga || Number(it.harga) <= 0;
-          if (isJasa) {
-            lines.push(`${idx + 1}. ${it.nama}\n   = Rp${Number(it.subtotal || it.harga).toLocaleString('id-ID')}`);
+          const isJasaWithoutQty = (it.isJasa && it.hideQty) || !it.harga || Number(it.harga) <= 0;
+          if (isJasaWithoutQty) {
+            lines.push(`${idx + 1}. [JASA] ${it.nama}\n   = Rp${Number(it.subtotal || it.harga).toLocaleString('id-ID')}`);
           } else {
-            lines.push(`${idx + 1}. ${it.nama}\n   ${it.qty} ${it.satuan || 'pcs'} x Rp${Number(it.harga).toLocaleString('id-ID')} = Rp${Number(it.subtotal).toLocaleString('id-ID')}`);
+            const prefix = it.isJasa ? '[JASA] ' : '';
+            lines.push(`${idx + 1}. ${prefix}${it.nama}\n   ${it.qty} ${it.satuan || 'pcs'} x Rp${Number(it.harga).toLocaleString('id-ID')} = Rp${Number(it.subtotal).toLocaleString('id-ID')}`);
           }
         });
 
@@ -3223,7 +3340,9 @@
             qty: Number(it.qty) || 1,
             satuan: it.satuan || "pcs",
             harga: Number(it.harga) || 0,
-            subtotal: (Number(it.qty) || 1) * (Number(it.harga) || 0)
+            subtotal: Number(it.subtotal) || ((Number(it.qty) || 1) * (Number(it.harga) || 0)),
+            isJasa: Boolean(it.isJasa || (it.id && String(it.id).startsWith("jasa_"))),
+            hideQty: Boolean(it.hideQty)
           }));
         }
 
@@ -3236,7 +3355,9 @@
             qty: 1,
             satuan: "pcs",
             harga: Number(trx.total) || 0,
-            subtotal: Number(trx.total) || 0
+            subtotal: Number(trx.total) || 0,
+            isJasa: false,
+            hideQty: false
           }];
         }
 
@@ -3261,13 +3382,17 @@
             }
           }
 
+          const isServiceGuess = name.toLowerCase().includes("jasa") || name.toLowerCase().includes("service") || name.toLowerCase().includes("ongkos");
+
           return {
             id: "",
             nama: name,
             qty: q,
             satuan: "pcs",
             harga: p || (q > 0 && sub > 0 ? Math.round(sub / q) : 0),
-            subtotal: sub || (q * p)
+            subtotal: sub || (q * p),
+            isJasa: isServiceGuess,
+            hideQty: isServiceGuess && p === 0
           };
         });
       },
@@ -3306,6 +3431,47 @@
           "Juli", "Agustus", "September", "Oktober", "November", "Desember"
         ];
         return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+      },
+
+      formatDateTimeIndo(dateInput) {
+        let d = null;
+        if (dateInput instanceof Date) {
+          d = dateInput;
+        } else if (typeof dateInput === 'string' && dateInput.trim()) {
+          const s = dateInput.trim();
+          const mSlash = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+          if (mSlash) {
+            d = new Date(parseInt(mSlash[3], 10), parseInt(mSlash[2], 10) - 1, parseInt(mSlash[1], 10));
+          } else {
+            const mIso = s.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+            if (mIso) {
+              d = new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10));
+            } else {
+              const mId = s.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+              if (mId) {
+                d = new Date(parseInt(mId[3], 10), parseInt(mId[2], 10) - 1, parseInt(mId[1], 10));
+              } else {
+                const parsed = new Date(s);
+                if (!isNaN(parsed.getTime())) d = parsed;
+              }
+            }
+          }
+        }
+
+        if (!d || isNaN(d.getTime())) {
+          return String(dateInput || "-");
+        }
+
+        const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+        const months = [
+          "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+          "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+        ];
+        const pad = (n) => String(n).padStart(2, '0');
+        const dayName = days[d.getDay()];
+        const dateStr = `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+        const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())} WIB`;
+        return `${dayName}, ${dateStr} • ${timeStr}`;
       },
 
       terbilang(angka) {
@@ -3426,9 +3592,9 @@
               </thead>
               <tbody>
                 ${items.map((it, i) => {
-                  const isJasa = !it.harga || Number(it.harga) <= 0 || !it.qty || Number(it.qty) <= 0;
-                  const qtyStr = isJasa ? '-' : (it.satuan && it.satuan !== 'pcs' ? `${it.qty} ${it.satuan}` : String(it.qty));
-                  const hargaStr = isJasa ? '-' : Number(it.harga).toLocaleString('id-ID');
+                  const isJasaWithoutQty = (it.isJasa && it.hideQty) || !it.harga || Number(it.harga) <= 0 || !it.qty || Number(it.qty) <= 0;
+                  const qtyStr = isJasaWithoutQty ? '-' : (it.satuan && it.satuan !== 'pcs' ? `${it.qty} ${it.satuan}` : String(it.qty));
+                  const hargaStr = isJasaWithoutQty ? '-' : Number(it.harga).toLocaleString('id-ID');
                   const totalStr = Number(it.subtotal || (it.qty * it.harga)).toLocaleString('id-ID');
 
                   return `
@@ -3496,6 +3662,78 @@
             printArea.classList.add("hidden");
           }, 1000);
         }, 250);
+      }
+    };
+
+    /**
+     * =========================================================================
+     * 6B-2. SERVICE & JASA MANAGER (TAMBAH JASA / ONGKOS PASANG KE KERANJANG)
+     * =========================================================================
+     */
+    const ServiceManager = {
+      openModal() {
+        const modal = document.getElementById("serviceModal");
+        if (!modal) return;
+        document.getElementById("svcName").value = "";
+        document.getElementById("svcPrice").value = "";
+        document.getElementById("svcQty").value = "1";
+        document.getElementById("svcUnit").value = "jasa";
+        document.getElementById("svcHideQty").checked = true;
+        modal.classList.remove("hidden");
+        setTimeout(() => {
+          const inp = document.getElementById("svcName");
+          if (inp) inp.focus();
+        }, 100);
+      },
+
+      closeModal() {
+        const modal = document.getElementById("serviceModal");
+        if (modal) modal.classList.add("hidden");
+      },
+
+      applyChip(nama, harga, qty = 1, satuan = "jasa", hideQty = true) {
+        const nameEl = document.getElementById("svcName");
+        const priceEl = document.getElementById("svcPrice");
+        const qtyEl = document.getElementById("svcQty");
+        const unitEl = document.getElementById("svcUnit");
+        const hideEl = document.getElementById("svcHideQty");
+
+        if (nameEl) nameEl.value = nama;
+        if (priceEl) priceEl.value = harga;
+        if (qtyEl) qtyEl.value = qty;
+        if (unitEl) unitEl.value = satuan;
+        if (hideEl) hideEl.checked = hideQty;
+      },
+
+      handleSubmit(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        const nama = (document.getElementById("svcName")?.value || "").trim();
+        const harga = Number(document.getElementById("svcPrice")?.value) || 0;
+        const qty = Math.max(1, parseInt(document.getElementById("svcQty")?.value, 10) || 1);
+        const satuan = document.getElementById("svcUnit")?.value || "jasa";
+        const hideQty = Boolean(document.getElementById("svcHideQty")?.checked);
+
+        if (!nama) {
+          UI.toast("Nama jasa / layanan harus diisi!", "error");
+          return;
+        }
+
+        const serviceItem = {
+          id: "jasa_" + Date.now(),
+          nama: nama,
+          harga: harga,
+          hargaModal: 0,
+          stok: 999999,
+          satuan: satuan,
+          qty: qty,
+          isJasa: true,
+          hideQty: hideQty
+        };
+
+        State.cart.push(serviceItem);
+        Cart.render();
+        this.closeModal();
+        UI.toast(`+ ${nama} berhasil ditambahkan ke keranjang!`, "success");
       }
     };
 
@@ -4114,6 +4352,7 @@
           "Aksesoris",
           "Alat & Tool",
           "Elektronik",
+          "Jasa & Layanan",
           "Lainnya"
         ];
         const existingCats = (State.products || []).map(p => (p && p.kategori) ? String(p.kategori).trim() : "").filter(Boolean);
@@ -4144,7 +4383,14 @@
           { val: "batang", label: "batang (Batang)" },
           { val: "box", label: "box (Box)" },
           { val: "unit", label: "unit (Unit)" },
-          { val: "pasang", label: "pasang (Pasang)" }
+          { val: "pasang", label: "pasang (Pasang)" },
+          { val: "jasa", label: "jasa (Jasa / Layanan)" },
+          { val: "titik", label: "titik (Titik Instalasi)" },
+          { val: "paket", label: "paket (Paket)" },
+          { val: "jam", label: "jam (Jam Kerja)" },
+          { val: "hari", label: "hari (Hari Kerja)" },
+          { val: "trip", label: "trip (Trip Pengiriman)" },
+          { val: "ls", label: "ls (Lump Sum)" }
         ];
         const existingUnits = (State.products || []).map(p => (p && p.satuan) ? String(p.satuan).trim().toLowerCase() : "").filter(Boolean);
         const allUnitVals = Array.from(new Set([...defaultUnits.map(u => u.val), ...existingUnits]));
@@ -4389,6 +4635,15 @@
         const photoExisting = document.getElementById("pfPhotoExistingUrl")?.value || "";
         const fotoVal = photoBase64 || photoExisting || "";
 
+        const isJasaProduct = (kategoriVal === "Jasa & Layanan" || satuanVal === "jasa");
+        const rawStok = document.getElementById("pfStok")?.value;
+        let stokVal = Number(rawStok);
+        if (isJasaProduct && (rawStok === "" || isNaN(stokVal) || stokVal <= 0)) {
+          stokVal = 999999;
+        } else if (isNaN(stokVal)) {
+          stokVal = 0;
+        }
+
         const payload = {
           action: "save_product",
           token: State.securityToken || "",
@@ -4398,7 +4653,8 @@
           satuan: satuanVal || "pcs",
           hargaModal: hargaModalVal,
           harga: hargaJualVal,
-          stok: Number(document.getElementById("pfStok").value) || 0,
+          stok: stokVal,
+          isJasa: isJasaProduct,
           foto: fotoVal,
           fotoBase64: photoBase64, // Sertakan base64 untuk backend Google Drive
           isEdit: !!this.editingId
@@ -4709,12 +4965,13 @@
           const namaStr = String(p.nama || "Produk");
           const katStr = String(p.kategori || "Umum");
           const idStr = String(p.id || "");
-          const isOut = stokNum <= 0;
-          const isLow = stokNum > 0 && stokNum <= 5;
+          const isService = Boolean(p.isJasa || p.kategori === 'Jasa & Layanan' || p.satuan === 'jasa');
+          const isOut = !isService && stokNum <= 0;
+          const isLow = !isService && stokNum > 0 && stokNum <= 5;
           const fotoStr = String(p.foto || "");
 
           return `
-            <div class="bg-white border ${isOut ? 'border-red-200 bg-red-50/20' : isLow ? 'border-amber-200' : 'border-slate-200'} rounded-xl p-2.5 sm:p-3 flex flex-col justify-between hover:shadow-md hover:border-blue-400 transition group relative">
+            <div class="bg-white border ${isService ? 'border-amber-200 bg-amber-50/10' : (isOut ? 'border-red-200 bg-red-50/20' : isLow ? 'border-amber-200' : 'border-slate-200')} rounded-xl p-2.5 sm:p-3 flex flex-col justify-between hover:shadow-md hover:border-blue-400 transition group relative">
               <div>
                 <div class="flex gap-2.5 items-start mb-2">
                   <!-- Thumbnail Foto / Icon Kategori -->
@@ -4735,8 +4992,8 @@
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between gap-1 mb-1">
                       <span class="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 truncate max-w-[85px]">${katStr}</span>
-                      <span class="text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded ${isOut ? 'bg-red-100 text-red-700' : isLow ? 'bg-amber-100 text-amber-800' : 'text-slate-400'}">
-                        ${isOut ? 'Habis' : `Stok: ${stokNum}`}
+                      <span class="text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 rounded ${isService ? 'bg-amber-100 text-amber-800' : (isOut ? 'bg-red-100 text-red-700' : isLow ? 'bg-amber-100 text-amber-800' : 'text-slate-400')}">
+                        ${isService ? 'Jasa' : (isOut ? 'Habis' : `Stok: ${stokNum}`)}
                       </span>
                     </div>
                     <h3 class="font-bold text-xs text-slate-800 line-clamp-2 leading-snug group-hover:text-blue-700 transition" title="${namaStr}">
@@ -4753,7 +5010,7 @@
                 </div>
                 <button 
                   onclick="Cart.addItem('${idStr}')" 
-                  ${stokNum <= 0 ? 'disabled' : ''}
+                  ${!isService && stokNum <= 0 ? 'disabled' : ''}
                   class="w-8 h-8 rounded-lg bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white flex items-center justify-center disabled:bg-slate-100 disabled:text-slate-300 disabled:cursor-not-allowed transition shadow-sm">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 </button>
@@ -4876,9 +5133,11 @@
 
         // 1. Potong stok lokal secara instan (Zero delay)
         State.cart.forEach(cartItem => {
-          const p = State.products.find(prod => prod.id === cartItem.id);
-          if (p) {
-            p.stok = Math.max(0, p.stok - cartItem.qty);
+          if (!cartItem.isJasa) {
+            const p = State.products.find(prod => prod.id === cartItem.id);
+            if (p) {
+              p.stok = Math.max(0, p.stok - cartItem.qty);
+            }
           }
         });
         localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(State.products));

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'listrik-kita-pos-v37';
+const CACHE_NAME = 'listrik-kita-pos-v38';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -22,7 +22,7 @@ self.addEventListener('message', (event) => {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell (v37 - Faktur Resmi Presisi PDF, DP & Tgl Indo)...');
+      console.log('[Service Worker] Caching app shell (v38 - Tanggal Rincian Indo & Fitur Jasa/Layanan)...');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
         console.warn('[Service Worker] Partial cache failure:', err);
       });
