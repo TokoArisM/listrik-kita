@@ -40,6 +40,31 @@
       object-fit: cover;
       width: 100% !important;
     }
+
+    /* Print Stylesheet khusus Faktur A4 / Cetak PDF */
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      #invoicePrintAreaA4, #invoicePrintAreaA4 * {
+        visibility: visible !important;
+      }
+      #invoicePrintAreaA4 {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        display: block !important;
+        z-index: 9999999 !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 10mm 12mm 12mm 12mm;
+      }
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 antialiased font-sans flex flex-col h-screen overflow-hidden">
@@ -359,8 +384,18 @@
 
     <!-- Bottom Section: Transaksi Terbaru -->
     <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
-      <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
-        <h3 class="font-extrabold text-sm sm:text-base text-slate-900">Transaksi Terbaru</h3>
+      <div class="p-3 sm:p-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-2 bg-white">
+        <div>
+          <h3 class="font-extrabold text-sm sm:text-base text-slate-900">Transaksi Terbaru</h3>
+          <p class="text-[11px] text-slate-400">Klik No. Invoice untuk melihat rincian barang, cetak PDF A4, atau klaim garansi/retur</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="ReturnsManager.openListModal()" class="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold flex items-center gap-1.5 transition shadow-sm" title="Lihat Rekap Barang Rusak & Retur">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span>Rekap Retur & Garansi</span>
+            <span id="badgeReturnCount" class="hidden px-1.5 py-0.2 rounded-full bg-red-500 text-white text-[10px] font-bold">0</span>
+          </button>
+        </div>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs">
@@ -890,7 +925,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v35</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v36</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -1080,6 +1115,273 @@
       </form>
     </div>
   </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: RINCIAN INVOICE / DETAIL TRANSAKSI                                  -->
+  <!-- ========================================================================= -->
+  <div id="invoiceDetailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[94vh] sm:max-h-[90vh] animate-in fade-in duration-150">
+      <!-- Modal Header -->
+      <div class="bg-blue-900 text-white px-4 sm:px-6 py-3.5 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="p-1.5 bg-blue-800/80 rounded-lg text-blue-200">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <div>
+            <h3 class="font-extrabold text-sm sm:text-base leading-tight">Rincian Invoice Penjualan</h3>
+            <p class="text-[11px] text-blue-200 font-mono" id="invDetailSubTitle">LK-...</p>
+          </div>
+        </div>
+        <button onclick="Reports.closeInvoiceDetailModal()" class="text-blue-200 hover:text-white p-1 rounded-lg hover:bg-blue-800 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4 text-xs">
+        <!-- Info Ringkas Transaksi (Card) -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div>
+            <span class="text-[10px] text-slate-400 font-bold uppercase block">Waktu Transaksi</span>
+            <span class="font-bold text-slate-700 text-xs" id="invDetailWaktu">-</span>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400 font-bold uppercase block">Pelanggan</span>
+            <span class="font-black text-slate-800 text-xs truncate block" id="invDetailPelanggan">Umum</span>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400 font-bold uppercase block">Metode Pembayaran</span>
+            <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-bold mt-0.5" id="invDetailMetodeBadge">Tunai</span>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400 font-bold uppercase block">Total Belanja</span>
+            <span class="font-black text-amber-600 text-sm" id="invDetailTotalHeader">Rp 0</span>
+          </div>
+        </div>
+
+        <!-- Tabel Rincian Produk -->
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <h4 class="font-bold text-slate-700 text-xs flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>
+              Daftar Barang yang Dibeli
+            </h4>
+            <span class="text-[11px] text-slate-400 font-semibold" id="invDetailItemCount">0 Item</span>
+          </div>
+          <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                <tr>
+                  <th class="p-2.5 sm:px-3 w-8 text-center">No</th>
+                  <th class="p-2.5 sm:px-3">Nama Produk</th>
+                  <th class="p-2.5 sm:px-3 text-center">Qty</th>
+                  <th class="p-2.5 sm:px-3 text-right">Harga</th>
+                  <th class="p-2.5 sm:px-3 text-right">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody id="invDetailTableBody" class="divide-y divide-slate-100 text-slate-700">
+                <!-- Diisi via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Ringkasan Angka Pembayaran -->
+        <div class="bg-blue-50/60 border border-blue-100 rounded-xl p-3.5 space-y-1.5">
+          <div class="flex justify-between text-slate-600">
+            <span>Subtotal Barang:</span>
+            <span class="font-bold font-mono" id="invDetailSubtotal">Rp 0</span>
+          </div>
+          <div class="flex justify-between text-slate-600" id="invDetailDiskonRow">
+            <span>Diskon:</span>
+            <span class="font-bold text-red-600 font-mono" id="invDetailDiskon">-Rp 0</span>
+          </div>
+          <div class="flex justify-between text-slate-900 font-black text-sm pt-1.5 border-t border-blue-200/60">
+            <span>TOTAL AKHIR:</span>
+            <span class="text-amber-600 font-mono text-base" id="invDetailGrandTotal">Rp 0</span>
+          </div>
+          <div class="flex justify-between text-slate-600 pt-1 text-[11px]">
+            <span>Uang Diterima / Bayar:</span>
+            <span class="font-semibold font-mono" id="invDetailBayar">Rp 0</span>
+          </div>
+          <div class="flex justify-between text-slate-600 text-[11px]">
+            <span>Kembalian / Status:</span>
+            <span class="font-semibold font-mono" id="invDetailKembalian">Rp 0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer (Action Buttons) -->
+      <div class="p-3 sm:px-5 sm:py-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
+        <!-- Tombol Retur & Garansi di Kiri -->
+        <button type="button" onclick="Reports.openReturnWarrantyModal()" class="px-3 py-2 rounded-xl font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1.5 text-xs shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          <span>Retur / Garansi</span>
+        </button>
+
+        <!-- Kumpulan Tombol Cetak & Bagikan di Kanan -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <button type="button" onclick="Reports.printThermalFromDetail()" class="px-3 py-2 rounded-xl font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5 text-xs shadow-sm" title="Cetak struk thermal kasir 58mm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+            <span>Struk 58mm</span>
+          </button>
+          <button type="button" onclick="Reports.shareWAFromDetail()" class="px-3 py-2 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-1.5 text-xs shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg>
+            <span>Kirim WA</span>
+          </button>
+          <button type="button" onclick="Reports.printA4InvoiceFromDetail()" class="px-3.5 py-2 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 text-xs shadow-sm" title="Cetak faktur resmi A4 atau simpan ke file PDF">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span>Cetak Faktur PDF (A4)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: PROSES RETUR & KLAIM GARANSI                                       -->
+  <!-- ========================================================================= -->
+  <div id="returnWarrantyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh] animate-in fade-in duration-150">
+      <div class="bg-amber-600 text-white px-5 py-3.5 flex items-center justify-between flex-shrink-0">
+        <h3 class="font-bold text-sm flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          Klaim Garansi & Retur Barang
+        </h3>
+        <button onclick="ReturnsManager.closeModal()" class="text-amber-200 hover:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <form onsubmit="ReturnsManager.handleSubmit(event)" class="flex flex-col flex-1 overflow-hidden min-h-0">
+        <div class="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1 overscroll-contain">
+          <!-- Info Nota -->
+          <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
+            <div class="flex justify-between items-center text-[11px]">
+              <span class="font-mono font-bold text-amber-900" id="retModalInvoice">LK-...</span>
+              <span class="font-semibold text-amber-700" id="retModalCustomer">-</span>
+            </div>
+            <p class="text-[11px] text-amber-800 mt-1">Pilih barang yang ingin ditukar karena rusak (garansi) atau dikembalikan karena kelebihan beli.</p>
+          </div>
+
+          <!-- Pilih Produk dari Invoice -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Pilih Produk yang Diretur/Klaim:</label>
+            <select id="retProductSelect" onchange="ReturnsManager.onProductChange()" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-semibold outline-none focus:ring-2 focus:ring-amber-500">
+              <!-- Diisi via JS -->
+            </select>
+          </div>
+
+          <!-- Jumlah Qty -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Jumlah (Qty):</label>
+              <input 
+                type="number" 
+                id="retQty" 
+                min="1" 
+                value="1" 
+                required 
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
+              />
+              <span class="text-[10px] text-slate-400 mt-0.5 block" id="retMaxQtyNotice">Max: 1 pcs</span>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Satuan:</label>
+              <input type="text" id="retSatuan" readonly class="w-full px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-xs font-semibold text-slate-600 outline-none" value="pcs" />
+            </div>
+          </div>
+
+          <!-- Jenis Retur -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1.5">Tipe Pengembalian:</label>
+            <div class="space-y-2">
+              <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-amber-200 bg-amber-50/50 cursor-pointer hover:bg-amber-50">
+                <input type="radio" name="retType" value="garansi" checked onchange="ReturnsManager.onTypeChange()" class="mt-0.5 text-amber-600 focus:ring-amber-500" />
+                <div>
+                  <span class="font-bold text-slate-800 block text-xs">Klaim Garansi (Tukar Unit Baru - Rusak)</span>
+                  <p class="text-[11px] text-slate-500 mt-0.5 leading-snug">Ganti unit baru ke pembeli (-1 stok siap jual). Barang rusak dicatat ke daftar retur supplier/distributor.</p>
+                </div>
+              </label>
+
+              <label class="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100">
+                <input type="radio" name="retType" value="refund" onchange="ReturnsManager.onTypeChange()" class="mt-0.5 text-blue-600 focus:ring-blue-500" />
+                <div>
+                  <span class="font-bold text-slate-800 block text-xs">Retur Barang Bagus (Batal / Uang Kembali)</span>
+                  <p class="text-[11px] text-slate-500 mt-0.5 leading-snug">Barang kondisi bagus masuk kembali ke rak (+stok katalog). Uang kas dikembalikan ke pembeli.</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Alasan / Kerusakan -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Alasan / Catatan Kerusakan:</label>
+            <input 
+              type="text" 
+              id="retReason" 
+              placeholder="Contoh: Lampu mati total / Fitting longgar / Kelebihan beli" 
+              required
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
+            />
+          </div>
+
+          <!-- Preview Pengaruh Nominal -->
+          <div id="retEffectPreview" class="p-2.5 rounded-lg bg-slate-100 text-slate-700 text-[11px]">
+            <!-- Dynamic info text -->
+          </div>
+        </div>
+
+        <div class="p-3 sm:px-5 sm:py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
+          <button type="button" onclick="ReturnsManager.closeModal()" class="px-4 py-2 rounded-lg font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition">Batal</button>
+          <button type="submit" id="btnSubmitReturn" class="px-4 py-2 rounded-lg font-bold bg-amber-600 hover:bg-amber-700 text-white shadow transition">Simpan & Proses Retur</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: DAFTAR BARANG RUSAK & RETUR (REKAP SUPPLIER)                       -->
+  <!-- ========================================================================= -->
+  <div id="returnListModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[88vh] animate-in fade-in duration-150">
+      <div class="bg-purple-900 text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-purple-300"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <div>
+            <h3 class="font-extrabold text-sm sm:text-base leading-tight">Rekap Retur & Klaim Garansi</h3>
+            <p class="text-[11px] text-purple-200">Daftar barang rusak yang siap ditukar ke sales distributor atau retur kembali uang</p>
+          </div>
+        </div>
+        <button onclick="ReturnsManager.closeListModal()" class="text-purple-200 hover:text-white p-1 rounded-lg hover:bg-purple-800 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-4 overflow-y-auto flex-1 space-y-3 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+          <div class="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+            <button id="btnRetFilterPending" onclick="ReturnsManager.setListFilter('pending')" class="px-2.5 py-1 rounded-md bg-white text-slate-800 shadow-sm">Siap Tukar Supplier</button>
+            <button id="btnRetFilterAll" onclick="ReturnsManager.setListFilter('all')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900">Semua Riwayat</button>
+          </div>
+          <span class="text-slate-400 font-semibold" id="retListSummaryCount">0 Catatan</span>
+        </div>
+
+        <div id="retListContainer" class="space-y-2">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <div class="p-3 bg-slate-50 border-t flex justify-end">
+        <button onclick="ReturnsManager.closeListModal()" class="px-4 py-2 rounded-lg font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs transition">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- AREA CETAK FAKTUR A4 / SIMPAN KE PDF (DITAMPILKAN HANYA SAAT PRINT)        -->
+  <!-- ========================================================================= -->
+  <div id="invoicePrintAreaA4" class="hidden"></div>
 
   <!-- TOAST CONTAINER -->
   <div id="toastContainer" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none"></div>
@@ -2371,7 +2673,7 @@
 
           return `
             <tr class="hover:bg-slate-50 transition">
-              <td class="p-3 sm:px-4 font-mono font-bold text-slate-800 text-xs">${trx.transactionId}</td>
+              <td onclick="Reports.openInvoiceDetailModal('${trx.transactionId}')" class="p-3 sm:px-4 font-mono font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer text-xs" title="Klik untuk lihat rincian invoice & cetak PDF A4">${trx.transactionId}</td>
               <td class="p-3 sm:px-4 text-slate-600 whitespace-nowrap text-xs font-medium" title="${trx.waktu || ''}">${this.formatTransactionTime(trx)}</td>
               <td class="p-3 sm:px-4 font-semibold text-slate-800 text-xs">${custName}</td>
               <td class="p-3 sm:px-4">
@@ -2385,6 +2687,11 @@
               </td>
               <td class="p-3 sm:px-4 text-center">
                 <div class="flex items-center justify-center gap-1.5">
+                  <!-- Tombol Rincian / Detail Invoice -->
+                  <button onclick="Reports.openInvoiceDetailModal('${trx.transactionId}')" class="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-blue-600 transition" title="Lihat Rincian & Cetak Faktur PDF A4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+
                   <!-- Tombol Lunasi jika Kasbon -->
                   ${isDebt ? `
                     <button onclick="Reports.openPayDebtModal('${trx.transactionId}')" class="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold transition flex items-center gap-1 text-[11px] shadow-sm" title="Catat Pelunasan Kasbon">
@@ -2399,7 +2706,7 @@
                   </button>
 
                   <!-- Tombol Cetak Ulang Struk -->
-                  <button onclick="Reports.reprintReceipt(${idx})" class="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition" title="Cetak Ulang Struk">
+                  <button onclick="Reports.reprintReceipt(${idx})" class="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition" title="Cetak Ulang Struk 58mm">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
                   </button>
                 </div>
@@ -2410,8 +2717,8 @@
       },
 
       // --- KIRIM NOTA DIGITAL VIA WHATSAPP ---
-      shareInvoiceWA(idx) {
-        const trx = this.filteredTransactions[idx] || this.transactions[idx];
+      shareInvoiceWA(idx, directTrx) {
+        const trx = directTrx || this.filteredTransactions[idx] || this.transactions[idx];
         if (!trx) return;
 
         const storeName = CONFIG.STORE_NAME || "TOKO LISTRIK KITA";
@@ -2604,8 +2911,8 @@
         UI.toast(`Laporan berhasil diunduh (${filename})`, "success");
       },
 
-      async reprintReceipt(idx) {
-        const trx = this.filteredTransactions[idx] || this.transactions[idx];
+      async reprintReceipt(idx, directTrx) {
+        const trx = directTrx || this.filteredTransactions[idx] || this.transactions[idx];
         if (!trx) return;
 
         if (!PrinterService.isConnected) {
@@ -2614,11 +2921,12 @@
         }
 
         try {
+          const items = InvoicePrinter.normalizeItems(trx);
           const orderData = {
             transactionId: trx.transactionId,
             datetime: trx.waktu,
             namaPelanggan: trx.pelanggan,
-            items: trx.items && trx.items.length ? trx.items : [{ nama: trx.detailItem, qty: 1, harga: trx.total }],
+            items: items.length ? items : [{ nama: trx.detailItem, qty: 1, harga: trx.total }],
             subtotal: trx.subtotal || trx.total,
             diskon: trx.diskon || 0,
             total: trx.total,
@@ -2638,6 +2946,680 @@
           console.error("Reprint Error:", err);
           UI.toast("Gagal cetak ulang: " + err.message, "error");
         }
+      },
+
+      // --- RINCIAN INVOICE (DETAIL MODAL) ---
+      selectedDetailTrx: null,
+
+      openInvoiceDetailModal(trxId) {
+        const trx = (this.transactions || []).find(t => t.transactionId === trxId) ||
+                    (this.filteredTransactions || []).find(t => t.transactionId === trxId);
+        if (!trx) {
+          UI.toast("Data invoice tidak ditemukan", "error");
+          return;
+        }
+
+        this.selectedDetailTrx = trx;
+        const items = InvoicePrinter.normalizeItems(trx);
+
+        const subTitle = document.getElementById("invDetailSubTitle");
+        if (subTitle) subTitle.textContent = trx.transactionId;
+        const waktuEl = document.getElementById("invDetailWaktu");
+        if (waktuEl) waktuEl.textContent = trx.waktu || "-";
+        const custEl = document.getElementById("invDetailPelanggan");
+        if (custEl) custEl.textContent = trx.pelanggan || "Umum";
+        
+        // Badge metode
+        const m = String(trx.metode || "Tunai");
+        const badge = document.getElementById("invDetailMetodeBadge");
+        if (badge) {
+          badge.textContent = m;
+          if (m.toLowerCase().includes("bon") || m.toLowerCase().includes("hutang")) {
+            badge.className = "inline-block px-2 py-0.5 rounded-full text-[11px] font-bold mt-0.5 bg-amber-100 text-amber-900 border border-amber-300";
+          } else if (m.toLowerCase().includes("qris") || m.toLowerCase().includes("transfer")) {
+            badge.className = "inline-block px-2 py-0.5 rounded-full text-[11px] font-bold mt-0.5 bg-blue-100 text-blue-800";
+          } else {
+            badge.className = "inline-block px-2 py-0.5 rounded-full text-[11px] font-bold mt-0.5 bg-emerald-100 text-emerald-800";
+          }
+        }
+
+        const total = Number(trx.total) || 0;
+        const subtotal = Number(trx.subtotal) || total;
+        const diskon = Number(trx.diskon) || 0;
+        const bayar = Number(trx.bayar) || 0;
+        const kembalian = Number(trx.kembalian) || 0;
+
+        const totalHeader = document.getElementById("invDetailTotalHeader");
+        if (totalHeader) totalHeader.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+        const countEl = document.getElementById("invDetailItemCount");
+        if (countEl) countEl.textContent = `${items.length} Item`;
+
+        // Render tabel item
+        const tbody = document.getElementById("invDetailTableBody");
+        if (tbody) {
+          tbody.innerHTML = items.map((it, idx) => `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-2.5 sm:px-3 text-center text-slate-400 font-semibold">${idx + 1}</td>
+              <td class="p-2.5 sm:px-3 font-bold text-slate-800">
+                ${it.nama}
+                ${it.id ? `<span class="block text-[10px] font-mono text-slate-400">${it.id}</span>` : ''}
+              </td>
+              <td class="p-2.5 sm:px-3 text-center font-bold text-slate-800">${it.qty} <span class="text-[10px] text-slate-400 font-normal">${it.satuan || 'pcs'}</span></td>
+              <td class="p-2.5 sm:px-3 text-right text-slate-600 font-mono">Rp ${it.harga.toLocaleString('id-ID')}</td>
+              <td class="p-2.5 sm:px-3 text-right font-black text-slate-900 font-mono">Rp ${it.subtotal.toLocaleString('id-ID')}</td>
+            </tr>
+          `).join("");
+        }
+
+        // Angka summary
+        const subEl = document.getElementById("invDetailSubtotal");
+        if (subEl) subEl.textContent = `Rp ${subtotal.toLocaleString('id-ID')}`;
+        const diskonRow = document.getElementById("invDetailDiskonRow");
+        if (diskonRow) {
+          if (diskon > 0) {
+            diskonRow.classList.remove("hidden");
+            const diskonEl = document.getElementById("invDetailDiskon");
+            if (diskonEl) diskonEl.textContent = `-Rp ${diskon.toLocaleString('id-ID')}`;
+          } else {
+            diskonRow.classList.add("hidden");
+          }
+        }
+        const grandEl = document.getElementById("invDetailGrandTotal");
+        if (grandEl) grandEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+        const bayarEl = document.getElementById("invDetailBayar");
+        if (bayarEl) bayarEl.textContent = `Rp ${bayar.toLocaleString('id-ID')}`;
+        const kembalianEl = document.getElementById("invDetailKembalian");
+        if (kembalianEl) kembalianEl.textContent = `Rp ${kembalian.toLocaleString('id-ID')}`;
+
+        const modal = document.getElementById("invoiceDetailModal");
+        if (modal) modal.classList.remove("hidden");
+      },
+
+      closeInvoiceDetailModal() {
+        const m = document.getElementById("invoiceDetailModal");
+        if (m) m.classList.add("hidden");
+      },
+
+      printThermalFromDetail() {
+        if (!this.selectedDetailTrx) return;
+        this.reprintReceipt(0, this.selectedDetailTrx);
+      },
+
+      shareWAFromDetail() {
+        if (!this.selectedDetailTrx) return;
+        this.shareInvoiceWA(0, this.selectedDetailTrx);
+      },
+
+      printA4InvoiceFromDetail() {
+        if (!this.selectedDetailTrx) return;
+        InvoicePrinter.printA4Invoice(this.selectedDetailTrx);
+      },
+
+      openReturnWarrantyModal() {
+        if (!this.selectedDetailTrx) return;
+        ReturnsManager.openModal(this.selectedDetailTrx.transactionId);
+      }
+    };
+
+    /**
+     * =========================================================================
+     * 6B. INVOICE PRINTER (FAKTUR A4 / RESMI CETAK PDF & TERBILANG)
+     * =========================================================================
+     */
+    const InvoicePrinter = {
+      normalizeItems(trx) {
+        if (!trx) return [];
+        if (Array.isArray(trx.items) && trx.items.length > 0) {
+          return trx.items.map(it => ({
+            id: it.id || "",
+            nama: it.nama || "Barang Listrik",
+            qty: Number(it.qty) || 1,
+            satuan: it.satuan || "pcs",
+            harga: Number(it.harga) || 0,
+            subtotal: (Number(it.qty) || 1) * (Number(it.harga) || 0)
+          }));
+        }
+
+        // Fallback parsing detailItem dari teks
+        const lines = String(trx.detailItem || "").split("\n").filter(Boolean);
+        if (!lines.length) {
+          return [{
+            id: "",
+            nama: "Penjualan Barang Listrik",
+            qty: 1,
+            satuan: "pcs",
+            harga: Number(trx.total) || 0,
+            subtotal: Number(trx.total) || 0
+          }];
+        }
+
+        return lines.map(line => {
+          let q = 1;
+          let name = line.trim();
+          let p = 0;
+          let sub = 0;
+
+          // Format 'Nama Produk (2x @35000) = Rp70000'
+          const matchDetailed = line.match(/^(.*?)\s*\((?:(\d+)x)?\s*(?:@(\d+))?\)\s*=\s*Rp(\d+)/i);
+          if (matchDetailed) {
+            name = matchDetailed[1].trim();
+            q = matchDetailed[2] ? parseInt(matchDetailed[2], 10) : 1;
+            p = matchDetailed[3] ? parseInt(matchDetailed[3], 10) : 0;
+            sub = matchDetailed[4] ? parseInt(matchDetailed[4], 10) : (q * p);
+          } else {
+            const mSimple = line.match(/^(.*?)\s*\((\d+)x\)$/i);
+            if (mSimple) {
+              name = mSimple[1].trim();
+              q = parseInt(mSimple[2], 10);
+            }
+          }
+
+          return {
+            id: "",
+            nama: name,
+            qty: q,
+            satuan: "pcs",
+            harga: p || (q > 0 && sub > 0 ? Math.round(sub / q) : 0),
+            subtotal: sub || (q * p)
+          };
+        });
+      },
+
+      terbilang(angka) {
+        const bilangan = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
+        angka = Math.floor(Math.abs(Number(angka) || 0));
+        if (angka === 0) return "Nol Rupiah";
+        
+        function konversi(n) {
+          if (n < 12) return bilangan[n];
+          if (n < 20) return konversi(n - 10) + " Belas";
+          if (n < 100) return konversi(Math.floor(n / 10)) + " Puluh " + bilangan[n % 10];
+          if (n < 200) return "Seratus " + konversi(n - 100);
+          if (n < 1000) return konversi(Math.floor(n / 100)) + " Ratus " + konversi(n % 100);
+          if (n < 2000) return "Seribu " + konversi(n - 1000);
+          if (n < 1000000) return konversi(Math.floor(n / 1000)) + " Ribu " + konversi(n % 1000);
+          if (n < 1000000000) return konversi(Math.floor(n / 1000000)) + " Juta " + konversi(n % 1000000);
+          if (n < 1000000000000) return konversi(Math.floor(n / 1000000000)) + " Miliar " + konversi(n % 1000000000);
+          return "";
+        }
+        return konversi(angka).replace(/\s+/g, " ").trim() + " Rupiah";
+      },
+
+      printA4Invoice(trx) {
+        if (!trx) return;
+        const items = this.normalizeItems(trx);
+        const storeName = CONFIG.STORE_NAME || "TOKO LISTRIK KITA";
+        const storeAddr = CONFIG.STORE_ADDR || "Jl. Raya Listrik No. 88";
+        const storePhone = CONFIG.STORE_PHONE || "0856-5954-9991";
+        const total = Number(trx.total) || 0;
+        const subtotal = Number(trx.subtotal) || total;
+        const diskon = Number(trx.diskon) || 0;
+        const bayar = Number(trx.bayar) || 0;
+        const kembalian = Number(trx.kembalian) || 0;
+        const metode = String(trx.metode || "Tunai");
+        const pelanggan = String(trx.pelanggan || "Umum");
+        const terbilangStr = this.terbilang(total);
+
+        const html = `
+          <div style="font-family: Arial, Helvetica, sans-serif; color: #1e293b; background: #fff; padding: 20px; max-width: 800px; margin: 0 auto; line-height: 1.4;">
+            <!-- KOP FAKTUR RESMI -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 14px;">
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <img src="logo.png" style="width: 52px; height: 52px; object-fit: contain;" alt="Logo" onerror="this.style.display='none'" />
+                <div>
+                  <h1 style="font-size: 19px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: 0.5px;">${storeName}</h1>
+                  <p style="font-size: 11px; color: #475569; margin: 2px 0 0 0;">${storeAddr}</p>
+                  <p style="font-size: 11px; color: #475569; margin: 2px 0 0 0;">WhatsApp/Telp: <strong>${storePhone}</strong></p>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 17px; font-weight: 900; color: #1e3a8a; letter-spacing: 1px;">FAKTUR PENJUALAN</div>
+                <div style="font-size: 12px; font-family: monospace; font-weight: 700; color: #0f172a; margin-top: 4px;">No: ${trx.transactionId}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Tgl: ${trx.waktu || new Date().toLocaleString('id-ID')}</div>
+              </div>
+            </div>
+
+            <!-- INFO PEMBELI & PEMBAYARAN -->
+            <div style="display: flex; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; font-size: 11px;">
+              <div>
+                <span style="color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px; display: block;">Kepada Yth:</span>
+                <strong style="font-size: 13px; color: #0f172a;">${pelanggan}</strong>
+              </div>
+              <div>
+                <span style="color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px; display: block;">Metode Pembayaran:</span>
+                <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; background: #e0f2fe; color: #0369a1;">${metode}</span>
+              </div>
+              <div style="text-align: right;">
+                <span style="color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px; display: block;">Status Faktur:</span>
+                <strong style="color: ${metode.toLowerCase().includes('bon') || metode.toLowerCase().includes('hutang') ? '#b45309' : '#15803d'}; font-size: 12px;">
+                  ${metode.toLowerCase().includes('bon') || metode.toLowerCase().includes('hutang') ? 'TEMPO / BELUM LUNAS' : 'LUNAS'}
+                </strong>
+              </div>
+            </div>
+
+            <!-- TABEL BARANG -->
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 14px;">
+              <thead>
+                <tr style="background: #0f172a; color: #ffffff;">
+                  <th style="padding: 7px; border: 1px solid #0f172a; width: 30px; text-align: center;">NO</th>
+                  <th style="padding: 7px; border: 1px solid #0f172a; text-align: left;">NAMA BARANG / ALAT LISTRIK</th>
+                  <th style="padding: 7px; border: 1px solid #0f172a; width: 45px; text-align: center;">QTY</th>
+                  <th style="padding: 7px; border: 1px solid #0f172a; width: 55px; text-align: center;">SATUAN</th>
+                  <th style="padding: 7px; border: 1px solid #0f172a; width: 90px; text-align: right;">HARGA (RP)</th>
+                  <th style="padding: 7px; border: 1px solid #0f172a; width: 95px; text-align: right;">JUMLAH (RP)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${items.map((it, i) => `
+                  <tr style="background: ${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                    <td style="padding: 6px 7px; border: 1px solid #cbd5e1; text-align: center;">${i + 1}</td>
+                    <td style="padding: 6px 7px; border: 1px solid #cbd5e1; font-weight: 600; color: #0f172a;">${it.nama}</td>
+                    <td style="padding: 6px 7px; border: 1px solid #cbd5e1; text-align: center; font-weight: 700;">${it.qty}</td>
+                    <td style="padding: 6px 7px; border: 1px solid #cbd5e1; text-align: center; color: #64748b;">${it.satuan || 'pcs'}</td>
+                    <td style="padding: 6px 7px; border: 1px solid #cbd5e1; text-align: right;">${it.harga.toLocaleString('id-ID')}</td>
+                    <td style="padding: 6px 7px; border: 1px solid #cbd5e1; text-align: right; font-weight: 700;">${it.subtotal.toLocaleString('id-ID')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+
+            <!-- BAGIAN BAWAH: TERBILANG & TOTAL -->
+            <div style="display: flex; justify-content: space-between; gap: 16px; margin-bottom: 20px;">
+              <!-- Kolom Kiri: Terbilang & Catatan Garansi -->
+              <div style="flex: 1; font-size: 10px; color: #475569;">
+                <div style="background: #f1f5f9; border-left: 3px solid #1e3a8a; padding: 6px 8px; margin-bottom: 8px;">
+                  <span style="font-weight: 700; color: #0f172a; font-size: 9px; text-transform: uppercase; display: block;">Terbilang:</span>
+                  <span style="font-style: italic; font-weight: 600; color: #1e3a8a;"># ${terbilangStr} #</span>
+                </div>
+                <div style="border: 1px dashed #cbd5e1; border-radius: 6px; padding: 6px 8px; line-height: 1.4;">
+                  <strong style="color: #0f172a; display: block; margin-bottom: 2px;">Ketentuan Garansi & Toko:</strong>
+                  <ul style="margin: 0; padding-left: 14px;">
+                    <li>Barang bergaransi (Lampu LED) wajib menyertakan faktur ini & kardus asli saat klaim.</li>
+                    <li>Kabel yang sudah dipotong per meter tidak dapat ditukar/dikembalikan.</li>
+                    <li>Retur barang cacat pabrik dilayani maksimal 3 hari setelah tanggal faktur.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Kolom Kanan: Rincian Angka Total -->
+              <div style="width: 250px; font-size: 11px;">
+                <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e2e8f0;">
+                  <span>Subtotal:</span>
+                  <strong style="font-family: monospace;">Rp ${subtotal.toLocaleString('id-ID')}</strong>
+                </div>
+                ${diskon > 0 ? `
+                <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e2e8f0; color: #dc2626;">
+                  <span>Diskon:</span>
+                  <strong style="font-family: monospace;">-Rp ${diskon.toLocaleString('id-ID')}</strong>
+                </div>` : ''}
+                <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 2px solid #0f172a; font-size: 12.5px; font-weight: 800; color: #0f172a;">
+                  <span>TOTAL AKHIR:</span>
+                  <span style="font-family: monospace; color: #1e3a8a;">Rp ${total.toLocaleString('id-ID')}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #e2e8f0; color: #64748b;">
+                  <span>Bayar:</span>
+                  <span style="font-family: monospace;">Rp ${bayar.toLocaleString('id-ID')}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 3px 0; color: #64748b;">
+                  <span>Kembalian / Sisa:</span>
+                  <span style="font-family: monospace;">Rp ${kembalian.toLocaleString('id-ID')}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- KOLOM TANDA TANGAN RESMI -->
+            <div style="display: flex; justify-content: space-between; text-align: center; font-size: 11px; margin-top: 24px;">
+              <div style="width: 180px;">
+                <div style="color: #64748b; margin-bottom: 45px;">Penerima / Pembeli,</div>
+                <div style="border-bottom: 1px solid #0f172a; font-weight: 700; color: #0f172a;">( ${pelanggan} )</div>
+              </div>
+              <div style="width: 180px;">
+                <div style="color: #64748b; margin-bottom: 45px;">Hormat Kami,</div>
+                <div style="border-bottom: 1px solid #0f172a; font-weight: 700; color: #0f172a;">( ${storeName} )</div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        const printArea = document.getElementById("invoicePrintAreaA4");
+        if (!printArea) return;
+        printArea.innerHTML = html;
+        printArea.classList.remove("hidden");
+
+        // Buka dialog print browser untuk cetak langsung atau 'Simpan ke PDF'
+        setTimeout(() => {
+          window.print();
+          setTimeout(() => {
+            printArea.classList.add("hidden");
+          }, 1000);
+        }, 250);
+      }
+    };
+
+    /**
+     * =========================================================================
+     * 6C. RETURNS & WARRANTY MANAGER (RETUR & KLAIM GARANSI TOKO LISTRIK)
+     * =========================================================================
+     */
+    const ReturnsManager = {
+      currentTrx: null,
+      currentFilter: 'pending',
+
+      getReturns() {
+        try {
+          const raw = localStorage.getItem("lk_returns_list");
+          return raw ? JSON.parse(raw) : [];
+        } catch(e) {
+          return [];
+        }
+      },
+
+      saveReturns(list) {
+        localStorage.setItem("lk_returns_list", JSON.stringify(list));
+        this.updateBadge();
+      },
+
+      updateBadge() {
+        const list = this.getReturns();
+        const pendingCount = list.filter(r => r.type === 'garansi' && r.status === 'Menunggu Klaim Supplier').length;
+        const badge = document.getElementById("badgeReturnCount");
+        if (badge) {
+          if (pendingCount > 0) {
+            badge.textContent = pendingCount;
+            badge.classList.remove("hidden");
+          } else {
+            badge.classList.add("hidden");
+          }
+        }
+      },
+
+      openModal(trxId) {
+        const trx = (Reports.transactions || []).find(t => t.transactionId === trxId) ||
+                    (Reports.filteredTransactions || []).find(t => t.transactionId === trxId);
+        if (!trx) {
+          UI.toast("Transaksi tidak ditemukan", "error");
+          return;
+        }
+        this.currentTrx = trx;
+        const items = InvoicePrinter.normalizeItems(trx);
+
+        const invEl = document.getElementById("retModalInvoice");
+        if (invEl) invEl.textContent = trx.transactionId;
+        const custEl = document.getElementById("retModalCustomer");
+        if (custEl) custEl.textContent = `Pelanggan: ${trx.pelanggan || 'Umum'}`;
+
+        const sel = document.getElementById("retProductSelect");
+        if (sel) {
+          sel.innerHTML = items.map((it, idx) => `
+            <option value="${idx}">${it.nama} (Beli: ${it.qty} ${it.satuan || 'pcs'} @Rp${it.harga.toLocaleString('id-ID')})</option>
+          `).join("");
+        }
+
+        const reasonInp = document.getElementById("retReason");
+        if (reasonInp) reasonInp.value = "";
+        this.onProductChange();
+        this.onTypeChange();
+
+        // Tutup modal invoice detail sementara agar kasir fokus ke formulir retur
+        Reports.closeInvoiceDetailModal();
+
+        const modal = document.getElementById("returnWarrantyModal");
+        if (modal) modal.classList.remove("hidden");
+      },
+
+      closeModal() {
+        const m = document.getElementById("returnWarrantyModal");
+        if (m) m.classList.add("hidden");
+      },
+
+      onProductChange() {
+        if (!this.currentTrx) return;
+        const items = InvoicePrinter.normalizeItems(this.currentTrx);
+        const selEl = document.getElementById("retProductSelect");
+        const selIdx = selEl ? (parseInt(selEl.value, 10) || 0) : 0;
+        const item = items[selIdx];
+        if (!item) return;
+
+        const qtyInp = document.getElementById("retQty");
+        if (qtyInp) {
+          qtyInp.max = item.qty;
+          qtyInp.value = Math.min(1, item.qty);
+        }
+        const satEl = document.getElementById("retSatuan");
+        if (satEl) satEl.value = item.satuan || "pcs";
+        const maxNotice = document.getElementById("retMaxQtyNotice");
+        if (maxNotice) maxNotice.textContent = `Maksimal dari nota ini: ${item.qty} ${item.satuan || 'pcs'}`;
+        this.updateEffectPreview();
+      },
+
+      onTypeChange() {
+        this.updateEffectPreview();
+      },
+
+      updateEffectPreview() {
+        if (!this.currentTrx) return;
+        const items = InvoicePrinter.normalizeItems(this.currentTrx);
+        const selEl = document.getElementById("retProductSelect");
+        const selIdx = selEl ? (parseInt(selEl.value, 10) || 0) : 0;
+        const item = items[selIdx];
+        if (!item) return;
+
+        const typeEl = document.querySelector('input[name="retType"]:checked');
+        const type = typeEl ? typeEl.value : 'garansi';
+        const qtyInp = document.getElementById("retQty");
+        const qty = qtyInp ? (parseInt(qtyInp.value, 10) || 1) : 1;
+        const preview = document.getElementById("retEffectPreview");
+        if (!preview) return;
+
+        if (type === 'garansi') {
+          preview.innerHTML = `
+            <div class="text-amber-800 font-bold">Efek Klaim Garansi:</div>
+            <div>• Berikan ${qty} unit baru ke pembeli (Stok katalog berkurang ${qty} unit).</div>
+            <div>• ${qty} unit barang rusak dicatat ke daftar retur siap tukar ke supplier/sales.</div>
+            <div>• Kas toko tetap Rp 0 (tidak ada pengembalian uang).</div>
+          `;
+        } else {
+          const refundTotal = (item.harga || 0) * qty;
+          preview.innerHTML = `
+            <div class="text-blue-800 font-bold">Efek Retur Barang Bagus:</div>
+            <div>• ${qty} unit barang masuk kembali ke rak (Stok katalog bertambah +${qty} unit).</div>
+            <div>• Uang dikembalikan ke pembeli: <strong class="text-red-600">Rp ${refundTotal.toLocaleString('id-ID')}</strong>.</div>
+          `;
+        }
+      },
+
+      async handleSubmit(e) {
+        e.preventDefault();
+        if (!this.currentTrx) return;
+
+        const items = InvoicePrinter.normalizeItems(this.currentTrx);
+        const selEl = document.getElementById("retProductSelect");
+        const selIdx = selEl ? (parseInt(selEl.value, 10) || 0) : 0;
+        const item = items[selIdx];
+        if (!item) return;
+
+        const qtyInp = document.getElementById("retQty");
+        const qty = qtyInp ? (parseInt(qtyInp.value, 10) || 1) : 1;
+        if (qty < 1 || qty > item.qty) {
+          UI.toast(`Jumlah retur harus antara 1 dan ${item.qty}`, "error");
+          return;
+        }
+
+        const typeEl = document.querySelector('input[name="retType"]:checked');
+        const type = typeEl ? typeEl.value : 'garansi';
+        const reasonInp = document.getElementById("retReason");
+        const reason = reasonInp ? (reasonInp.value.trim() || "-") : "-";
+        const refundAmount = type === 'refund' ? (item.harga * qty) : 0;
+
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const returnId = "RET-" + now.getFullYear() +
+                         pad(now.getMonth() + 1) +
+                         pad(now.getDate()) + "-" +
+                         pad(now.getHours()) +
+                         pad(now.getMinutes()) +
+                         pad(now.getSeconds());
+
+        const returnRecord = {
+          id: returnId,
+          transactionId: this.currentTrx.transactionId,
+          waktu: now.toLocaleString('id-ID'),
+          productId: item.id || "",
+          productName: item.nama,
+          qty: qty,
+          satuan: item.satuan || "pcs",
+          type: type,
+          reason: reason,
+          customer: this.currentTrx.pelanggan || "Umum",
+          refundAmount: refundAmount,
+          status: type === 'garansi' ? 'Menunggu Klaim Supplier' : 'Selesai (Refund)'
+        };
+
+        // 1. Sesuaikan stok lokal katalog secara instan
+        let matchedProd = State.products.find(p => (item.id && p.id === item.id) || p.nama.toLowerCase() === item.nama.toLowerCase());
+        if (matchedProd) {
+          if (type === 'refund') {
+            matchedProd.stok += qty; // barang bagus kembali ke rak
+          } else if (type === 'garansi') {
+            matchedProd.stok = Math.max(0, matchedProd.stok - qty); // 1 barang baru keluar rak
+          }
+          ProductManager.saveToLocalStorage();
+          App.renderCatalog();
+          ProductManager.renderTable();
+        }
+
+        // 2. Simpan record ke riwayat retur lokal
+        const list = this.getReturns();
+        list.unshift(returnRecord);
+        this.saveReturns(list);
+
+        this.closeModal();
+        UI.toast(`Retur berhasil diproses (${type === 'garansi' ? 'Tukar Unit Baru' : 'Refund Uang'})`, "success");
+
+        // 3. Sync ke Google Apps Script di background jika ada URL
+        if (State.gasUrl) {
+          try {
+            fetch(State.gasUrl, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "return_product",
+                token: State.securityToken || "",
+                ...returnRecord
+              })
+            }).catch(err => console.warn("Sync retur background error:", err));
+          } catch(e) {}
+        }
+      },
+
+      openListModal() {
+        this.renderList();
+        const m = document.getElementById("returnListModal");
+        if (m) m.classList.remove("hidden");
+      },
+
+      closeListModal() {
+        const m = document.getElementById("returnListModal");
+        if (m) m.classList.add("hidden");
+      },
+
+      setListFilter(filter) {
+        this.currentFilter = filter;
+        const btnPending = document.getElementById("btnRetFilterPending");
+        const btnAll = document.getElementById("btnRetFilterAll");
+        if (btnPending && btnAll) {
+          if (filter === 'pending') {
+            btnPending.className = "px-2.5 py-1 rounded-md bg-white text-slate-800 shadow-sm";
+            btnAll.className = "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900";
+          } else {
+            btnAll.className = "px-2.5 py-1 rounded-md bg-white text-slate-800 shadow-sm";
+            btnPending.className = "px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900";
+          }
+        }
+        this.renderList();
+      },
+
+      renderList() {
+        const container = document.getElementById("retListContainer");
+        if (!container) return;
+        const allReturns = this.getReturns();
+        const filtered = this.currentFilter === 'pending'
+          ? allReturns.filter(r => r.type === 'garansi' && r.status === 'Menunggu Klaim Supplier')
+          : allReturns;
+
+        const summaryCount = document.getElementById("retListSummaryCount");
+        if (summaryCount) summaryCount.textContent = `${filtered.length} Catatan`;
+
+        if (!filtered.length) {
+          container.innerHTML = `
+            <div class="text-center p-8 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              ${this.currentFilter === 'pending' ? 'Bagus! Tidak ada barang rusak yang menunggu klaim distributor/supplier.' : 'Belum ada riwayat retur atau garansi.'}
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = filtered.map(r => {
+          const isPending = r.type === 'garansi' && r.status === 'Menunggu Klaim Supplier';
+          return `
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="font-mono font-bold text-slate-800 text-xs">${r.id}</span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${r.type === 'garansi' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}">
+                    ${r.type === 'garansi' ? 'Garansi Tukar Baru' : 'Retur Refund'}
+                  </span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isPending ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-emerald-100 text-emerald-800'}">
+                    ${r.status}
+                  </span>
+                </div>
+                <div class="font-bold text-slate-800 text-sm">${r.productName} (${r.qty} ${r.satuan || 'pcs'})</div>
+                <div class="text-slate-500 text-[11px]">
+                  Nota: <span class="font-mono font-semibold">${r.transactionId}</span> • Pembeli: <strong>${r.customer}</strong> • Alasan: <em>"${r.reason}"</em>
+                </div>
+                <div class="text-[10px] text-slate-400">Dicatat pada: ${r.waktu}</div>
+              </div>
+
+              <div class="flex items-center gap-2 self-end sm:self-center">
+                ${isPending ? `
+                  <button onclick="ReturnsManager.resolveClaim('${r.id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition" title="Tandai sudah diganti oleh sales distributor">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>Sudah Diganti Supplier</span>
+                  </button>
+                ` : `
+                  <span class="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Terselesaikan
+                  </span>
+                `}
+              </div>
+            </div>
+          `;
+        }).join("");
+      },
+
+      resolveClaim(returnId) {
+        if (!confirm("Tandai barang rusak ini sudah diganti oleh sales distributor/supplier? (Unit baru dari distributor akan otomatis masuk kembali ke stok rak toko)")) return;
+        const list = this.getReturns();
+        const rec = list.find(r => r.id === returnId);
+        if (!rec) return;
+
+        rec.status = "Selesai (Diganti Supplier)";
+        rec.resolvedAt = new Date().toLocaleString('id-ID');
+
+        // Masukkan barang pengganti dari supplier ke rak katalog
+        let matchedProd = State.products.find(p => (rec.productId && p.id === rec.productId) || p.nama.toLowerCase() === rec.productName.toLowerCase());
+        if (matchedProd) {
+          matchedProd.stok += (Number(rec.qty) || 1);
+          ProductManager.saveToLocalStorage();
+          App.renderCatalog();
+          ProductManager.renderTable();
+        }
+
+        this.saveReturns(list);
+        this.renderList();
+        UI.toast("Klaim selesai! Stok unit baru dari supplier otomatis ditambahkan ke katalog.", "success");
       }
     };
 
@@ -3875,6 +4857,7 @@
       // Jalankan App - produk muncul instan dari DEFAULT atau cache lokal + auto sync
       try {
         App.init();
+        ReturnsManager.updateBadge();
       } catch (err) {
         console.error("Bootstrap App.init error:", err);
       }

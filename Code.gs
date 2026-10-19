@@ -59,12 +59,32 @@ function setupDatabase() {
       "RawItemsJSON"
     ]);
   }
+
+  // 3. Setup Sheet Retur & Garansi
+  let sheetRetur = ss.getSheetByName("Retur");
+  if (!sheetRetur) {
+    sheetRetur = ss.insertSheet("Retur");
+    sheetRetur.appendRow([
+      "ID Retur", 
+      "Waktu", 
+      "No Invoice", 
+      "Pelanggan", 
+      "Kode Produk", 
+      "Nama Produk", 
+      "Qty", 
+      "Tipe Retur", 
+      "Alasan / Kerusakan", 
+      "Nominal Refund", 
+      "Status"
+    ]);
+  }
 }
 
 /**
  * doGet() - Menangani:
  * - ?action=products (default: daftar produk & stok)
  * - ?action=transactions (daftar riwayat transaksi)
+ * - ?action=returns (daftar riwayat retur & klaim garansi)
  */
 function doGet(e) {
   try {
@@ -81,6 +101,8 @@ function doGet(e) {
 
     if (action === "transactions") {
       return getTransactionsData(ss);
+    } else if (action === "returns") {
+      return getReturnsData(ss);
     }
 
     // Default: Ambil data produk
@@ -184,6 +206,46 @@ function getTransactionsData(ss) {
 }
 
 /**
+ * getReturnsData() - Mengambil riwayat retur & klaim garansi
+ */
+function getReturnsData(ss) {
+  const sheetRetur = ss.getSheetByName("Retur");
+  if (!sheetRetur) {
+    return createJsonResponse({ status: "success", data: [] });
+  }
+
+  const lastRow = sheetRetur.getLastRow();
+  if (lastRow <= 1) {
+    return createJsonResponse({ status: "success", data: [] });
+  }
+
+  const numRows = Math.min(lastRow - 1, 100);
+  const startRow = lastRow - numRows + 1;
+  const values = sheetRetur.getRange(startRow, 1, numRows, 11).getValues();
+
+  const returns = [];
+  for (let i = values.length - 1; i >= 0; i--) {
+    const row = values[i];
+    if (!row[0]) continue;
+    returns.push({
+      id: String(row[0]),
+      waktu: String(row[1]),
+      transactionId: String(row[2]),
+      customer: String(row[3] || "Umum"),
+      productId: String(row[4] || ""),
+      productName: String(row[5] || ""),
+      qty: Number(row[6]) || 1,
+      type: String(row[7] || "").includes("Garansi") ? "garansi" : "refund",
+      reason: String(row[8] || "-"),
+      refundAmount: Number(row[9]) || 0,
+      status: String(row[10] || "Selesai")
+    });
+  }
+
+  return createJsonResponse({ status: "success", data: returns });
+}
+
+/**
  * doPost() - Menangani:
  * - action: 'checkout' (default) -> Catat transaksi & potong stok
  * - action: 'save_product' -> Tambah / Update produk
@@ -223,6 +285,8 @@ function doPost(e) {
       return handleRestoreProduct(ss, postData);
     } else if (action === "pay_debt") {
       return handlePayDebt(ss, postData);
+    } else if (action === "return_product") {
+      return handleReturnProduct(ss, postData);
     } else {
       return handleCheckout(ss, postData);
     }
@@ -653,6 +717,90 @@ function handlePayDebt(ss, payload) {
   }
 
   return createJsonResponse({ status: "error", message: `Transaksi ${transactionId} tidak ditemukan.` });
+}
+
+/**
+ * Handle Retur & Klaim Garansi Barang Listrik
+ */
+function handleReturnProduct(ss, data) {
+  const {
+    id,
+    transactionId,
+    productId,
+    productName,
+    qty,
+    type,
+    reason,
+    customer,
+    refundAmount
+  } = data;
+
+  let sheetRetur = ss.getSheetByName("Retur");
+  if (!sheetRetur) {
+    sheetRetur = ss.insertSheet("Retur");
+    sheetRetur.appendRow([
+      "ID Retur", 
+      "Waktu", 
+      "No Invoice", 
+      "Pelanggan", 
+      "Kode Produk", 
+      "Nama Produk", 
+      "Qty", 
+      "Tipe Retur", 
+      "Alasan / Kerusakan", 
+      "Nominal Refund", 
+      "Status"
+    ]);
+  }
+
+  const now = new Date();
+  const timeStr = Utilities.formatDate(now, Session.getScriptTimeZone() || "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
+  const retId = id || ("RET-" + Utilities.formatDate(now, "Asia/Jakarta", "yyyyMMdd-HHmmss"));
+
+  // Efek Stok ke Sheet Produk jika ada productId atau productName
+  const sheetProduk = ss.getSheetByName("Produk");
+  if (sheetProduk && (productId || productName)) {
+    const pData = sheetProduk.getDataRange().getValues();
+    for (let r = 1; r < pData.length; r++) {
+      const rowPid = String(pData[r][0] || "").trim().toLowerCase();
+      const rowName = String(pData[r][1] || "").trim().toLowerCase();
+      if ((productId && rowPid === String(productId).trim().toLowerCase()) || 
+          (productName && rowName === String(productName).trim().toLowerCase())) {
+        const curStock = Number(pData[r][4]) || 0;
+        let newStock = curStock;
+        if (type === "refund") {
+          // Barang bagus kembali ke rak -> stok bertambah
+          newStock = curStock + (Number(qty) || 1);
+        } else if (type === "garansi") {
+          // Tukar unit baru ke pelanggan -> stok rak berkurang
+          newStock = Math.max(0, curStock - (Number(qty) || 1));
+        }
+        sheetProduk.getRange(r + 1, 5).setValue(newStock);
+        break;
+      }
+    }
+  }
+
+  const statusRetur = type === "garansi" ? "Menunggu Klaim Supplier" : "Selesai (Refund)";
+  sheetRetur.appendRow([
+    retId,
+    timeStr,
+    transactionId || "-",
+    customer || "Umum",
+    productId || "-",
+    productName || "-",
+    Number(qty) || 1,
+    type === "garansi" ? "Garansi Rusak (Tukar Baru)" : "Retur Barang Bagus",
+    reason || "-",
+    Number(refundAmount) || 0,
+    statusRetur
+  ]);
+
+  return createJsonResponse({
+    status: "success",
+    message: `Retur ${retId} berhasil dicatat di sistem & Google Sheets.`,
+    returnId: retId
+  });
 }
 
 function createJsonResponse(data) {
