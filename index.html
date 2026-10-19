@@ -45,29 +45,33 @@
     @media print {
       html, body {
         height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
         overflow: visible !important;
         background: #ffffff !important;
-      }
-      body * {
-        visibility: hidden !important;
-      }
-      #invoicePrintAreaA4, #invoicePrintAreaA4 * {
-        visibility: visible !important;
-      }
-      #invoicePrintAreaA4 {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
-        background: #ffffff !important;
+      }
+      /* Sembunyikan SEMUA elemen body kecuali invoicePrintAreaA4 agar tidak memakan ruang kosong/halaman tambahan */
+      body > *:not(#invoicePrintAreaA4) {
+        display: none !important;
+      }
+      #invoicePrintAreaA4 {
         display: block !important;
-        z-index: 9999999 !important;
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        visibility: visible !important;
+      }
+      #invoicePrintAreaA4 * {
+        visibility: visible !important;
       }
       @page {
         size: A4 portrait;
-        margin: 8mm 10mm 10mm 10mm;
+        margin: 6mm 8mm 6mm 8mm;
       }
     }
   </style>
@@ -610,9 +614,9 @@
           <div class="text-2xl font-black text-blue-950 mt-0.5" id="modalBillAmount">Rp 0</div>
         </div>
 
-        <!-- Input Uang Diterima (Khusus Tunai) -->
+        <!-- Input Uang Diterima / DP -->
         <div id="cashInputSection">
-          <label class="block text-xs font-bold text-slate-700 mb-1">Nominal Uang Diterima (Rp):</label>
+          <label class="block text-xs font-bold text-slate-700 mb-1" id="cashInputLabel">Nominal Pembayaran Diterima / DP (Rp):</label>
           <div class="relative">
             <span class="absolute left-3 top-2.5 text-slate-400 font-bold text-sm">Rp</span>
             <input 
@@ -632,9 +636,9 @@
             <button type="button" onclick="UI.setQuickCash(200000)" class="py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border">200k</button>
           </div>
 
-          <!-- Kembalian -->
-          <div class="flex justify-between items-center p-3 bg-slate-100 rounded-xl border border-slate-200 mt-2">
-            <span class="text-xs font-bold text-slate-600">Kembalian:</span>
+          <!-- Kembalian / Status Tagihan DP -->
+          <div id="changeContainer" class="flex justify-between items-center p-3 bg-slate-100 rounded-xl border border-slate-200 mt-2 transition">
+            <span class="text-xs font-bold text-slate-600" id="changeLabel">Kembalian:</span>
             <span class="text-lg font-black text-emerald-600" id="modalChangeAmount">Rp 0</span>
           </div>
         </div>
@@ -658,7 +662,7 @@
             onclick="App.processTransaction()" 
             class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2">
             <i data-lucide="check-circle" class="w-4 h-4"></i>
-            Konfirmasi & Cetak Struk
+            <span id="btnProcessPaymentText">Konfirmasi & Cetak Struk</span>
           </button>
         </div>
       </div>
@@ -967,7 +971,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v40</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v41</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -2100,11 +2104,18 @@
         appendText(formatRow("TOTAL AKHIR", orderData.total));
         append(27, 69, 0); // Bold OFF
 
-        if (orderData.metodePembayaran === "Tunai") {
+        if (orderData.bayar !== undefined && orderData.bayar < orderData.total) {
+          const sisa = Math.max(0, orderData.total - orderData.bayar);
+          appendText(formatRow(orderData.bayar > 0 ? "UANG MUKA (DP)" : "DIBAYAR", orderData.bayar));
+          append(27, 69, 1); // Bold ON
+          appendText(formatRow("SISA TAGIHAN", sisa));
+          append(27, 69, 0); // Bold OFF
+          appendText(formatRow("STATUS", "BELUM LUNAS (TEMPO)"));
+        } else if (orderData.metodePembayaran === "Tunai") {
           appendText(formatRow("BAYAR TUNAI", orderData.bayar));
           appendText(formatRow("KEMBALIAN", orderData.kembalian));
         } else {
-          appendText(formatRow("STATUS", orderData.metodePembayaran === "Bon / Hutang" ? "BELUM LUNAS" : "LUNAS"));
+          appendText(formatRow("STATUS", (orderData.metodePembayaran || "").includes("Hutang") ? "BELUM LUNAS" : "LUNAS"));
         }
         appendText("================================\n");
 
@@ -2456,18 +2467,30 @@
         const btnQ = document.getElementById("btnMethodQris");
         const btnH = document.getElementById("btnMethodHutang");
         const cashSection = document.getElementById("cashInputSection");
+        const cashLabel = document.getElementById("cashInputLabel");
+        const cashInput = document.getElementById("cashGivenInput");
 
-        [btnT, btnQ, btnH].forEach(b => b.className = "py-2 rounded-xl border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100");
+        [btnT, btnQ, btnH].forEach(b => {
+          if (b) b.className = "py-2 rounded-xl border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100";
+        });
 
         if (method === 'Tunai') {
-          btnT.className = "py-2 rounded-xl border bg-blue-600 text-white border-blue-600";
-          cashSection.classList.remove("hidden");
+          if (btnT) btnT.className = "py-2 rounded-xl border bg-blue-600 text-white border-blue-600";
+          if (cashSection) cashSection.classList.remove("hidden");
+          if (cashLabel) cashLabel.textContent = "Nominal Pembayaran Diterima / DP (Rp):";
+          if (cashInput) cashInput.placeholder = "0";
         } else if (method === 'QRIS / Transfer') {
-          btnQ.className = "py-2 rounded-xl border bg-blue-600 text-white border-blue-600";
-          cashSection.classList.add("hidden");
+          if (btnQ) btnQ.className = "py-2 rounded-xl border bg-blue-600 text-white border-blue-600";
+          if (cashSection) cashSection.classList.add("hidden");
         } else {
-          btnH.className = "py-2 rounded-xl border bg-amber-500 text-white border-amber-500";
-          cashSection.classList.add("hidden");
+          // Bon / Hutang
+          if (btnH) btnH.className = "py-2 rounded-xl border bg-amber-500 text-white border-amber-500";
+          if (cashSection) cashSection.classList.remove("hidden");
+          if (cashLabel) cashLabel.textContent = "Uang Muka / DP yang Diterima (Rp):";
+          if (cashInput) {
+            cashInput.placeholder = "0 (Jika belum bayar sama sekali)";
+            if (cashInput.value === "") cashInput.value = "0";
+          }
         }
         this.calculateChange();
       },
@@ -2492,26 +2515,67 @@
         const method = State.selectedPaymentMethod;
         const btnProcess = document.getElementById("btnProcessPayment");
         const changeEl = document.getElementById("modalChangeAmount");
+        const changeLabel = document.getElementById("changeLabel");
+        const changeContainer = document.getElementById("changeContainer");
+        const btnText = document.getElementById("btnProcessPaymentText");
 
-        if (method !== 'Tunai') {
-          btnProcess.disabled = false;
-          btnProcess.classList.remove("opacity-50", "cursor-not-allowed");
+        if (method === 'QRIS / Transfer') {
+          if (changeLabel) changeLabel.textContent = "Status:";
+          if (changeEl) {
+            changeEl.textContent = "Lunas (QRIS / Bank)";
+            changeEl.className = "text-base font-bold text-blue-700";
+          }
+          if (changeContainer) changeContainer.className = "flex justify-between items-center p-3 bg-blue-50 rounded-xl border border-blue-200 mt-2";
+          if (btnProcess) {
+            btnProcess.disabled = false;
+            btnProcess.classList.remove("opacity-50", "cursor-not-allowed");
+          }
+          if (btnText) btnText.textContent = "Konfirmasi & Cetak Struk (Lunas)";
           return;
         }
 
-        const cash = Number(document.getElementById("cashGivenInput").value) || 0;
+        const rawCash = document.getElementById("cashGivenInput")?.value;
+        const cash = Number(rawCash) || 0;
         const change = cash - total;
 
         if (change < 0) {
-          changeEl.textContent = `Kurang Rp ${Math.abs(change).toLocaleString('id-ID')}`;
-          changeEl.className = "text-lg font-black text-red-600";
-          btnProcess.disabled = true;
-          btnProcess.classList.add("opacity-50", "cursor-not-allowed");
+          const sisa = Math.abs(change);
+          if (cash > 0) {
+            // Ada DP
+            if (changeLabel) changeLabel.textContent = "Status DP:";
+            if (changeEl) {
+              changeEl.textContent = `DP: Rp ${cash.toLocaleString('id-ID')} | Sisa: Rp ${sisa.toLocaleString('id-ID')}`;
+              changeEl.className = "text-xs font-black text-amber-800";
+            }
+            if (changeContainer) changeContainer.className = "flex justify-between items-center p-3 bg-amber-50 rounded-xl border border-amber-300 mt-2";
+            if (btnText) btnText.textContent = `Proses DP Rp ${cash.toLocaleString('id-ID')} (Sisa Rp ${sisa.toLocaleString('id-ID')})`;
+          } else {
+            // Belum bayar sama sekali (100% hutang / tempo)
+            if (changeLabel) changeLabel.textContent = "Status Tagihan:";
+            if (changeEl) {
+              changeEl.textContent = `Belum Bayar (Tempo Rp ${sisa.toLocaleString('id-ID')})`;
+              changeEl.className = "text-xs font-bold text-red-600";
+            }
+            if (changeContainer) changeContainer.className = "flex justify-between items-center p-3 bg-red-50 rounded-xl border border-red-200 mt-2";
+            if (btnText) btnText.textContent = "Proses Bon / Hutang (Belum Bayar)";
+          }
+          if (btnProcess) {
+            btnProcess.disabled = false;
+            btnProcess.classList.remove("opacity-50", "cursor-not-allowed");
+          }
         } else {
-          changeEl.textContent = `Rp ${change.toLocaleString('id-ID')}`;
-          changeEl.className = "text-lg font-black text-emerald-600";
-          btnProcess.disabled = false;
-          btnProcess.classList.remove("opacity-50", "cursor-not-allowed");
+          // Lunas / Kembalian
+          if (changeLabel) changeLabel.textContent = "Kembalian:";
+          if (changeEl) {
+            changeEl.textContent = `Rp ${change.toLocaleString('id-ID')}`;
+            changeEl.className = "text-lg font-black text-emerald-600";
+          }
+          if (changeContainer) changeContainer.className = "flex justify-between items-center p-3 bg-slate-100 rounded-xl border border-slate-200 mt-2";
+          if (btnProcess) {
+            btnProcess.disabled = false;
+            btnProcess.classList.remove("opacity-50", "cursor-not-allowed");
+          }
+          if (btnText) btnText.textContent = "Konfirmasi & Cetak Struk (Lunas)";
         }
       },
 
@@ -3742,7 +3806,7 @@
           dpAmount = Number(customOptions.dp) || 0;
         } else {
           const m = String(trx.metode || "Tunai").toLowerCase();
-          const isDebt = m.includes("bon") || m.includes("hutang") || m.includes("tempo") || m.includes("cicil");
+          const isDebt = m.includes("bon") || m.includes("hutang") || m.includes("tempo") || m.includes("cicil") || m.includes("dp") || (trx.bayar !== undefined && Number(trx.bayar) < total);
           dpAmount = isDebt ? (Number(trx.bayar) || 0) : total;
         }
 
@@ -3756,34 +3820,34 @@
         const tglIndo = this.formatDateIndo(trx.waktu);
 
         const html = `
-          <div style="font-family: Arial, Helvetica, sans-serif; color: #0f172a; background: #ffffff; padding: 24px; max-width: 820px; margin: 0 auto; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+          <div style="font-family: Arial, Helvetica, sans-serif; color: #0f172a; background: #ffffff; padding: 14px 18px; max-width: 820px; margin: 0 auto; line-height: 1.3; -webkit-print-color-adjust: exact; print-color-adjust: exact; page-break-inside: avoid; break-inside: avoid;">
             <!-- KOP TOKO DENGAN LOGO RESMI -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <div style="display: flex; align-items: center; gap: 14px;">
-                <img src="logo.png" alt="Logo" style="width: 62px; height: 62px; object-fit: contain; border-radius: 8px; flex-shrink: 0;" onerror="this.style.display='none'" />
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <img src="logo.png" alt="Logo" style="width: 52px; height: 52px; object-fit: contain; border-radius: 6px; flex-shrink: 0;" onerror="this.style.display='none'" />
                 <div>
-                  <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: 0.5px; text-transform: uppercase;">${storeName}</h1>
-                  <div style="font-size: 11px; font-style: italic; color: #0284c7; font-weight: 600; margin-top: 1px;">${storeTagline}</div>
-                  <div style="font-size: 9.5px; color: #475569; margin-top: 3px; line-height: 1.35; white-space: pre-line;">${storeAddr}</div>
-                  <div style="font-size: 9.5px; color: #475569; margin-top: 1px;">Telp/WA: ${storePhone}</div>
+                  <h1 style="font-size: 20px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: 0.5px; text-transform: uppercase;">${storeName}</h1>
+                  <div style="font-size: 10.5px; font-style: italic; color: #0284c7; font-weight: 600; margin-top: 1px;">${storeTagline}</div>
+                  <div style="font-size: 9px; color: #475569; margin-top: 2px; line-height: 1.3; white-space: pre-line;">${storeAddr}</div>
+                  <div style="font-size: 9px; color: #475569; margin-top: 1px;">Telp/WA: ${storePhone}</div>
                 </div>
               </div>
               <div style="text-align: right;">
-                <div style="font-size: 28px; font-weight: 900; color: #0284c7; letter-spacing: 1.5px; line-height: 1;">INVOICE</div>
-                <div style="font-size: 10.5px; font-weight: 700; color: #0f172a; margin-top: 6px;">No. Invoice: <span style="font-weight: 600;">${trx.transactionId}</span></div>
-                <div style="font-size: 10.5px; font-weight: 700; color: #0f172a; margin-top: 2px;">Tanggal: <span style="font-weight: 600;">${tglIndo}</span></div>
+                <div style="font-size: 24px; font-weight: 900; color: #0284c7; letter-spacing: 1.5px; line-height: 1;">INVOICE</div>
+                <div style="font-size: 10px; font-weight: 700; color: #0f172a; margin-top: 5px;">No. Invoice: <span style="font-weight: 600;">${trx.transactionId}</span></div>
+                <div style="font-size: 10px; font-weight: 700; color: #0f172a; margin-top: 2px;">Tanggal: <span style="font-weight: 600;">${tglIndo}</span></div>
               </div>
             </div>
 
             <!-- GARIS PEMISAH KOP -->
-            <div style="border-bottom: 2px solid #0f172a; margin-top: 10px; margin-bottom: 12px;"></div>
+            <div style="border-bottom: 2px solid #0f172a; margin-top: 8px; margin-bottom: 10px;"></div>
 
             <!-- KOTAK DITAGIHKAN & KONTAK -->
-            <div style="background: #f0f7ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; font-size: 10.5px;">
-              <div style="max-width: 55%;">
+            <div style="background: #f0f7ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; font-size: 10px;">
+              <div style="max-width: 58%;">
                 <span style="color: #0f172a; font-weight: 700;">Ditagihkan:</span>
-                <span style="font-weight: 700; color: #0f172a; margin-left: 12px;">${customerName}</span>
-                ${customerAddress ? `<div style="color: #475569; margin-left: 78px; margin-top: 2px;">${customerAddress}</div>` : ''}
+                <span style="font-weight: 700; color: #0f172a; margin-left: 8px;">${customerName}</span>
+                ${customerAddress ? `<div style="color: #475569; margin-left: 70px; margin-top: 2px;">${customerAddress}</div>` : ''}
               </div>
               <div style="text-align: right;">
                 <div><span style="color: #0f172a; font-weight: 700;">Kontak:</span> <span style="font-weight: 700; color: #0f172a;">${contactName}</span></div>
@@ -3792,14 +3856,14 @@
             </div>
 
             <!-- TABEL BARANG / JASA (WARNA BIRU ELEGAN) -->
-            <table style="width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 16px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px;">
               <thead>
                 <tr style="background: #1e6091; color: #ffffff;">
-                  <th style="padding: 7px 6px; border: 1px solid #1e6091; width: 34px; text-align: center;">No</th>
-                  <th style="padding: 7px 10px; border: 1px solid #1e6091; text-align: left;">Nama Barang / Jasa</th>
-                  <th style="padding: 7px 6px; border: 1px solid #1e6091; width: 65px; text-align: center;">Qty</th>
-                  <th style="padding: 7px 10px; border: 1px solid #1e6091; width: 130px; text-align: right;">Harga Satuan (Rp)</th>
-                  <th style="padding: 7px 10px; border: 1px solid #1e6091; width: 140px; text-align: right;">Total Harga (Rp)</th>
+                  <th style="padding: 5px 6px; border: 1px solid #1e6091; width: 30px; text-align: center;">No</th>
+                  <th style="padding: 5px 8px; border: 1px solid #1e6091; text-align: left;">Nama Barang / Jasa</th>
+                  <th style="padding: 5px 6px; border: 1px solid #1e6091; width: 60px; text-align: center;">Qty</th>
+                  <th style="padding: 5px 8px; border: 1px solid #1e6091; width: 120px; text-align: right;">Harga Satuan (Rp)</th>
+                  <th style="padding: 5px 8px; border: 1px solid #1e6091; width: 130px; text-align: right;">Total Harga (Rp)</th>
                 </tr>
               </thead>
               <tbody>
@@ -3811,11 +3875,11 @@
 
                   return `
                     <tr style="background: ${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                      <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; color: #475569;">${i + 1}</td>
-                      <td style="padding: 6px 10px; border: 1px solid #cbd5e1; color: #0f172a;">${it.nama}</td>
-                      <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">${qtyStr}</td>
-                      <td style="padding: 6px 10px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-family: monospace;">${hargaStr}</td>
-                      <td style="padding: 6px 10px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-weight: 700; font-family: monospace;">${totalStr}</td>
+                      <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; color: #475569;">${i + 1}</td>
+                      <td style="padding: 4px 8px; border: 1px solid #cbd5e1; color: #0f172a;">${it.nama}</td>
+                      <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">${qtyStr}</td>
+                      <td style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-family: monospace;">${hargaStr}</td>
+                      <td style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-weight: 700; font-family: monospace;">${totalStr}</td>
                     </tr>
                   `;
                 }).join('')}
@@ -3823,39 +3887,39 @@
             </table>
 
             <!-- BAGIAN BAWAH: CATATAN (KIRI) & REKAP DP / SISA (KANAN) -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 28px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px;">
               <!-- Kolom Kiri: Catatan & Keterangan -->
-              <div style="flex: 1; background: #fffdfa; border: 1px solid #fed7aa; border-radius: 6px; padding: 10px 14px; font-size: 10px; line-height: 1.5;">
-                <div style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">Catatan & Keterangan:</div>
+              <div style="flex: 1; background: #fffdfa; border: 1px solid #fed7aa; border-radius: 6px; padding: 8px 12px; font-size: 9.5px; line-height: 1.4;">
+                <div style="font-weight: 700; color: #0f172a; margin-bottom: 3px;">Catatan & Keterangan:</div>
                 ${notesList.map(n => `<div style="color: #475569;">• ${n}</div>`).join('')}
               </div>
 
               <!-- Kolom Kanan: Total Belanja, DP, Sisa Tagihan -->
-              <div style="width: 320px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; font-size: 11px;">
-                <div style="display: flex; justify-content: space-between; padding: 7px 12px; background: #ffffff; font-weight: 800; color: #0f172a;">
+              <div style="width: 300px; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; font-size: 10.5px;">
+                <div style="display: flex; justify-content: space-between; padding: 5px 10px; background: #ffffff; font-weight: 800; color: #0f172a;">
                   <span>TOTAL BELANJA & JASA</span>
-                  <span style="font-family: monospace; font-size: 12px;">Rp ${total.toLocaleString('id-ID')}</span>
+                  <span style="font-family: monospace; font-size: 11.5px;">Rp ${total.toLocaleString('id-ID')}</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; padding: 7px 12px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-weight: 700; color: #0f172a;">
+                <div style="display: flex; justify-content: space-between; padding: 5px 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-weight: 700; color: #0f172a;">
                   <span>DP / UANG MUKA</span>
-                  <span style="font-family: monospace; font-size: 12px;">Rp ${dpAmount.toLocaleString('id-ID')}</span>
+                  <span style="font-family: monospace; font-size: 11.5px;">Rp ${dpAmount.toLocaleString('id-ID')}</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; padding: 7px 12px; background: #ffffff; border-top: 1px solid #cbd5e1; font-weight: 800; color: ${sisaTagihan > 0 ? '#dc2626' : '#16a34a'};">
+                <div style="display: flex; justify-content: space-between; padding: 5px 10px; background: #ffffff; border-top: 1px solid #cbd5e1; font-weight: 800; color: ${sisaTagihan > 0 ? '#dc2626' : '#16a34a'};">
                   <span>SISA TAGIHAN</span>
-                  <span style="font-family: monospace; font-size: 13px;">Rp ${sisaTagihan.toLocaleString('id-ID')} ${sisaTagihan === 0 ? '(LUNAS)' : ''}</span>
+                  <span style="font-family: monospace; font-size: 12px;">Rp ${sisaTagihan.toLocaleString('id-ID')} ${sisaTagihan === 0 ? '(LUNAS)' : ''}</span>
                 </div>
               </div>
             </div>
 
             <!-- KOLOM TANDA TANGAN -->
-            <div style="display: flex; justify-content: space-between; text-align: center; font-size: 11px; margin-top: 24px; padding: 0 40px;">
-              <div style="width: 220px;">
-                <div style="color: #0f172a; font-weight: 700; margin-bottom: 60px;">Penerima / Pelanggan</div>
+            <div style="display: flex; justify-content: space-between; text-align: center; font-size: 10.5px; margin-top: 10px; padding: 0 35px;">
+              <div style="width: 200px;">
+                <div style="color: #0f172a; font-weight: 700; margin-bottom: 36px;">Penerima / Pelanggan</div>
                 <div style="color: #0f172a;">( ________________________ )</div>
               </div>
-              <div style="width: 220px;">
+              <div style="width: 200px;">
                 <div style="color: #0f172a; font-weight: 700; margin-bottom: 2px;">Hormat Kami,</div>
-                <div style="color: #0f172a; font-weight: 700; margin-bottom: 50px;">${storeName}</div>
+                <div style="color: #0f172a; font-weight: 700; margin-bottom: 32px;">${storeName}</div>
                 <div style="color: #0f172a;">( ________________________ )</div>
               </div>
             </div>
@@ -4568,6 +4632,11 @@
           return;
         }
 
+        if (rab.status === 'Deal (Disetujui)') {
+          UI.toast("RAB ini sudah Deal / sah menjadi transaksi penjualan resmi, sehingga revisi dikunci.", "warning");
+          return;
+        }
+
         if (State.cart.length > 0) {
           if (!confirm(`Keranjang kasir saat ini berisi ${State.cart.length} item.\nKosongkan keranjang dan muat item dari RAB ${rabId} untuk direvisi (tambah/kurang barang)?`)) {
             return;
@@ -4650,8 +4719,8 @@
 
         setTimeout(() => {
           UI.openPaymentModal();
-          const custInput = document.getElementById("custName");
-          if (custInput) custInput.value = rab.customer;
+          const custInput = document.getElementById("customerNameInput");
+          if (custInput) custInput.value = rab.customer || "";
           UI.toast(`RAB ${rab.id} disetujui (Deal) dan telah dimuat ke pembayaran!`, "success");
         }, 150);
       },
@@ -4830,13 +4899,22 @@
 
                 <div class="flex flex-wrap items-center gap-1.5">
                   <!-- Tombol Revisi (Tambah / Kurangi Barang) -->
-                  <button 
-                    onclick="RabManager.loadForRevision('${r.id}')"
-                    class="px-2.5 py-1.5 rounded-xl font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs transition flex items-center gap-1"
-                    title="Buka kembali di keranjang kasir untuk menambah atau mengurangi barang">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                    <span>Edit / Revisi</span>
-                  </button>
+                  ${!isDeal ? `
+                    <button 
+                      onclick="RabManager.loadForRevision('${r.id}')"
+                      class="px-2.5 py-1.5 rounded-xl font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs transition flex items-center gap-1"
+                      title="Buka kembali di keranjang kasir untuk menambah atau mengurangi barang">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      <span>Edit / Revisi</span>
+                    </button>
+                  ` : `
+                    <span 
+                      class="px-2.5 py-1.5 rounded-xl font-semibold bg-slate-100 text-slate-400 border border-slate-200 text-xs flex items-center gap-1 cursor-not-allowed select-none"
+                      title="RAB ini sudah Deal / sah menjadi transaksi penjualan, sehingga revisi dikunci (arsip penawaran)">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      <span>Terkunci</span>
+                    </span>
+                  `}
 
                   <!-- Tombol Cetak PDF A4 -->
                   <button 
@@ -4913,65 +4991,65 @@
           : '';
 
         const html = `
-          <div style="font-family: Arial, Helvetica, sans-serif; color: #0f172a; background: #ffffff; padding: 24px; max-width: 820px; margin: 0 auto; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+          <div style="font-family: Arial, Helvetica, sans-serif; color: #0f172a; background: #ffffff; padding: 14px 18px; max-width: 820px; margin: 0 auto; line-height: 1.3; -webkit-print-color-adjust: exact; print-color-adjust: exact; page-break-inside: avoid; break-inside: avoid;">
             <!-- KOP TOKO RESMI DENGAN LOGO -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <div style="display: flex; align-items: center; gap: 14px;">
-                <img src="logo.png" alt="Logo" style="width: 62px; height: 62px; object-fit: contain; border-radius: 8px; flex-shrink: 0;" onerror="this.style.display='none'" />
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <img src="logo.png" alt="Logo" style="width: 52px; height: 52px; object-fit: contain; border-radius: 6px; flex-shrink: 0;" onerror="this.style.display='none'" />
                 <div>
-                  <h1 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: 0.5px; text-transform: uppercase;">${storeName}</h1>
-                  <div style="font-size: 11px; font-style: italic; color: #b45309; font-weight: 600; margin-top: 1px;">${storeTagline}</div>
-                  <div style="font-size: 9.5px; color: #475569; margin-top: 3px; line-height: 1.35; white-space: pre-line;">${storeAddr}</div>
-                  <div style="font-size: 9.5px; color: #475569; margin-top: 1px;">Telp/WA: ${storePhone}</div>
+                  <h1 style="font-size: 20px; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: 0.5px; text-transform: uppercase;">${storeName}</h1>
+                  <div style="font-size: 10.5px; font-style: italic; color: #b45309; font-weight: 600; margin-top: 1px;">${storeTagline}</div>
+                  <div style="font-size: 9px; color: #475569; margin-top: 2px; line-height: 1.3; white-space: pre-line;">${storeAddr}</div>
+                  <div style="font-size: 9px; color: #475569; margin-top: 1px;">Telp/WA: ${storePhone}</div>
                 </div>
               </div>
               <div style="text-align: right;">
                 <div style="font-size: 22px; font-weight: 900; color: #b45309; letter-spacing: 1px; line-height: 1;">SURAT PENAWARAN</div>
-                <div style="font-size: 11px; font-weight: 800; color: #475569; letter-spacing: 0.5px; margin-top: 2px;">( QUOTATION / RAB )</div>
-                <div style="font-size: 10.5px; font-weight: 700; color: #0f172a; margin-top: 6px;">No. RAB: <span style="font-weight: 800; font-family: monospace;">${rab.id}</span> ${revBadgeHtml}</div>
-                <div style="font-size: 10.5px; font-weight: 700; color: #0f172a; margin-top: 2px;">Tanggal: <span style="font-weight: 600;">${tglIndo}</span></div>
-                <div style="font-size: 10px; font-weight: 700; color: #dc2626; margin-top: 2px;">Berlaku S/D: <span style="font-weight: 600; color: #b91c1c;">${expIndo}</span></div>
+                <div style="font-size: 10px; font-weight: 800; color: #475569; letter-spacing: 0.5px; margin-top: 2px;">( QUOTATION / RAB )</div>
+                <div style="font-size: 10px; font-weight: 700; color: #0f172a; margin-top: 4px;">No. RAB: <span style="font-weight: 800; font-family: monospace;">${rab.id}</span> ${revBadgeHtml}</div>
+                <div style="font-size: 10px; font-weight: 700; color: #0f172a; margin-top: 2px;">Tanggal: <span style="font-weight: 600;">${tglIndo}</span></div>
+                <div style="font-size: 9.5px; font-weight: 700; color: #dc2626; margin-top: 2px;">Berlaku S/D: <span style="font-weight: 600; color: #b91c1c;">${expIndo}</span></div>
               </div>
             </div>
 
             <!-- GARIS PEMISAH KOP -->
-            <div style="border-bottom: 2px solid #b45309; margin-top: 10px; margin-bottom: 12px;"></div>
+            <div style="border-bottom: 2px solid #b45309; margin-top: 8px; margin-bottom: 10px;"></div>
 
             <!-- KOTAK TUJUAN PENAWARAN & PROYEK -->
-            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; font-size: 10.5px;">
+            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; font-size: 10px;">
               <div style="max-width: 58%;">
                 <div style="margin-bottom: 2px;">
-                  <span style="color: #0f172a; font-weight: 700; width: 110px; display: inline-block;">Kepada Yth:</span>
-                  <span style="font-weight: 800; color: #0f172a; font-size: 11px;">${rab.customer}</span>
+                  <span style="color: #0f172a; font-weight: 700; width: 95px; display: inline-block;">Kepada Yth:</span>
+                  <span style="font-weight: 800; color: #0f172a; font-size: 10.5px;">${rab.customer}</span>
                 </div>
                 ${rab.contact ? `
                   <div style="margin-bottom: 2px;">
-                    <span style="color: #475569; font-weight: 700; width: 110px; display: inline-block;">Kontak / Telp:</span>
+                    <span style="color: #475569; font-weight: 700; width: 95px; display: inline-block;">Kontak / Telp:</span>
                     <span style="color: #0f172a; font-weight: 600;">${rab.contact}</span>
                   </div>
                 ` : ''}
               </div>
               <div style="text-align: right; max-width: 40%;">
-                <div style="color: #475569; font-weight: 700; font-size: 10px; text-transform: uppercase;">Perihal / Pekerjaan:</div>
-                <div style="font-weight: 800; color: #b45309; font-size: 11px; margin-top: 2px;">${rab.project || "Pengadaan Barang & Jasa Listrik"}</div>
+                <div style="color: #475569; font-weight: 700; font-size: 9.5px; text-transform: uppercase;">Perihal / Pekerjaan:</div>
+                <div style="font-weight: 800; color: #b45309; font-size: 10.5px; margin-top: 1px;">${rab.project || "Pengadaan Barang & Jasa Listrik"}</div>
               </div>
             </div>
 
             <!-- PENGANTAR PENAWARAN -->
-            <div style="font-size: 10px; color: #475569; margin-bottom: 10px; line-height: 1.4;">
+            <div style="font-size: 9.5px; color: #475569; margin-bottom: 8px; line-height: 1.3;">
               Dengan hormat,<br/>
               Bersama surat ini, kami dari <strong>${storeName}</strong> mengajukan rincian estimasi anggaran biaya (RAB) dan penawaran harga pengadaan barang maupun jasa dengan spesifikasi sebagai berikut:
             </div>
 
             <!-- TABEL RINCIAN BARANG & JASA (WARNA AMBER ELEGAN) -->
-            <table style="width: 100%; border-collapse: collapse; font-size: 10.5px; margin-bottom: 16px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px;">
               <thead>
                 <tr style="background: #b45309; color: #ffffff;">
-                  <th style="padding: 7px 6px; border: 1px solid #b45309; width: 34px; text-align: center;">No</th>
-                  <th style="padding: 7px 10px; border: 1px solid #b45309; text-align: left;">Nama Barang / Spesifikasi Layanan</th>
-                  <th style="padding: 7px 6px; border: 1px solid #b45309; width: 65px; text-align: center;">Qty</th>
-                  <th style="padding: 7px 10px; border: 1px solid #b45309; width: 130px; text-align: right;">Harga Satuan (Rp)</th>
-                  <th style="padding: 7px 10px; border: 1px solid #b45309; width: 140px; text-align: right;">Total Harga (Rp)</th>
+                  <th style="padding: 5px 6px; border: 1px solid #b45309; width: 30px; text-align: center;">No</th>
+                  <th style="padding: 5px 8px; border: 1px solid #b45309; text-align: left;">Nama Barang / Spesifikasi Layanan</th>
+                  <th style="padding: 5px 6px; border: 1px solid #b45309; width: 60px; text-align: center;">Qty</th>
+                  <th style="padding: 5px 8px; border: 1px solid #b45309; width: 120px; text-align: right;">Harga Satuan (Rp)</th>
+                  <th style="padding: 5px 8px; border: 1px solid #b45309; width: 130px; text-align: right;">Total Harga (Rp)</th>
                 </tr>
               </thead>
               <tbody>
@@ -4984,14 +5062,14 @@
 
                   return `
                     <tr style="background: ${i % 2 === 0 ? '#ffffff' : '#fefdfa'};">
-                      <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; color: #475569;">${i + 1}</td>
-                      <td style="padding: 6px 10px; border: 1px solid #cbd5e1; color: #0f172a;">
+                      <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; color: #475569;">${i + 1}</td>
+                      <td style="padding: 4px 8px; border: 1px solid #cbd5e1; color: #0f172a;">
                         ${it.nama}
                         ${it.isJasa ? '<span style="font-size: 9px; color: #b45309; font-weight: 700; margin-left: 4px;">(Jasa)</span>' : ''}
                       </td>
-                      <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">${qtyStr}</td>
-                      <td style="padding: 6px 10px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-family: monospace;">${hargaStr}</td>
-                      <td style="padding: 6px 10px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-weight: 700; font-family: monospace;">${totalStr}</td>
+                      <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">${qtyStr}</td>
+                      <td style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-family: monospace;">${hargaStr}</td>
+                      <td style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-weight: 700; font-family: monospace;">${totalStr}</td>
                     </tr>
                   `;
                 }).join('')}
@@ -4999,40 +5077,40 @@
             </table>
 
             <!-- BAGIAN BAWAH: SYARAT PENAWARAN (KIRI) & TOTAL RAB (KANAN) -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px;">
               <!-- Kolom Kiri: Syarat & Ketentuan -->
-              <div style="flex: 1; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 10px; line-height: 1.5;">
-                <div style="font-weight: 800; color: #0f172a; margin-bottom: 4px; text-transform: uppercase;">Ketentuan & Syarat Penawaran:</div>
+              <div style="flex: 1; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: 9.5px; line-height: 1.4;">
+                <div style="font-weight: 800; color: #0f172a; margin-bottom: 3px; text-transform: uppercase;">Ketentuan & Syarat Penawaran:</div>
                 ${notesList.map(n => `<div style="color: #475569;">• ${n}</div>`).join('')}
               </div>
 
               <!-- Kolom Kanan: Total Estimasi Biaya -->
-              <div style="width: 320px; border: 1px solid #b45309; border-radius: 6px; overflow: hidden; font-size: 11px;">
-                <div style="padding: 8px 12px; background: #fffbeb; font-weight: 700; color: #92400e; font-size: 10.5px; border-bottom: 1px solid #fde68a;">
+              <div style="width: 300px; border: 1px solid #b45309; border-radius: 6px; overflow: hidden; font-size: 10.5px;">
+                <div style="padding: 6px 10px; background: #fffbeb; font-weight: 700; color: #92400e; font-size: 10px; border-bottom: 1px solid #fde68a;">
                   ESTIMASI TOTAL ANGGARAN
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #ffffff; font-weight: 900; color: #b45309;">
-                  <span style="font-size: 11px; text-transform: uppercase;">TOTAL RAB</span>
-                  <span style="font-family: monospace; font-size: 16px;">Rp ${total.toLocaleString('id-ID')}</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #ffffff; font-weight: 900; color: #b45309;">
+                  <span style="font-size: 10.5px; text-transform: uppercase;">TOTAL RAB</span>
+                  <span style="font-family: monospace; font-size: 15px;">Rp ${total.toLocaleString('id-ID')}</span>
                 </div>
               </div>
             </div>
 
             <!-- PENUTUP -->
-            <div style="font-size: 10px; color: #475569; margin-bottom: 20px;">
+            <div style="font-size: 9.5px; color: #475569; margin-bottom: 12px;">
               Demikian surat penawaran harga ini kami sampaikan. Atas perhatian dan kesempatannya, kami ucapkan banyak terima kasih.
             </div>
 
             <!-- KOLOM TANDA TANGAN -->
-            <div style="display: flex; justify-content: space-between; text-align: center; font-size: 11px; margin-top: 16px; padding: 0 40px;">
-              <div style="width: 220px;">
-                <div style="color: #475569; font-weight: 600; font-size: 10px; margin-bottom: 2px;">Menyetujui / Deal,</div>
-                <div style="color: #0f172a; font-weight: 800; margin-bottom: 60px;">Pemesan (Klien)</div>
+            <div style="display: flex; justify-content: space-between; text-align: center; font-size: 10.5px; margin-top: 8px; padding: 0 35px;">
+              <div style="width: 200px;">
+                <div style="color: #475569; font-weight: 600; font-size: 9.5px; margin-bottom: 2px;">Menyetujui / Deal,</div>
+                <div style="color: #0f172a; font-weight: 800; margin-bottom: 36px;">Pemesan (Klien)</div>
                 <div style="color: #0f172a; font-weight: 700;">( ${rab.customer} )</div>
               </div>
-              <div style="width: 220px;">
-                <div style="color: #475569; font-weight: 600; font-size: 10px; margin-bottom: 2px;">Hormat Kami,</div>
-                <div style="color: #0f172a; font-weight: 800; margin-bottom: 60px;">${storeName}</div>
+              <div style="width: 200px;">
+                <div style="color: #475569; font-weight: 600; font-size: 9.5px; margin-bottom: 2px;">Hormat Kami,</div>
+                <div style="color: #0f172a; font-weight: 800; margin-bottom: 36px;">${storeName}</div>
                 <div style="color: #0f172a;">( ________________________ )</div>
               </div>
             </div>
@@ -6158,13 +6236,36 @@
         let cash = total;
         let change = 0;
 
-        if (method === 'Tunai') {
-          cash = Number(document.getElementById("cashGivenInput").value) || 0;
-          change = cash - total;
-          if (cash < total) {
-            UI.toast("Nominal pembayaran tunai kurang!", "error");
-            return;
+        const rawCashVal = document.getElementById("cashGivenInput")?.value;
+        if (method === 'Tunai' || method === 'Bon / Hutang') {
+          if (rawCashVal !== "" && rawCashVal !== undefined) {
+            cash = Number(rawCashVal) || 0;
+          } else {
+            cash = (method === 'Bon / Hutang') ? 0 : total;
           }
+        } else if (method === 'QRIS / Transfer') {
+          if (rawCashVal !== "" && rawCashVal !== undefined && !document.getElementById("cashInputSection")?.classList.contains("hidden")) {
+            cash = Number(rawCashVal) || 0;
+          } else {
+            cash = total;
+          }
+        }
+
+        if (cash >= total) {
+          change = cash - total;
+        } else {
+          change = 0;
+        }
+
+        const sisaTagihan = Math.max(0, total - cash);
+        const isDP = cash > 0 && cash < total;
+        const isHutang = (method === 'Bon / Hutang' && cash === 0) || (sisaTagihan > 0 && cash === 0);
+
+        let finalMethod = method;
+        if (isDP) {
+          finalMethod = `${method} (DP Rp ${cash.toLocaleString('id-ID')})`;
+        } else if (isHutang) {
+          finalMethod = "Bon / Hutang";
         }
 
         const shouldPrint = document.getElementById("chkPrintReceipt").checked;
@@ -6193,7 +6294,8 @@
           total: total,
           bayar: cash,
           kembalian: change,
-          metodePembayaran: method
+          sisaTagihan: sisaTagihan,
+          metodePembayaran: finalMethod
         };
 
         // 1. Potong stok lokal secara instan (Zero delay)
@@ -6236,6 +6338,24 @@
 
         // 4. Kirim Transaksi ke Google Sheets di background (tidak menahan antrean kasir)
         this.sendTransactionToCloud(orderData);
+
+        // 5. Tambahkan transaksi baru ke cache lokal Reports agar langsung muncul di laporan
+        if (typeof Reports !== 'undefined' && Array.isArray(Reports.transactions)) {
+          Reports.transactions.unshift({
+            transactionId: trxId,
+            waktu: cleanDatetime,
+            pelanggan: customerName,
+            items: [...orderData.items],
+            subtotal: subtotal,
+            diskon: diskon,
+            total: total,
+            bayar: cash,
+            kembalian: change,
+            sisaTagihan: sisaTagihan,
+            metode: finalMethod,
+            status: sisaTagihan > 0 ? "Belum Lunas" : "Lunas"
+          });
+        }
       },
 
       // --- CEK DAN TERAPKAN PEMBARUAN PWA (AUTO UPDATE TANPA INSTALL ULANG) ---

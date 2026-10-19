@@ -1,4 +1,4 @@
-const CACHE_NAME = 'listrik-kita-pos-v40';
+const CACHE_NAME = 'listrik-kita-pos-v41';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -22,7 +22,7 @@ self.addEventListener('message', (event) => {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching app shell (v40 - Fitur Penawaran RAB & Revisi Tambah/Kurang Barang)...');
+      console.log('[Service Worker] Caching app shell (v41 - Perbaikan Sistem DP Kasir, Kunci RAB Deal, Presisi Cetak 1 Halaman & Auto-fill Pelanggan)...');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
         console.warn('[Service Worker] Partial cache failure:', err);
       });
