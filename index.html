@@ -971,7 +971,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v42</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v43</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -1107,7 +1107,7 @@
       <div class="bg-amber-600 text-white px-5 py-3.5 flex items-center justify-between flex-shrink-0">
         <h3 class="font-bold text-sm flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          Pelunasan Kasbon / Bon Tempo
+          Pelunasan Kasbon & Sisa DP
         </h3>
         <button onclick="Reports.closePayDebtModal()" class="text-amber-200 hover:text-white">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -1118,45 +1118,74 @@
         <div class="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto flex-1 overscroll-contain">
           <input type="hidden" id="debtTrxId" />
 
-          <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
+          <!-- Kartu Rincian Tagihan & DP -->
+          <div class="bg-amber-50 p-3.5 rounded-xl border border-amber-200 space-y-2">
             <div class="flex justify-between items-center">
               <span class="font-mono font-bold text-amber-900 text-[11px]" id="debtModalInvoice">LK-...</span>
               <span class="text-[10px] text-amber-700 font-semibold" id="debtModalWaktu">-</span>
             </div>
-            <div class="mt-1 font-black text-sm text-slate-800" id="debtModalPelanggan">Pelanggan: -</div>
-            <div class="mt-2 pt-2 border-t border-amber-200/80 flex justify-between items-center">
-              <span class="font-bold text-slate-600">Total Kasbon:</span>
-              <span class="text-base font-black text-amber-800" id="debtModalTotal">Rp 0</span>
+            <div class="font-black text-sm text-slate-800" id="debtModalPelanggan">Pelanggan: -</div>
+            
+            <div class="pt-2 border-t border-amber-200/80 space-y-1 text-xs">
+              <div class="flex justify-between items-center text-slate-600">
+                <span>Total Belanja:</span>
+                <span class="font-bold font-mono text-slate-800" id="debtModalTotal">Rp 0</span>
+              </div>
+              <div class="flex justify-between items-center text-slate-600">
+                <span>Sudah Masuk (DP/Titipan):</span>
+                <span class="font-bold font-mono text-emerald-700" id="debtModalDP">Rp 0</span>
+              </div>
+              <div class="flex justify-between items-center pt-1.5 border-t border-amber-200/60 font-black">
+                <span class="text-amber-900">Sisa Tagihan:</span>
+                <span class="text-sm sm:text-base font-mono text-red-600 font-black" id="debtModalSisa">Rp 0</span>
+              </div>
             </div>
           </div>
 
+          <!-- Nominal Pelunasan -->
           <div>
-            <label class="block font-bold text-slate-700 mb-1">Nominal yang Dibayarkan (Rp):</label>
+            <label class="block font-bold text-slate-700 mb-1">Nominal Pelunasan Diterima (Rp):</label>
             <input 
               type="number" 
               id="debtPayNominal" 
+              oninput="Reports.updateDebtPayPreview()"
               required 
               min="1" 
               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
             />
-            <div class="flex gap-1.5 mt-2">
-              <button type="button" onclick="Reports.setDebtQuickPay('lunas')" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 rounded text-[11px] font-bold text-amber-900">Bayar Lunas</button>
+            <div class="flex items-center gap-1.5 mt-2">
+              <button type="button" onclick="Reports.setDebtQuickPay('lunas')" id="debtQuickPayBtn" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 rounded text-[11px] font-bold text-amber-900 transition">Bayar Lunas</button>
+            </div>
+            <div id="debtPayStatusPreview" class="text-[11px] font-bold mt-1.5 text-emerald-700">
+              <!-- Live preview status -->
             </div>
           </div>
 
+          <!-- Pilihan Metode Pelunasan -->
           <div>
-            <label class="block font-bold text-slate-700 mb-1">Metode Pelunasan:</label>
-            <select id="debtPayMethod" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-semibold outline-none focus:ring-2 focus:ring-amber-500">
+            <label class="block font-bold text-slate-700 mb-1">Metode Pembayaran Pelunasan:</label>
+            <select id="debtPayMethod" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-semibold outline-none focus:ring-2 focus:ring-amber-500 text-xs">
               <option value="Tunai">Tunai</option>
-              <option value="QRIS">QRIS</option>
               <option value="Transfer Bank">Transfer Bank</option>
+              <option value="QRIS">QRIS</option>
             </select>
+          </div>
+
+          <!-- Pilihan Cetak Struk 58mm -->
+          <div class="pt-1">
+            <label class="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold text-slate-700">
+              <input type="checkbox" id="chkPrintDebtReceipt" checked class="w-4 h-4 rounded text-amber-600 focus:ring-amber-500" />
+              <span>Cetak Struk Bukti Pelunasan (58mm)</span>
+            </label>
           </div>
         </div>
 
         <div class="p-3 sm:px-5 sm:py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
           <button type="button" onclick="Reports.closePayDebtModal()" class="px-4 py-2 rounded-lg font-semibold bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition">Batal</button>
-          <button type="submit" id="btnSubmitDebt" class="px-4 py-2 rounded-lg font-bold bg-amber-600 hover:bg-amber-700 text-white shadow transition">Simpan Pelunasan</button>
+          <button type="submit" id="btnSubmitDebt" class="px-4 py-2 rounded-lg font-bold bg-amber-600 hover:bg-amber-700 text-white shadow transition flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span>Simpan Pelunasan</span>
+          </button>
         </div>
       </form>
     </div>
@@ -1306,11 +1335,18 @@
 
       <!-- Modal Footer (Action Buttons) -->
       <div class="p-3 sm:px-5 sm:py-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
-        <!-- Tombol Retur & Garansi di Kiri -->
-        <button type="button" onclick="Reports.openReturnWarrantyModal()" class="px-3 py-2 rounded-xl font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1.5 text-xs shadow-sm">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-          <span>Retur / Garansi</span>
-        </button>
+        <!-- Tombol Aksi Kiri: Retur / Garansi & Pelunasan DP -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <button type="button" onclick="Reports.openReturnWarrantyModal()" class="px-3 py-2 rounded-xl font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 transition flex items-center gap-1.5 text-xs shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <span>Retur / Garansi</span>
+          </button>
+
+          <button type="button" id="btnDetailPayDebt" onclick="Reports.openPayDebtFromDetail()" class="hidden px-3 py-2 rounded-xl font-bold bg-amber-500 hover:bg-amber-600 text-white transition flex items-center gap-1.5 text-xs shadow-sm" title="Catat Pelunasan Sisa Tagihan / DP">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span id="btnDetailPayDebtText">Lunasi Sisa</span>
+          </button>
+        </div>
 
         <!-- Kumpulan Tombol Cetak & Bagikan di Kanan -->
         <div class="flex items-center gap-2 flex-wrap">
@@ -2148,6 +2184,98 @@
         }
 
         return new Uint8Array(bytes);
+      },
+
+      buildDebtPaymentReceiptBytes(trx, info) {
+        const encoder = new TextEncoder();
+        const bytes = [];
+        const append = (...arr) => bytes.push(...arr);
+        const appendText = (text) => {
+          const encoded = encoder.encode(text);
+          for (let b of encoded) bytes.push(b);
+        };
+
+        // Inisialisasi: ESC @
+        append(27, 64);
+
+        if (CONFIG.PRINT_LOGO && this.logoBytes) {
+          append(...this.logoBytes);
+          append(10);
+        }
+
+        // Center Align: ESC a 1
+        append(27, 97, 1);
+        const storeName = CONFIG.STORE_NAME || "TOKO LISTRIK KITA";
+        const isShortName = storeName.length <= 16;
+        append(27, 33, isShortName ? 56 : 24);
+        append(27, 69, 1);
+        appendText(storeName + "\n");
+        append(27, 33, 0);
+        append(27, 69, 0);
+
+        if (CONFIG.STORE_ADDR) appendText(CONFIG.STORE_ADDR + "\n");
+        if (CONFIG.STORE_PHONE) appendText("Telp: " + CONFIG.STORE_PHONE + "\n");
+        appendText("================================\n");
+
+        append(27, 33, 16); // Double Height
+        append(27, 69, 1);
+        appendText("BUKTI PELUNASAN\n");
+        append(27, 33, 0);
+        append(27, 69, 0);
+        appendText("--------------------------------\n");
+
+        // Kiri: ESC a 0
+        append(27, 97, 0);
+        appendText("No. Trx : " + (trx.transactionId || "-") + "\n");
+
+        const now = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const waktuStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+        appendText("Waktu   : " + waktuStr + "\n");
+        appendText("Kasir   : Admin Kasir\n");
+        appendText("Konsumen: " + (trx.pelanggan || "Umum") + "\n");
+        appendText("Metode  : " + (info.metodePelunasan || "Tunai") + "\n");
+        appendText("--------------------------------\n");
+
+        const formatRow = (label, value) => {
+          const valStr = "Rp " + Number(value).toLocaleString('id-ID');
+          const spacesCount = Math.max(1, 32 - label.length - valStr.length);
+          return label + " ".repeat(spacesCount) + valStr + "\n";
+        };
+
+        appendText(formatRow("TOTAL TRANSAKSI", trx.total || 0));
+        if (info.bayarLama > 0) {
+          appendText(formatRow("DP / TITIPAN AWAL", info.bayarLama));
+        }
+
+        append(27, 69, 1);
+        appendText(formatRow("DIBAYAR HARI INI", info.pelunasanHariIni || 0));
+        append(27, 69, 0);
+
+        append(27, 69, 1);
+        appendText(formatRow("SISA TAGIHAN", info.sisaAkhir || 0));
+        append(27, 69, 0);
+
+        if (info.kembalian > 0) {
+          appendText(formatRow("KEMBALIAN", info.kembalian));
+        }
+
+        appendText("--------------------------------\n");
+        append(27, 97, 1); // Center
+        if (!info.sisaAkhir || info.sisaAkhir <= 0) {
+          append(27, 69, 1);
+          appendText("*** STATUS: LUNAS ***\n");
+          append(27, 69, 0);
+        } else {
+          appendText(`Status: Cicilan (Sisa Rp ${(info.sisaAkhir || 0).toLocaleString('id-ID')})\n`);
+        }
+        appendText("Terima kasih atas pembayaran Anda\n");
+        append(10, 10, 10);
+
+        // Kick Drawer
+        append(27, 112, 0, 25, 250);
+
+        return new Uint8Array(bytes);
       }
     };
 
@@ -2826,8 +2954,12 @@
 
         this.filteredTransactions = this.transactions.filter(trx => {
           if (this.currentPeriod === 'debt') {
+            const total = Number(trx.total) || 0;
+            const bayar = Number(trx.bayar) || 0;
+            const sisa = (trx.sisaTagihan !== undefined && trx.sisaTagihan !== null) ? Number(trx.sisaTagihan) : Math.max(0, total - bayar);
             const m = String(trx.metode || "").toLowerCase();
-            return m.includes("bon") || m.includes("hutang") || m.includes("cicil");
+            const isDebtMethod = m.includes("bon") || m.includes("hutang") || m.includes("cicil") || m.includes("tempo") || m.includes("dp");
+            return sisa > 0 || (isDebtMethod && sisa > 0);
           }
 
           if (this.currentPeriod === 'all') return true;
@@ -3058,14 +3190,18 @@
         }
 
         tbody.innerHTML = this.filteredTransactions.map((trx, idx) => {
+          const total = Number(trx.total) || 0;
+          const bayar = Number(trx.bayar) || 0;
+          const sisa = (trx.sisaTagihan !== undefined && trx.sisaTagihan !== null) ? Number(trx.sisaTagihan) : Math.max(0, total - bayar);
+          const isUnpaid = sisa > 0;
+
           let badgeColor = "bg-emerald-100 text-emerald-800";
           const m = String(trx.metode || "Tunai");
-          const isDebt = m.toLowerCase().includes("bon") || m.toLowerCase().includes("hutang") || m.toLowerCase().includes("cicil");
 
-          if (m.toLowerCase().includes("qris") || m.toLowerCase().includes("transfer")) {
-            badgeColor = "bg-blue-100 text-blue-800";
-          } else if (isDebt) {
+          if (isUnpaid) {
             badgeColor = "bg-amber-100 text-amber-900 border border-amber-300 font-black";
+          } else if (m.toLowerCase().includes("qris") || m.toLowerCase().includes("transfer")) {
+            badgeColor = "bg-blue-100 text-blue-800";
           } else if (m.toLowerCase().includes("lunas")) {
             badgeColor = "bg-emerald-100 text-emerald-800 font-bold";
           }
@@ -3079,7 +3215,7 @@
               <td class="p-3 sm:px-4 font-semibold text-slate-800 text-xs">${custName}</td>
               <td class="p-3 sm:px-4">
                 <span class="px-2 py-0.5 rounded-full text-[11px] ${badgeColor}">
-                  ${trx.metode}
+                  ${trx.metode}${isUnpaid && !m.toLowerCase().includes("sisa") ? ` (Sisa Rp${sisa.toLocaleString('id-ID')})` : ''}
                 </span>
               </td>
               <td class="p-3 sm:px-4 font-black text-amber-600 text-right text-xs sm:text-sm">Rp${Number(trx.total).toLocaleString('id-ID')}</td>
@@ -3098,9 +3234,9 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                   </button>
 
-                  <!-- Tombol Lunasi jika Kasbon -->
-                  ${isDebt ? `
-                    <button onclick="Reports.openPayDebtModal('${trx.transactionId}')" class="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold transition flex items-center gap-1 text-[11px] shadow-sm" title="Catat Pelunasan Kasbon">
+                  <!-- Tombol Lunasi jika Belum Lunas (DP / Kasbon) -->
+                  ${isUnpaid ? `
+                    <button onclick="Reports.openPayDebtModal('${trx.transactionId}')" class="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold transition flex items-center gap-1 text-[11px] shadow-sm" title="Catat Pelunasan Sisa Tagihan (Rp ${sisa.toLocaleString('id-ID')})">
                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                       <span>Lunasi</span>
                     </button>
@@ -3188,21 +3324,48 @@
         window.open(waUrl, "_blank");
       },
 
-      // --- PELUNASAN KASBON / HUTANG TEMPO ---
+      // --- PELUNASAN KASBON / HUTANG TEMPO / SISA DP ---
       openPayDebtModal(trxId) {
-        const trx = this.transactions.find(t => t.transactionId === trxId);
-        if (!trx) return;
+        const trx = (this.transactions || []).find(t => t.transactionId === trxId) ||
+                    (this.filteredTransactions || []).find(t => t.transactionId === trxId);
+        if (!trx) {
+          UI.toast("Transaksi tidak ditemukan", "error");
+          return;
+        }
 
         const d = this.parseTransactionDate(trx);
         const pad = (n) => String(n).padStart(2, '0');
         const waktuStr = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 
+        const total = Number(trx.total) || 0;
+        const bayarLama = Number(trx.bayar) || 0;
+        const sisa = (trx.sisaTagihan !== undefined && trx.sisaTagihan !== null) ? Number(trx.sisaTagihan) : Math.max(0, total - bayarLama);
+
         document.getElementById("debtTrxId").value = trx.transactionId;
         document.getElementById("debtModalInvoice").textContent = trx.transactionId;
         document.getElementById("debtModalWaktu").textContent = waktuStr;
         document.getElementById("debtModalPelanggan").textContent = `Pelanggan: ${trx.pelanggan || "Umum"}`;
-        document.getElementById("debtModalTotal").textContent = `Rp ${Number(trx.total).toLocaleString('id-ID')}`;
-        document.getElementById("debtPayNominal").value = trx.total;
+
+        const totalEl = document.getElementById("debtModalTotal");
+        if (totalEl) totalEl.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+
+        const dpEl = document.getElementById("debtModalDP");
+        if (dpEl) dpEl.textContent = `Rp ${bayarLama.toLocaleString('id-ID')}`;
+
+        const sisaEl = document.getElementById("debtModalSisa");
+        if (sisaEl) sisaEl.textContent = `Rp ${sisa.toLocaleString('id-ID')}`;
+
+        const payInp = document.getElementById("debtPayNominal");
+        if (payInp) {
+          payInp.value = sisa;
+        }
+
+        const quickBtn = document.getElementById("debtQuickPayBtn");
+        if (quickBtn) {
+          quickBtn.textContent = `Bayar Lunas (Rp ${sisa.toLocaleString('id-ID')})`;
+        }
+
+        this.updateDebtPayPreview();
 
         document.getElementById("payDebtModal").classList.remove("hidden");
       },
@@ -3213,9 +3376,40 @@
 
       setDebtQuickPay(type) {
         const trxId = document.getElementById("debtTrxId").value;
-        const trx = this.transactions.find(t => t.transactionId === trxId);
+        const trx = (this.transactions || []).find(t => t.transactionId === trxId);
         if (trx && type === 'lunas') {
-          document.getElementById("debtPayNominal").value = trx.total;
+          const total = Number(trx.total) || 0;
+          const bayarLama = Number(trx.bayar) || 0;
+          const sisa = (trx.sisaTagihan !== undefined && trx.sisaTagihan !== null) ? Number(trx.sisaTagihan) : Math.max(0, total - bayarLama);
+          const payInp = document.getElementById("debtPayNominal");
+          if (payInp) {
+            payInp.value = sisa;
+            this.updateDebtPayPreview();
+          }
+        }
+      },
+
+      updateDebtPayPreview() {
+        const trxId = document.getElementById("debtTrxId").value;
+        const trx = (this.transactions || []).find(t => t.transactionId === trxId);
+        if (!trx) return;
+        const total = Number(trx.total) || 0;
+        const bayarLama = Number(trx.bayar) || 0;
+        const sisa = (trx.sisaTagihan !== undefined && trx.sisaTagihan !== null) ? Number(trx.sisaTagihan) : Math.max(0, total - bayarLama);
+
+        const payInp = document.getElementById("debtPayNominal");
+        const nominal = payInp ? (Number(payInp.value) || 0) : 0;
+        const prevEl = document.getElementById("debtPayStatusPreview");
+        if (!prevEl) return;
+
+        if (nominal >= sisa) {
+          const kembalian = nominal - sisa;
+          prevEl.className = "text-[11px] font-bold mt-1.5 text-emerald-700";
+          prevEl.innerHTML = `✓ Tagihan LUNAS${kembalian > 0 ? ` (Kembalian: Rp ${kembalian.toLocaleString('id-ID')})` : ''}`;
+        } else {
+          const sisaNanti = Math.max(0, sisa - nominal);
+          prevEl.className = "text-[11px] font-bold mt-1.5 text-amber-800";
+          prevEl.innerHTML = `⚠️ Pembayaran sebagian (Masih sisa: Rp ${sisaNanti.toLocaleString('id-ID')})`;
         }
       },
 
@@ -3224,44 +3418,106 @@
         const trxId = document.getElementById("debtTrxId").value;
         const bayarNominal = Number(document.getElementById("debtPayNominal").value) || 0;
         const metodePelunasan = document.getElementById("debtPayMethod").value;
+        const shouldPrint = document.getElementById("chkPrintDebtReceipt")?.checked;
+
+        if (bayarNominal <= 0) {
+          UI.toast("Masukkan nominal pelunasan yang valid", "error");
+          return;
+        }
 
         const btn = document.getElementById("btnSubmitDebt");
-        btn.disabled = true;
-        btn.textContent = "Menyimpan...";
-
-        // Update lokal instan
-        const trx = this.transactions.find(t => t.transactionId === trxId);
-        if (trx) {
-          trx.bayar = (Number(trx.bayar) || 0) + bayarNominal;
-          trx.kembalian = Math.max(0, trx.bayar - Number(trx.total));
-          trx.metode = trx.bayar >= Number(trx.total) ? `Lunas (${metodePelunasan})` : `Cicil (${trx.bayar}/${trx.total})`;
-          this.applyPeriodFilter();
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "Menyimpan...";
         }
 
-        // Kirim update ke Google Sheets
-        if (State.gasUrl) {
-          try {
-            await fetch(State.gasUrl, {
-              method: "POST",
-              mode: "no-cors",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                action: "pay_debt",
-                token: State.securityToken || "",
-                transactionId: trxId,
-                bayarNominal: bayarNominal,
-                metodePelunasan: metodePelunasan
-              })
-            });
-            UI.toast(`Kasbon ${trxId} berhasil diperbarui!`, "success");
-          } catch (err) {
-            console.warn("Pay debt warning:", err);
+        const trx = (this.transactions || []).find(t => t.transactionId === trxId);
+        if (!trx) {
+          UI.toast("Transaksi tidak ditemukan", "error");
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Simpan Pelunasan";
           }
+          return;
         }
 
-        btn.disabled = false;
-        btn.textContent = "Simpan Pelunasan";
+        const totalTagihan = Number(trx.total) || 0;
+        const bayarLama = Number(trx.bayar) || 0;
+        const bayarBaru = bayarLama + bayarNominal;
+        const sisaBaru = Math.max(0, totalTagihan - bayarBaru);
+        const kembalian = Math.max(0, bayarBaru - totalTagihan);
+
+        // Update objek transaksi lokal
+        trx.bayar = Math.min(totalTagihan, bayarBaru);
+        trx.kembalian = kembalian;
+        trx.sisaTagihan = sisaBaru;
+        if (sisaBaru === 0) {
+          trx.metode = `Lunas (${metodePelunasan})`;
+          trx.status = "Lunas";
+        } else {
+          trx.metode = `Cicil (${bayarBaru.toLocaleString('id-ID')}/${totalTagihan.toLocaleString('id-ID')})`;
+          trx.status = "Belum Lunas";
+        }
+
+        // Render ulang tampilan laporan & kasbon
+        this.applyPeriodFilter();
+
+        // Cetak Struk Bukti Pelunasan jika dipilih & printer terhubung
+        if (shouldPrint) {
+          this.printDebtReceipt(trx, {
+            bayarLama: bayarLama,
+            pelunasanHariIni: bayarNominal,
+            metodePelunasan: metodePelunasan,
+            sisaAkhir: sisaBaru,
+            kembalian: kembalian
+          });
+        }
+
+        // Kirim update ke Google Sheets di background
+        if (State.gasUrl) {
+          fetch(State.gasUrl, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "pay_debt",
+              token: State.securityToken || "",
+              transactionId: trxId,
+              bayarNominal: bayarNominal,
+              metodePelunasan: metodePelunasan
+            })
+          }).then(() => {
+            console.log("Pay debt synced with cloud.");
+          }).catch(err => {
+            console.warn("Pay debt cloud sync warning:", err);
+          });
+        }
+
+        UI.toast(`Pelunasan invoice ${trxId} sebesar Rp ${bayarNominal.toLocaleString('id-ID')} berhasil dicatat!`, "success");
+
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Simpan Pelunasan";
+        }
         this.closePayDebtModal();
+      },
+
+      async printDebtReceipt(trx, info) {
+        if (!PrinterService.isConnected) {
+          UI.toast("Printer Bluetooth belum terhubung untuk cetak struk pelunasan.", "info");
+          return;
+        }
+        try {
+          if (CONFIG.PRINT_LOGO) {
+            await PrinterService.loadLogo();
+          }
+          const bytes = PrinterService.buildDebtPaymentReceiptBytes(trx, info);
+          await PrinterService.sendBytes(bytes);
+          UI.toast("Struk bukti pelunasan berhasil dicetak!", "success");
+        } catch (err) {
+          console.error("Print debt receipt error:", err);
+          UI.toast("Gagal cetak struk pelunasan: " + err.message, "error");
+        }
       },
 
       // --- EKSPOR LAPORAN KE CSV / EXCEL ---
@@ -3471,8 +3727,28 @@
         this.toggleCustomInvoiceSection(false);
         this.updateCustomDPSisa();
 
+        // Cek tombol Lunasi di footer Rincian Invoice
+        const sisaPelunasan = Math.max(0, total - (Number(trx.bayar) || 0));
+        const btnPayDebt = document.getElementById("btnDetailPayDebt");
+        const btnPayDebtText = document.getElementById("btnDetailPayDebtText");
+        if (btnPayDebt) {
+          if (sisaPelunasan > 0) {
+            btnPayDebt.classList.remove("hidden");
+            if (btnPayDebtText) btnPayDebtText.textContent = `Lunasi (Sisa Rp ${sisaPelunasan.toLocaleString('id-ID')})`;
+          } else {
+            btnPayDebt.classList.add("hidden");
+          }
+        }
+
         const modal = document.getElementById("invoiceDetailModal");
         if (modal) modal.classList.remove("hidden");
+      },
+
+      openPayDebtFromDetail() {
+        if (!this.selectedDetailTrx) return;
+        const trxId = this.selectedDetailTrx.transactionId;
+        this.closeInvoiceDetailModal();
+        this.openPayDebtModal(trxId);
       },
 
       toggleCustomInvoiceSection(forceOpen) {
