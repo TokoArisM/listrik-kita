@@ -838,7 +838,7 @@ function handleReturnProduct(ss, data) {
 }
 
 /**
- * getRabsData() - Mengambil daftar berkas penawaran RAB dari sheet RAB
+ * getRabsData() - Mengambil daftar berkas penawaran RAB dari sheet RAB (Anti-Duplikasi & Cloud-First)
  */
 function getRabsData(ss) {
   let sheetRab = ss.getSheetByName("RAB");
@@ -861,9 +861,20 @@ function getRabsData(ss) {
   const values = sheetRab.getRange(startRow, 1, numRows, 12).getValues();
 
   const rabs = [];
+  const seenIds = new Set();
+
+  // Baca dari baris paling baru ke baris lama
   for (let i = values.length - 1; i >= 0; i--) {
     const row = values[i];
-    if (!row[0]) continue;
+    const rabId = String(row[0] || "").trim();
+    if (!rabId) continue;
+
+    const rabKey = rabId.toUpperCase();
+    if (seenIds.has(rabKey)) continue; // Cegah duplikasi, ambil baris paling baru saja
+    seenIds.add(rabKey);
+
+    const status = String(row[8] || "Menunggu Deal").trim();
+    if (status.toLowerCase() === "dihapus") continue; // Abaikan data yang sudah dihapus
 
     let itemsParsed = [];
     if (row[10]) {
@@ -873,7 +884,7 @@ function getRabsData(ss) {
     }
 
     rabs.push({
-      id: String(row[0]).trim(),
+      id: rabId,
       tanggal: String(row[1] || ""),
       customer: String(row[2] || "Umum").trim(),
       contact: String(row[3] || "").trim(),
@@ -881,7 +892,7 @@ function getRabsData(ss) {
       validDays: Number(row[5]) || 14,
       notes: String(row[6] || ""),
       total: Number(row[7]) || 0,
-      status: String(row[8] || "Menunggu Deal"),
+      status: status,
       revisionCount: Number(row[9]) || 0,
       items: itemsParsed,
       updatedAt: String(row[11] || "")
@@ -892,7 +903,7 @@ function getRabsData(ss) {
 }
 
 /**
- * handleSaveRab() - Menyimpan atau memperbarui dokumen RAB di cloud Google Sheets
+ * handleSaveRab() - Menyimpan atau memperbarui dokumen RAB di cloud Google Sheets (Auto Deduplicate)
  */
 function handleSaveRab(ss, data) {
   let sheetRab = ss.getSheetByName("RAB");
@@ -927,13 +938,12 @@ function handleSaveRab(ss, data) {
   const itemsJson = JSON.stringify(items || []);
 
   const lastRow = sheetRab.getLastRow();
-  let foundRow = -1;
+  const matchingRows = [];
   if (lastRow > 1) {
     const ids = sheetRab.getRange(2, 1, lastRow - 1, 1).getValues();
     for (let i = 0; i < ids.length; i++) {
       if (String(ids[i][0]).trim().toUpperCase() === String(id).trim().toUpperCase()) {
-        foundRow = i + 2;
-        break;
+        matchingRows.push(i + 2);
       }
     }
   }
@@ -953,8 +963,13 @@ function handleSaveRab(ss, data) {
     updatedAt || nowStr
   ];
 
-  if (foundRow > 0) {
-    sheetRab.getRange(foundRow, 1, 1, 12).setValues([rowData]);
+  if (matchingRows.length > 0) {
+    // Perbarui baris pertama yang cocok
+    sheetRab.getRange(matchingRows[0], 1, 1, 12).setValues([rowData]);
+    // Jika ada baris duplikat lama untuk ID yang sama, bersihkan dari bawah ke atas
+    for (let k = matchingRows.length - 1; k >= 1; k--) {
+      sheetRab.deleteRow(matchingRows[k]);
+    }
   } else {
     sheetRab.appendRow(rowData);
   }
@@ -963,7 +978,7 @@ function handleSaveRab(ss, data) {
 }
 
 /**
- * handleDeleteRab() - Menghapus dokumen RAB dari sheet Google Sheets
+ * handleDeleteRab() - Menghapus dokumen RAB dari sheet Google Sheets (Membersihkan semua baris ID terkait)
  */
 function handleDeleteRab(ss, data) {
   const sheetRab = ss.getSheetByName("RAB");
@@ -973,14 +988,20 @@ function handleDeleteRab(ss, data) {
   if (!id) return createJsonResponse({ status: "error", message: "ID RAB tidak boleh kosong" });
 
   const lastRow = sheetRab.getLastRow();
+  let deletedCount = 0;
   if (lastRow > 1) {
     const ids = sheetRab.getRange(2, 1, lastRow - 1, 1).getValues();
-    for (let i = 0; i < ids.length; i++) {
+    // Hapus dari baris terbawah ke atas agar index baris tidak bergeser
+    for (let i = ids.length - 1; i >= 0; i--) {
       if (String(ids[i][0]).trim().toUpperCase() === String(id).trim().toUpperCase()) {
         sheetRab.deleteRow(i + 2);
-        return createJsonResponse({ status: "success", message: `RAB ${id} berhasil dihapus dari Google Sheets.` });
+        deletedCount++;
       }
     }
+  }
+
+  if (deletedCount > 0) {
+    return createJsonResponse({ status: "success", message: `RAB ${id} (${deletedCount} baris) berhasil dihapus dari Google Sheets.` });
   }
 
   return createJsonResponse({ status: "error", message: `RAB ${id} tidak ditemukan di Google Sheets.` });

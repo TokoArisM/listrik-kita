@@ -971,7 +971,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v45</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v46</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -4956,36 +4956,27 @@
             const cloudRabs = json.data;
             const localRabs = this.getRabs();
 
-            const map = new Map();
-            cloudRabs.forEach(r => map.set(r.id, r));
+            // Cloud adalah Sumber Kebenaran Utama (Cloud-First).
+            // Peta dokumen dari cloud (sudah disaring tanpa duplikat oleh server)
+            const cloudMap = new Map();
+            cloudRabs.forEach(r => cloudMap.set(r.id, r));
 
-            const pendingSync = [];
-            localRabs.forEach(localR => {
-              if (!map.has(localR.id)) {
-                map.set(localR.id, localR);
-                pendingSync.push(localR);
-              } else {
-                const cloudR = map.get(localR.id);
-                const localTime = new Date(localR.updatedAt || localR.tanggal || 0).getTime();
-                const cloudTime = new Date(cloudR.updatedAt || cloudR.tanggal || 0).getTime();
-                if (localTime > cloudTime) {
-                  map.set(localR.id, localR);
-                  pendingSync.push(localR);
-                }
-              }
+            // Hanya pertahankan data lokal JIKA statusnya memang baru dibuat secara offline (isPendingCloud === true)
+            const pendingOffline = localRabs.filter(r => r && r.isPendingCloud === true && !cloudMap.has(r.id));
+            pendingOffline.forEach(r => {
+              cloudMap.set(r.id, r);
+              this.sendRabToCloud(r); // Kirim ke cloud di background
             });
 
-            const mergedList = Array.from(map.values()).sort((a, b) => {
+            // Urutkan berdasarkan tanggal terbaru
+            const finalList = Array.from(cloudMap.values()).sort((a, b) => {
               const tA = new Date(a.tanggal || 0).getTime();
               const tB = new Date(b.tanggal || 0).getTime();
               return tB - tA;
             });
 
-            this.saveRabs(mergedList);
-
-            if (pendingSync.length > 0) {
-              pendingSync.forEach(r => this.sendRabToCloud(r));
-            }
+            // Timpa memori lokal dengan daftar bersih dari cloud (Anti-Zombie: item yang dihapus tidak akan diunggah ulang)
+            this.saveRabs(finalList);
 
             const listModal = document.getElementById("rabListModal");
             if (listModal && !listModal.classList.contains("hidden")) {
@@ -4993,7 +4984,7 @@
             }
 
             if (showToast) {
-              UI.toast(`Sinkronisasi berhasil! ${mergedList.length} data RAB tersinkron dengan cloud.`, "success");
+              UI.toast(`Sinkronisasi selesai! ${finalList.length} data RAB aktif termuat.`, "success");
             }
           }
         } catch (err) {
@@ -5021,6 +5012,16 @@
               ...rab
             })
           });
+          // Hapus flag pending jika sudah terkirim
+          if (rab.isPendingCloud) {
+            rab.isPendingCloud = false;
+            const curList = this.getRabs();
+            const it = curList.find(r => r.id === rab.id);
+            if (it) {
+              it.isPendingCloud = false;
+              localStorage.setItem(this.STORAGE_KEY, JSON.stringify(curList));
+            }
+          }
           console.log(`RAB ${rab.id} tersinkron ke cloud Google Sheets.`);
         } catch (err) {
           console.warn(`Gagal kirim RAB ${rab.id} ke cloud:`, err);
@@ -5230,6 +5231,7 @@
             list[idx].total = total;
             list[idx].updatedAt = new Date().toISOString();
             list[idx].revisionCount = (list[idx].revisionCount || 0) + 1;
+            list[idx].isPendingCloud = true;
             target = list[idx];
           }
           this.saveRabs(list);
@@ -5257,7 +5259,8 @@
             items,
             total,
             status: 'Menunggu Deal',
-            revisionCount: 0
+            revisionCount: 0,
+            isPendingCloud: true
           };
           list.unshift(newRab);
           this.saveRabs(list);
@@ -5351,6 +5354,7 @@
         rab.status = 'Deal (Disetujui)';
         rab.convertedAt = new Date().toISOString();
         rab.updatedAt = rab.convertedAt;
+        rab.isPendingCloud = true;
         this.saveRabs(list);
         this.sendRabToCloud(rab);
 
@@ -5388,6 +5392,7 @@
         if (!rab) return;
         rab.status = newStatus;
         rab.updatedAt = new Date().toISOString();
+        rab.isPendingCloud = true;
         this.saveRabs(list);
         this.sendRabToCloud(rab);
         this.renderList();
