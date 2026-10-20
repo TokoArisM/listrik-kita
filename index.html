@@ -971,7 +971,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v46</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v47</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -1518,7 +1518,13 @@
             <button id="btnRetFilterPending" onclick="ReturnsManager.setListFilter('pending')" class="px-2.5 py-1 rounded-md bg-white text-slate-800 shadow-sm">Siap Tukar Supplier</button>
             <button id="btnRetFilterAll" onclick="ReturnsManager.setListFilter('all')" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900">Semua Riwayat</button>
           </div>
-          <span class="text-slate-400 font-semibold" id="retListSummaryCount">0 Catatan</span>
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400 font-semibold" id="retListSummaryCount">0 Catatan</span>
+            <button onclick="ReturnsManager.fetchReturnsFromCloud(true)" title="Sinkronkan dengan Google Sheets" class="p-1 text-purple-700 hover:text-purple-900 hover:bg-purple-100 rounded-lg transition flex items-center gap-1 font-bold">
+              <svg id="iconRetSyncCloud" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+              <span>Sinkron</span>
+            </button>
+          </div>
         </div>
 
         <div id="retListContainer" class="space-y-2">
@@ -4765,9 +4771,11 @@
           } else if (type === 'garansi') {
             matchedProd.stok = Math.max(0, matchedProd.stok - qty); // 1 barang baru keluar rak
           }
-          ProductManager.saveToLocalStorage();
-          App.renderCatalog();
-          ProductManager.renderTable();
+          localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(State.products));
+          App.filterAndRenderProducts();
+          if (typeof ProductManager !== 'undefined' && ProductManager.filterTable) {
+            ProductManager.filterTable();
+          }
         }
 
         // 2. Simpan record ke riwayat retur lokal
@@ -4798,6 +4806,9 @@
       openListModal() {
         this.renderList();
         const m = document.getElementById("returnListModal");
+        if (m) m.classList.remove("hidden");
+        this.fetchReturnsFromCloud(false);
+      },
         if (m) m.classList.remove("hidden");
       },
 
@@ -4894,14 +4905,70 @@
         let matchedProd = State.products.find(p => (rec.productId && p.id === rec.productId) || p.nama.toLowerCase() === rec.productName.toLowerCase());
         if (matchedProd) {
           matchedProd.stok += (Number(rec.qty) || 1);
-          ProductManager.saveToLocalStorage();
-          App.renderCatalog();
-          ProductManager.renderTable();
+          localStorage.setItem(CONFIG.STORAGE_KEY_PRODUCTS, JSON.stringify(State.products));
+          App.filterAndRenderProducts();
+          if (typeof ProductManager !== 'undefined' && ProductManager.filterTable) {
+            ProductManager.filterTable();
+          }
         }
 
         this.saveReturns(list);
         this.renderList();
         UI.toast("Klaim selesai! Stok unit baru dari supplier otomatis ditambahkan ke katalog.", "success");
+
+        if (State.gasUrl) {
+          try {
+            fetch(State.gasUrl, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "resolve_claim",
+                token: State.securityToken || "",
+                id: returnId
+              })
+            }).catch(e => console.warn("Sync resolve claim error:", e));
+          } catch(e) {}
+        }
+      },
+
+      async fetchReturnsFromCloud(showToast = false) {
+        const gasUrl = State.gasUrl;
+        if (!gasUrl) return;
+
+        const icon = document.getElementById("iconRetSyncCloud");
+        if (icon) icon.classList.add("animate-spin");
+
+        try {
+          const tokenParam = State.securityToken ? `&token=${encodeURIComponent(State.securityToken)}` : "";
+          const res = await fetch(`${gasUrl}?action=returns&_t=${Date.now()}${tokenParam}`);
+          const json = await res.json();
+
+          if (json.status === "success" && Array.isArray(json.data)) {
+            const cloudReturns = json.data;
+            const localReturns = this.getReturns();
+            const map = new Map();
+            cloudReturns.forEach(r => map.set(r.id, r));
+            localReturns.forEach(r => {
+              if (!map.has(r.id)) map.set(r.id, r);
+            });
+            const merged = Array.from(map.values()).sort((a, b) => {
+              const tA = new Date(a.waktu || 0).getTime();
+              const tB = new Date(b.waktu || 0).getTime();
+              return tB - tA;
+            });
+            this.saveReturns(merged);
+            const m = document.getElementById("returnListModal");
+            if (m && !m.classList.contains("hidden")) {
+              this.renderList();
+            }
+            if (showToast) UI.toast(`Sinkronisasi retur selesai (${merged.length} catatan)`, "success");
+          }
+        } catch (e) {
+          console.warn("Gagal sinkron retur dari cloud:", e);
+        } finally {
+          if (icon) icon.classList.remove("animate-spin");
+        }
       }
     };
 
@@ -6575,6 +6642,9 @@
             this.syncProducts(false);
             if (typeof RabManager !== 'undefined') {
               RabManager.fetchRabsFromCloud(false);
+            }
+            if (typeof ReturnsManager !== 'undefined') {
+              ReturnsManager.fetchReturnsFromCloud(false);
             }
           } else {
             if (statusEl) statusEl.textContent = "Data Lokal (Atur URL di Pengaturan)";

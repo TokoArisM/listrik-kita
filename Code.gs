@@ -310,6 +310,8 @@ function doPost(e) {
       return handlePayDebt(ss, postData);
     } else if (action === "return_product") {
       return handleReturnProduct(ss, postData);
+    } else if (action === "resolve_claim") {
+      return handleResolveClaim(ss, postData);
     } else if (action === "save_rab") {
       return handleSaveRab(ss, postData);
     } else if (action === "delete_rab") {
@@ -835,6 +837,48 @@ function handleReturnProduct(ss, data) {
     message: `Retur ${retId} berhasil dicatat di sistem & Google Sheets.`,
     returnId: retId
   });
+}
+
+/**
+ * Handle Penyelesaian Klaim Garansi oleh Supplier (Barang pengganti masuk stok)
+ */
+function handleResolveClaim(ss, data) {
+  const { id } = data;
+  if (!id) return createJsonResponse({ status: "error", message: "ID Retur tidak boleh kosong" });
+
+  const sheetRetur = ss.getSheetByName("Retur");
+  if (!sheetRetur) return createJsonResponse({ status: "error", message: "Sheet Retur tidak ditemukan" });
+
+  const lastRow = sheetRetur.getLastRow();
+  if (lastRow <= 1) return createJsonResponse({ status: "error", message: "Data Retur kosong" });
+
+  const dataRetur = sheetRetur.getRange(2, 1, lastRow - 1, 11).getValues();
+  for (let i = 0; i < dataRetur.length; i++) {
+    if (String(dataRetur[i][0]).trim().toUpperCase() === String(id).trim().toUpperCase()) {
+      sheetRetur.getRange(i + 2, 11).setValue("Selesai (Diganti Supplier)");
+      
+      // Tambah stok pengganti ke sheet Produk
+      const productId = String(dataRetur[i][4] || "").trim();
+      const productName = String(dataRetur[i][5] || "").trim();
+      const qty = Number(dataRetur[i][6]) || 1;
+      
+      const sheetProduk = ss.getSheetByName("Produk");
+      if (sheetProduk && (productId || productName)) {
+        const pData = sheetProduk.getDataRange().getValues();
+        for (let r = 1; r < pData.length; r++) {
+          const rowPid = String(pData[r][0] || "").trim().toLowerCase();
+          const rowName = String(pData[r][1] || "").trim().toLowerCase();
+          if ((productId && rowPid === productId.toLowerCase()) || (productName && rowName === productName.toLowerCase())) {
+            const curStock = Number(pData[r][4]) || 0;
+            sheetProduk.getRange(r + 1, 5).setValue(curStock + qty);
+            break;
+          }
+        }
+      }
+      return createJsonResponse({ status: "success", message: `Klaim ${id} berhasil diselesaikan di Google Sheets.` });
+    }
+  }
+  return createJsonResponse({ status: "error", message: `Retur ${id} tidak ditemukan.` });
 }
 
 /**
