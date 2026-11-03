@@ -971,7 +971,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v48</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v49</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -2505,6 +2505,40 @@
         this.render();
       },
 
+      setQty(productId, inputVal) {
+        const item = State.cart.find(c => c.id === productId);
+        if (!item) return;
+
+        const parsed = parseFloat(String(inputVal).replace(',', '.'));
+        if (isNaN(parsed) || parsed <= 0) {
+          UI.toast("Jumlah tidak valid. Masukkan angka minimal 1.", "warning");
+          this.render();
+          return;
+        }
+
+        // Bulatkan ke bilangan bulat positif (atau bisa desimal jika memang meteran butuh, namun default toko integer)
+        const newQty = Math.round(parsed);
+
+        if (!item.isJasa && newQty > item.stok) {
+          UI.toast(`Jumlah melebihi stok yang ada! Stok tersisa: ${item.stok} ${item.satuan || ''}`, "warning");
+          item.qty = item.stok;
+          this.render();
+          return;
+        }
+
+        item.qty = newQty;
+        this.render();
+      },
+
+      promptQty(productId) {
+        const item = State.cart.find(c => c.id === productId);
+        if (!item) return;
+        const input = prompt(`Masukkan jumlah untuk "${item.nama}" (Satuan: ${item.satuan || 'pcs'} | Stok: ${item.isJasa ? 'Tersedia' : item.stok}):`, item.qty);
+        if (input !== null) {
+          this.setQty(productId, input);
+        }
+      },
+
       removeItem(productId) {
         State.cart = State.cart.filter(c => c.id !== productId);
         this.render();
@@ -2570,10 +2604,19 @@
             </div>
             <div class="flex justify-between items-center text-xs">
               <span class="text-slate-500 font-medium">Rp ${Number(item.harga).toLocaleString('id-ID')}${item.satuan && item.satuan !== 'pcs' ? '/' + item.satuan : ''}</span>
-              <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-1.5 py-0.5 shadow-sm">
-                <button onclick="Cart.changeQty('${item.id}', -1)" class="w-5 h-5 flex items-center justify-center font-bold text-slate-600 hover:text-blue-600">-</button>
-                <span class="font-bold text-slate-800 w-5 text-center">${item.qty}</span>
-                <button onclick="Cart.changeQty('${item.id}', 1)" class="w-5 h-5 flex items-center justify-center font-bold text-slate-600 hover:text-blue-600">+</button>
+              <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-1.5 py-0.5 shadow-sm">
+                <button type="button" onclick="Cart.changeQty('${item.id}', -1)" class="w-5 h-5 flex items-center justify-center font-bold text-slate-500 hover:text-blue-600 active:scale-90 transition rounded">-</button>
+                <input 
+                  type="number" 
+                  min="1" 
+                  ${!item.isJasa ? `max="${item.stok}"` : ''} 
+                  value="${item.qty}" 
+                  onchange="Cart.setQty('${item.id}', this.value)" 
+                  onkeydown="if(event.key==='Enter'){ this.blur(); }"
+                  class="font-extrabold text-blue-700 w-12 text-center bg-transparent border-b border-transparent focus:border-blue-500 focus:bg-blue-50/50 rounded outline-none px-0.5 py-0.5 text-xs transition select-all" 
+                  title="Klik untuk ketik jumlah langsung (misal: 80)"
+                />
+                <button type="button" onclick="Cart.changeQty('${item.id}', 1)" class="w-5 h-5 flex items-center justify-center font-bold text-slate-500 hover:text-blue-600 active:scale-90 transition rounded">+</button>
               </div>
               <span class="font-bold text-blue-700">Rp ${(item.qty * item.harga).toLocaleString('id-ID')}</span>
             </div>
