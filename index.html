@@ -971,7 +971,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v50</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v51</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -2463,11 +2463,11 @@
         }
 
         // Cek apakah sedang dalam mode revisi RAB yang sudah Deal (berarti item baru ini adalah pekerjaan tambah)
-        let isAdditionalItem = false;
+        let isDealRevision = false;
         if (typeof RabManager !== 'undefined' && RabManager.editingRabId) {
           const curRab = RabManager.getRabs().find(r => r.id === RabManager.editingRabId);
           if (curRab && curRab.status === 'Deal (Disetujui)') {
-            isAdditionalItem = true;
+            isDealRevision = true;
           }
         }
 
@@ -2478,6 +2478,11 @@
             return;
           }
           existing.qty += 1;
+          if (isDealRevision && typeof existing.initialQty === 'number' && existing.qty > existing.initialQty) {
+            UI.toast(`+1 Tambahan ${product.nama} (Total: ${existing.qty})`, "info");
+          } else {
+            UI.toast(`+1 ${product.nama}`, "info");
+          }
         } else {
           State.cart.push({
             id: product.id,
@@ -2488,11 +2493,12 @@
             satuan: product.satuan || (isService ? "jasa" : "pcs"),
             isJasa: isService,
             qty: 1,
-            isAdditional: isAdditionalItem
+            initialQty: isDealRevision ? 0 : undefined,
+            isAdditional: isDealRevision
           });
+          UI.toast(`+1 ${isDealRevision ? '[TAMBAHAN] ' : ''}${product.nama}`, "info");
         }
 
-        UI.toast(`+1 ${product.nama}`, "info");
         this.render();
       },
 
@@ -2503,6 +2509,14 @@
         const newQty = item.qty + delta;
         if (newQty <= 0) {
           this.removeItem(productId);
+          return;
+        }
+
+        // Jika dalam mode revisi RAB Deal dan ini item dari kesepakatan awal:
+        if (typeof item.initialQty === 'number' && item.initialQty > 0 && newQty < item.initialQty) {
+          UI.toast(`Jumlah tidak boleh kurang dari kesepakatan awal (${item.initialQty} ${item.satuan || ''}) untuk RAB yang sudah Deal.`, "warning");
+          item.qty = item.initialQty;
+          this.render();
           return;
         }
 
@@ -2526,8 +2540,15 @@
           return;
         }
 
-        // Bulatkan ke bilangan bulat positif (atau bisa desimal jika memang meteran butuh, namun default toko integer)
         const newQty = Math.round(parsed);
+
+        // Jika dalam mode revisi RAB Deal dan ini item dari kesepakatan awal:
+        if (typeof item.initialQty === 'number' && item.initialQty > 0 && newQty < item.initialQty) {
+          UI.toast(`Jumlah tidak boleh kurang dari kesepakatan awal (${item.initialQty} ${item.satuan || ''}) untuk RAB yang sudah Deal.`, "warning");
+          item.qty = item.initialQty;
+          this.render();
+          return;
+        }
 
         if (!item.isJasa && newQty > item.stok) {
           UI.toast(`Jumlah melebihi stok yang ada! Stok tersisa: ${item.stok} ${item.satuan || ''}`, "warning");
@@ -2550,6 +2571,18 @@
       },
 
       removeItem(productId) {
+        const item = State.cart.find(c => c.id === productId);
+        if (item && typeof item.initialQty === 'number' && item.initialQty > 0) {
+          if (item.qty > item.initialQty) {
+            item.qty = item.initialQty;
+            UI.toast(`Tambahan dibatalkan. Jumlah dikembalikan ke kesepakatan awal (${item.initialQty} ${item.satuan || ''}).`, "info");
+            this.render();
+            return;
+          }
+          if (!confirm(`Item "${item.nama}" adalah kesepakatan awal RAB Deal.\nYakin ingin menghapus item ini dari penawaran?`)) {
+            return;
+          }
+        }
         State.cart = State.cart.filter(c => c.id !== productId);
         this.render();
       },
@@ -2601,38 +2634,56 @@
         checkoutBtn.disabled = false;
         if (makeRabBtn) makeRabBtn.disabled = false;
 
-        listEl.innerHTML = State.cart.map(item => `
-          <div class="bg-slate-50 border ${item.isAdditional ? 'border-indigo-400 bg-indigo-50/40 ring-1 ring-indigo-300' : (item.isJasa ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/80')} rounded-xl p-3 flex flex-col gap-2">
-            <div class="flex justify-between items-start gap-2">
-              <div class="flex items-center gap-1.5 flex-1 min-w-0">
-                ${item.isAdditional ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-indigo-600 text-white flex-shrink-0 shadow-xs">TAMBAHAN</span>' : ''}
-                ${item.isJasa ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-200 text-amber-900 border border-amber-300 flex-shrink-0">JASA</span>' : ''}
-                <span class="font-bold text-xs text-slate-800 leading-snug truncate" title="${item.nama}">${item.nama}</span>
+        listEl.innerHTML = State.cart.map(item => {
+          const isEntireAddition = Boolean(item.isAdditional);
+          const hasInitial = typeof item.initialQty === 'number' && item.initialQty > 0;
+          const extraQty = hasInitial ? Math.max(0, item.qty - item.initialQty) : 0;
+          const hasAddition = isEntireAddition || extraQty > 0;
+
+          let badgeHtml = '';
+          if (isEntireAddition) {
+            badgeHtml = '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-indigo-600 text-white flex-shrink-0 shadow-xs">TAMBAHAN</span>';
+          } else if (extraQty > 0) {
+            badgeHtml = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-200 text-slate-700 flex-shrink-0" title="Kesepakatan awal">${item.initialQty} awal</span><span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-indigo-600 text-white flex-shrink-0 shadow-xs" title="Tambahan susulan">+${extraQty} TAMBAHAN</span>`;
+          }
+
+          const cardBorder = hasAddition 
+            ? 'border-indigo-400 bg-indigo-50/40 ring-1 ring-indigo-300' 
+            : (item.isJasa ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/80');
+
+          return `
+            <div class="bg-slate-50 border ${cardBorder} rounded-xl p-3 flex flex-col gap-2 transition-all">
+              <div class="flex justify-between items-start gap-2">
+                <div class="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
+                  ${badgeHtml}
+                  ${item.isJasa ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-200 text-amber-900 border border-amber-300 flex-shrink-0">JASA</span>' : ''}
+                  <span class="font-bold text-xs text-slate-800 leading-snug truncate" title="${item.nama}">${item.nama}</span>
+                </div>
+                <button onclick="Cart.removeItem('${item.id}')" class="text-slate-400 hover:text-red-600 transition flex-shrink-0" title="${extraQty > 0 ? 'Batalkan tambahan dan kembalikan ke jumlah awal' : 'Hapus item'}">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
               </div>
-              <button onclick="Cart.removeItem('${item.id}')" class="text-slate-400 hover:text-red-600 transition flex-shrink-0">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-              </button>
-            </div>
-            <div class="flex justify-between items-center text-xs">
-              <span class="text-slate-500 font-medium">Rp ${Number(item.harga).toLocaleString('id-ID')}${item.satuan && item.satuan !== 'pcs' ? '/' + item.satuan : ''}</span>
-              <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-1.5 py-0.5 shadow-sm">
-                <button type="button" onclick="Cart.changeQty('${item.id}', -1)" class="w-5 h-5 flex items-center justify-center font-bold text-slate-500 hover:text-blue-600 active:scale-90 transition rounded">-</button>
-                <input 
-                  type="number" 
-                  min="1" 
-                  ${!item.isJasa ? `max="${item.stok}"` : ''} 
-                  value="${item.qty}" 
-                  onchange="Cart.setQty('${item.id}', this.value)" 
-                  onkeydown="if(event.key==='Enter'){ this.blur(); }"
-                  class="font-extrabold text-blue-700 w-12 text-center bg-transparent border-b border-transparent focus:border-blue-500 focus:bg-blue-50/50 rounded outline-none px-0.5 py-0.5 text-xs transition select-all" 
-                  title="Klik untuk ketik jumlah langsung (misal: 80)"
-                />
-                <button type="button" onclick="Cart.changeQty('${item.id}', 1)" class="w-5 h-5 flex items-center justify-center font-bold text-slate-500 hover:text-blue-600 active:scale-90 transition rounded">+</button>
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-slate-500 font-medium">Rp ${Number(item.harga).toLocaleString('id-ID')}${item.satuan && item.satuan !== 'pcs' ? '/' + item.satuan : ''}</span>
+                <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-1.5 py-0.5 shadow-sm">
+                  <button type="button" onclick="Cart.changeQty('${item.id}', -1)" class="w-5 h-5 flex items-center justify-center font-bold text-slate-500 hover:text-blue-600 active:scale-90 transition rounded">-</button>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    ${!item.isJasa ? `max="${item.stok}"` : ''} 
+                    value="${item.qty}" 
+                    onchange="Cart.setQty('${item.id}', this.value)" 
+                    onkeydown="if(event.key==='Enter'){ this.blur(); }"
+                    class="font-extrabold text-blue-700 w-12 text-center bg-transparent border-b border-transparent focus:border-blue-500 focus:bg-blue-50/50 rounded outline-none px-0.5 py-0.5 text-xs transition select-all" 
+                    title="Klik untuk ketik jumlah langsung (misal: 80)"
+                  />
+                  <button type="button" onclick="Cart.changeQty('${item.id}', 1)" class="w-5 h-5 flex items-center justify-center font-bold text-slate-500 hover:text-blue-600 active:scale-90 transition rounded">+</button>
+                </div>
+                <span class="font-bold text-blue-700">Rp ${(item.qty * item.harga).toLocaleString('id-ID')}</span>
               </div>
-              <span class="font-bold text-blue-700">Rp ${(item.qty * item.harga).toLocaleString('id-ID')}</span>
             </div>
-          </div>
-        `).join("");
+          `;
+        }).join("");
 
         lucide.createIcons();
       }
@@ -5337,6 +5388,7 @@
             hargaModal: Number(it.hargaModal) || 0,
             satuan: it.satuan || 'pcs',
             qty: q,
+            initialQty: typeof it.initialQty === 'number' ? it.initialQty : undefined,
             isJasa: Boolean(it.isJasa),
             hideQty: Boolean(it.hideQty),
             isAdditional: Boolean(it.isAdditional),
@@ -5438,6 +5490,11 @@
         this.editingRabId = rab.id;
         State.cart = (rab.items || []).map(it => {
           const prod = State.products.find(p => p.id === it.id);
+          const itemQty = Number(it.qty) || 1;
+          const initialQty = isDeal 
+            ? (typeof it.initialQty === 'number' ? it.initialQty : (it.isAdditional ? 0 : itemQty))
+            : undefined;
+
           return {
             id: it.id,
             nama: it.nama,
@@ -5445,7 +5502,8 @@
             hargaModal: Number(it.hargaModal) || 0,
             stok: it.isJasa ? 999999 : (prod && typeof prod.stok === 'number' ? prod.stok : 999),
             satuan: it.satuan || 'pcs',
-            qty: Number(it.qty) || 1,
+            qty: itemQty,
+            initialQty: initialQty,
             isJasa: Boolean(it.isJasa),
             hideQty: Boolean(it.hideQty),
             isAdditional: Boolean(it.isAdditional)
@@ -5765,6 +5823,59 @@
         }).join('');
       },
 
+      partitionItems(items = []) {
+        const partA = [];
+        const partB = [];
+
+        (items || []).forEach(it => {
+          const p = Number(it.harga) || 0;
+          const totalQ = Number(it.qty) || 1;
+
+          if (it.isAdditional) {
+            partB.push({
+              ...it,
+              qty: totalQ,
+              subtotal: Number(it.subtotal) || (totalQ * p),
+              isAdditional: true
+            });
+          } else if (typeof it.initialQty === 'number') {
+            const initQ = Math.max(0, it.initialQty);
+            if (initQ > 0) {
+              partA.push({
+                ...it,
+                qty: initQ,
+                subtotal: initQ * p,
+                isAdditional: false
+              });
+            }
+            const extraQ = totalQ - initQ;
+            if (extraQ > 0) {
+              partB.push({
+                ...it,
+                qty: extraQ,
+                subtotal: extraQ * p,
+                isAdditional: true
+              });
+            }
+          } else {
+            partA.push({
+              ...it,
+              qty: totalQ,
+              subtotal: Number(it.subtotal) || (totalQ * p),
+              isAdditional: false
+            });
+          }
+        });
+
+        return {
+          partA,
+          partB,
+          hasAdditions: partB.length > 0,
+          subtotalA: partA.reduce((s, it) => s + it.subtotal, 0),
+          subtotalB: partB.reduce((s, it) => s + it.subtotal, 0)
+        };
+      },
+
       printA4Direct(rabId) {
         const list = this.getRabs();
         const rab = list.find(r => r.id === rabId);
@@ -5787,11 +5898,7 @@
         const tglIndo = this.formatDateIndo(rab.tanggal);
         const expIndo = this.calculateExpiry(rab.tanggal, rab.validDays);
 
-        const mainItems = items.filter(it => !it.isAdditional);
-        const addItems = items.filter(it => it.isAdditional);
-        const hasAdditions = addItems.length > 0;
-        const subtotalMain = mainItems.reduce((s, it) => s + (Number(it.subtotal) || (it.qty * it.harga)), 0);
-        const subtotalAdd = addItems.reduce((s, it) => s + (Number(it.subtotal) || (it.qty * it.harga)), 0);
+        const { partA, partB, hasAdditions, subtotalA, subtotalB } = this.partitionItems(items);
 
         const notesList = (rab.notes || this.getDefaultNotes(rab.validDays || 14))
           .split("\n")
@@ -5891,7 +5998,7 @@
                       A. ITEM KESEPAKATAN AWAL (RAB UTAMA)
                     </td>
                   </tr>
-                  ${mainItems.map((it, i) => {
+                  ${partA.map((it, i) => {
                     const isJasaWithoutQty = (it.isJasa && it.hideQty) || !it.harga || Number(it.harga) <= 0 || !it.qty || Number(it.qty) <= 0;
                     const qtyStr = isJasaWithoutQty ? '-' : (it.satuan && it.satuan !== 'pcs' ? `${it.qty} ${it.satuan}` : String(it.qty));
                     const hargaStr = isJasaWithoutQty ? '-' : Number(it.harga).toLocaleString('id-ID');
@@ -5911,7 +6018,7 @@
                   }).join('')}
                   <tr style="background: #f8fafc; font-weight: 700; color: #334155;">
                     <td colspan="4" style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: right; font-size: 9.5px;">Subtotal A (Kesepakatan Awal):</td>
-                    <td style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: right; font-family: monospace;">Rp ${subtotalMain.toLocaleString('id-ID')}</td>
+                    <td style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: right; font-family: monospace;">Rp ${subtotalA.toLocaleString('id-ID')}</td>
                   </tr>
 
                   <!-- BAGIAN B: PEKERJAAN TAMBAH / SUSULAN -->
@@ -5920,7 +6027,7 @@
                       B. PEKERJAAN TAMBAH / SUSULAN (ADDITIONAL ITEMS)
                     </td>
                   </tr>
-                  ${addItems.map((it, i) => {
+                  ${partB.map((it, i) => {
                     const isJasaWithoutQty = (it.isJasa && it.hideQty) || !it.harga || Number(it.harga) <= 0 || !it.qty || Number(it.qty) <= 0;
                     const qtyStr = isJasaWithoutQty ? '-' : (it.satuan && it.satuan !== 'pcs' ? `${it.qty} ${it.satuan}` : String(it.qty));
                     const hargaStr = isJasaWithoutQty ? '-' : Number(it.harga).toLocaleString('id-ID');
@@ -5941,7 +6048,7 @@
                   }).join('')}
                   <tr style="background: #eef2ff; font-weight: 700; color: #3730a3;">
                     <td colspan="4" style="padding: 4px 8px; border: 1px solid #c7d2fe; text-align: right; font-size: 9.5px;">Subtotal B (Pekerjaan Tambah):</td>
-                    <td style="padding: 4px 8px; border: 1px solid #c7d2fe; text-align: right; font-family: monospace;">Rp ${subtotalAdd.toLocaleString('id-ID')}</td>
+                    <td style="padding: 4px 8px; border: 1px solid #c7d2fe; text-align: right; font-family: monospace;">Rp ${subtotalB.toLocaleString('id-ID')}</td>
                   </tr>
                 `}
               </tbody>
@@ -5963,11 +6070,11 @@
                 ${hasAdditions ? `
                   <div style="padding: 5px 10px; background: #ffffff; border-bottom: 1px dashed #e2e8f0; font-size: 9.5px; color: #475569; display: flex; justify-content: space-between;">
                     <span>Subtotal A (Awal):</span>
-                    <span style="font-family: monospace; font-weight: 600;">Rp ${subtotalMain.toLocaleString('id-ID')}</span>
+                    <span style="font-family: monospace; font-weight: 600;">Rp ${subtotalA.toLocaleString('id-ID')}</span>
                   </div>
                   <div style="padding: 5px 10px; background: #ffffff; border-bottom: 1px solid #fde68a; font-size: 9.5px; color: #4338ca; display: flex; justify-content: space-between;">
                     <span>Subtotal B (Pekerjaan Tambah):</span>
-                    <span style="font-family: monospace; font-weight: 600;">Rp ${subtotalAdd.toLocaleString('id-ID')}</span>
+                    <span style="font-family: monospace; font-weight: 600;">Rp ${subtotalB.toLocaleString('id-ID')}</span>
                   </div>
                 ` : ''}
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: #ffffff; font-weight: 900; color: #b45309;">
@@ -6055,13 +6162,11 @@
         msg += `-------------------------------------------\n`;
         msg += `*RINCIAN ESTIMASI BARANG & JASA:*\n`;
 
-        const allItems = Array.isArray(rab.items) ? rab.items : [];
-        const mainItems = allItems.filter(it => !it.isAdditional);
-        const addItems = allItems.filter(it => it.isAdditional);
+        const { partA, partB, hasAdditions, subtotalA, subtotalB } = this.partitionItems(rab.items);
 
-        if (addItems.length > 0) {
+        if (hasAdditions) {
           msg += `*A. KESEPAKATAN AWAL (RAB UTAMA):*\n`;
-          mainItems.forEach((it, i) => {
+          partA.forEach((it, i) => {
             const subtotal = Number(it.subtotal || (it.qty * it.harga)).toLocaleString('id-ID');
             const isJasaNoQty = (it.isJasa && it.hideQty) || !it.qty || Number(it.qty) <= 0;
             if (isJasaNoQty) {
@@ -6070,11 +6175,10 @@
               msg += `${i + 1}. *${it.nama}* (${it.qty} ${it.satuan || 'pcs'} @ Rp ${Number(it.harga).toLocaleString('id-ID')}): Rp ${subtotal}\n`;
             }
           });
-          const subMain = mainItems.reduce((s, it) => s + (Number(it.subtotal) || (it.qty * it.harga)), 0);
-          msg += `_Subtotal Awal: Rp ${subMain.toLocaleString('id-ID')}_\n\n`;
+          msg += `_Subtotal Awal: Rp ${subtotalA.toLocaleString('id-ID')}_\n\n`;
 
           msg += `*B. PEKERJAAN TAMBAH / SUSULAN:*\n`;
-          addItems.forEach((it, i) => {
+          partB.forEach((it, i) => {
             const subtotal = Number(it.subtotal || (it.qty * it.harga)).toLocaleString('id-ID');
             const isJasaNoQty = (it.isJasa && it.hideQty) || !it.qty || Number(it.qty) <= 0;
             if (isJasaNoQty) {
@@ -6083,10 +6187,9 @@
               msg += `${i + 1}. *[TAMBAHAN]* *${it.nama}* (${it.qty} ${it.satuan || 'pcs'} @ Rp ${Number(it.harga).toLocaleString('id-ID')}): Rp ${subtotal}\n`;
             }
           });
-          const subAdd = addItems.reduce((s, it) => s + (Number(it.subtotal) || (it.qty * it.harga)), 0);
-          msg += `_Subtotal Tambahan: Rp ${subAdd.toLocaleString('id-ID')}_\n`;
+          msg += `_Subtotal Tambahan: Rp ${subtotalB.toLocaleString('id-ID')}_\n`;
         } else {
-          allItems.forEach((it, i) => {
+          partA.forEach((it, i) => {
             const subtotal = Number(it.subtotal || (it.qty * it.harga)).toLocaleString('id-ID');
             const isJasaNoQty = (it.isJasa && it.hideQty) || !it.qty || Number(it.qty) <= 0;
             if (isJasaNoQty) {
@@ -6098,7 +6201,7 @@
         }
 
         msg += `-------------------------------------------\n`;
-        msg += `*TOTAL ${addItems.length > 0 ? 'KESELURUHAN (A + B)' : 'ANGGARAN'}: Rp ${Number(rab.total || 0).toLocaleString('id-ID')}*\n`;
+        msg += `*TOTAL ${hasAdditions ? 'KESELURUHAN (A + B)' : 'ANGGARAN'}: Rp ${Number(rab.total || 0).toLocaleString('id-ID')}*\n`;
         msg += `-------------------------------------------\n`;
         if (rab.notes) {
           msg += `*Ketentuan Penawaran:*\n${rab.notes}\n\n`;
