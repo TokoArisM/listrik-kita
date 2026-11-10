@@ -971,7 +971,7 @@
           <label class="block font-bold text-slate-700 mb-1">Versi Aplikasi (PWA):</label>
           <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
             <div>
-              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v49</span></div>
+              <div class="font-bold text-slate-800">Versi Aktif: <span class="font-mono text-blue-700" id="currentAppVersion">v50</span></div>
               <p class="text-[11px] text-slate-400 mt-0.5">Otomatis update tanpa perlu install ulang APK/PWA.</p>
             </div>
             <button type="button" onclick="App.checkAppUpdate(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-sm transition">
@@ -2462,6 +2462,15 @@
           return;
         }
 
+        // Cek apakah sedang dalam mode revisi RAB yang sudah Deal (berarti item baru ini adalah pekerjaan tambah)
+        let isAdditionalItem = false;
+        if (typeof RabManager !== 'undefined' && RabManager.editingRabId) {
+          const curRab = RabManager.getRabs().find(r => r.id === RabManager.editingRabId);
+          if (curRab && curRab.status === 'Deal (Disetujui)') {
+            isAdditionalItem = true;
+          }
+        }
+
         const existing = State.cart.find(c => c.id === productId);
         if (existing) {
           if (!isService && existing.qty >= product.stok) {
@@ -2478,7 +2487,8 @@
             stok: isService ? 999999 : product.stok,
             satuan: product.satuan || (isService ? "jasa" : "pcs"),
             isJasa: isService,
-            qty: 1
+            qty: 1,
+            isAdditional: isAdditionalItem
           });
         }
 
@@ -2592,9 +2602,10 @@
         if (makeRabBtn) makeRabBtn.disabled = false;
 
         listEl.innerHTML = State.cart.map(item => `
-          <div class="bg-slate-50 border ${item.isJasa ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/80'} rounded-xl p-3 flex flex-col gap-2">
+          <div class="bg-slate-50 border ${item.isAdditional ? 'border-indigo-400 bg-indigo-50/40 ring-1 ring-indigo-300' : (item.isJasa ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200/80')} rounded-xl p-3 flex flex-col gap-2">
             <div class="flex justify-between items-start gap-2">
               <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                ${item.isAdditional ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-indigo-600 text-white flex-shrink-0 shadow-xs">TAMBAHAN</span>' : ''}
                 ${item.isJasa ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-200 text-amber-900 border border-amber-300 flex-shrink-0">JASA</span>' : ''}
                 <span class="font-bold text-xs text-slate-800 leading-snug truncate" title="${item.nama}">${item.nama}</span>
               </div>
@@ -4608,6 +4619,14 @@
           return;
         }
 
+        let isAdditionalItem = false;
+        if (typeof RabManager !== 'undefined' && RabManager.editingRabId) {
+          const curRab = RabManager.getRabs().find(r => r.id === RabManager.editingRabId);
+          if (curRab && curRab.status === 'Deal (Disetujui)') {
+            isAdditionalItem = true;
+          }
+        }
+
         const serviceItem = {
           id: "jasa_" + Date.now(),
           nama: nama,
@@ -4617,7 +4636,8 @@
           satuan: satuan,
           qty: qty,
           isJasa: true,
-          hideQty: hideQty
+          hideQty: hideQty,
+          isAdditional: isAdditionalItem
         };
 
         State.cart.push(serviceItem);
@@ -5319,6 +5339,7 @@
             qty: q,
             isJasa: Boolean(it.isJasa),
             hideQty: Boolean(it.hideQty),
+            isAdditional: Boolean(it.isAdditional),
             subtotal: q * p
           };
         });
@@ -5345,7 +5366,12 @@
           this.saveRabs(list);
           if (target) this.sendRabToCloud(target);
           const revNum = target?.revisionCount || 1;
-          UI.toast(`Revisi ke-${revNum} untuk RAB ${this.editingRabId} berhasil disimpan!`, "success");
+          const isDeal = target?.status === 'Deal (Disetujui)';
+          UI.toast(isDeal 
+            ? `Pekerjaan tambah untuk RAB Deal ${this.editingRabId} berhasil disimpan!`
+            : `Revisi ke-${revNum} untuk RAB ${this.editingRabId} berhasil disimpan!`, 
+            "success"
+          );
           
           this.cancelRevisionMode();
           State.cart = [];
@@ -5398,13 +5424,13 @@
           return;
         }
 
-        if (rab.status === 'Deal (Disetujui)') {
-          UI.toast("RAB ini sudah Deal / sah menjadi transaksi penjualan resmi, sehingga revisi dikunci.", "warning");
-          return;
-        }
+        const isDeal = rab.status === 'Deal (Disetujui)';
 
         if (State.cart.length > 0) {
-          if (!confirm(`Keranjang kasir saat ini berisi ${State.cart.length} item.\nKosongkan keranjang dan muat item dari RAB ${rabId} untuk direvisi (tambah/kurang barang)?`)) {
+          const confirmMsg = isDeal
+            ? `Keranjang kasir saat ini berisi ${State.cart.length} item.\nKosongkan keranjang dan muat item dari RAB Deal ${rabId} untuk menambah pekerjaan/item susulan?`
+            : `Keranjang kasir saat ini berisi ${State.cart.length} item.\nKosongkan keranjang dan muat item dari RAB ${rabId} untuk direvisi (tambah/kurang barang)?`;
+          if (!confirm(confirmMsg)) {
             return;
           }
         }
@@ -5421,7 +5447,8 @@
             satuan: it.satuan || 'pcs',
             qty: Number(it.qty) || 1,
             isJasa: Boolean(it.isJasa),
-            hideQty: Boolean(it.hideQty)
+            hideQty: Boolean(it.hideQty),
+            isAdditional: Boolean(it.isAdditional)
           };
         });
 
@@ -5430,13 +5457,17 @@
         const codeEl = document.getElementById("rabRevisionCode");
         const btnMakeRabText = document.getElementById("btnMakeRabText");
         if (banner) banner.classList.remove("hidden");
-        if (codeEl) codeEl.textContent = `${rab.id} (${rab.customer})`;
-        if (btnMakeRabText) btnMakeRabText.textContent = "Simpan Revisi";
+        if (codeEl) codeEl.textContent = isDeal ? `${rab.id} [Pekerjaan Tambah]` : `${rab.id} (${rab.customer})`;
+        if (btnMakeRabText) btnMakeRabText.textContent = isDeal ? "Simpan Item Tambahan" : "Simpan Revisi";
 
         Cart.render();
         this.closeListModal();
         UI.switchView('pos');
-        UI.toast(`Mode Revisi Aktif untuk ${rab.id}. Anda dapat menambah produk baru, hapus barang, atau ubah jumlah di keranjang. Klik "Simpan Revisi" jika sudah selesai!`, "info");
+        if (isDeal) {
+          UI.toast(`Mode Pekerjaan Tambah untuk RAB ${rab.id} aktif. Setiap produk/jasa baru yang Anda tambahkan ke keranjang akan otomatis ditandai sebagai [TAMBAHAN].`, "info");
+        } else {
+          UI.toast(`Mode Revisi Aktif untuk ${rab.id}. Anda dapat menambah produk baru, hapus barang, atau ubah jumlah di keranjang. Klik "Simpan Revisi" jika sudah selesai!`, "info");
+        }
       },
 
       cancelRevisionMode() {
@@ -5682,12 +5713,13 @@
                       <span>Edit / Revisi</span>
                     </button>
                   ` : `
-                    <span 
-                      class="px-2.5 py-1.5 rounded-xl font-semibold bg-slate-100 text-slate-400 border border-slate-200 text-xs flex items-center gap-1 cursor-not-allowed select-none"
-                      title="RAB ini sudah Deal / sah menjadi transaksi penjualan, sehingga revisi dikunci (arsip penawaran)">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                      <span>Terkunci</span>
-                    </span>
+                    <button 
+                      onclick="RabManager.loadForRevision('${r.id}')"
+                      class="px-2.5 py-1.5 rounded-xl font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs transition flex items-center gap-1 active:scale-95 shadow-xs"
+                      title="Tambah pekerjaan/item susulan pada proyek yang sudah deal">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                      <span>+ Tambah Item</span>
+                    </button>
                   `}
 
                   <!-- Tombol Cetak PDF A4 -->
@@ -5754,6 +5786,12 @@
         const total = Number(rab.total) || 0;
         const tglIndo = this.formatDateIndo(rab.tanggal);
         const expIndo = this.calculateExpiry(rab.tanggal, rab.validDays);
+
+        const mainItems = items.filter(it => !it.isAdditional);
+        const addItems = items.filter(it => it.isAdditional);
+        const hasAdditions = addItems.length > 0;
+        const subtotalMain = mainItems.reduce((s, it) => s + (Number(it.subtotal) || (it.qty * it.harga)), 0);
+        const subtotalAdd = addItems.reduce((s, it) => s + (Number(it.subtotal) || (it.qty * it.harga)), 0);
 
         const notesList = (rab.notes || this.getDefaultNotes(rab.validDays || 14))
           .split("\n")
@@ -5827,7 +5865,7 @@
                 </tr>
               </thead>
               <tbody>
-                ${items.map((it, i) => {
+                ${!hasAdditions ? items.map((it, i) => {
                   const isJasaWithoutQty = (it.isJasa && it.hideQty) || !it.harga || Number(it.harga) <= 0 || !it.qty || Number(it.qty) <= 0;
                   const qtyStr = isJasaWithoutQty ? '-' : (it.satuan && it.satuan !== 'pcs' ? `${it.qty} ${it.satuan}` : String(it.qty));
                   const hargaStr = isJasaWithoutQty ? '-' : Number(it.harga).toLocaleString('id-ID');
@@ -5846,7 +5884,66 @@
                       <td style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-weight: 700; font-family: monospace;">${totalStr}</td>
                     </tr>
                   `;
-                }).join('')}
+                }).join('') : `
+                  <!-- BAGIAN A: KESEPAKATAN AWAL -->
+                  <tr style="background: #f1f5f9; font-weight: 800; color: #1e293b;">
+                    <td colspan="5" style="padding: 5px 8px; border: 1px solid #cbd5e1; font-size: 10px; letter-spacing: 0.3px;">
+                      A. ITEM KESEPAKATAN AWAL (RAB UTAMA)
+                    </td>
+                  </tr>
+                  ${mainItems.map((it, i) => {
+                    const isJasaWithoutQty = (it.isJasa && it.hideQty) || !it.harga || Number(it.harga) <= 0 || !it.qty || Number(it.qty) <= 0;
+                    const qtyStr = isJasaWithoutQty ? '-' : (it.satuan && it.satuan !== 'pcs' ? `${it.qty} ${it.satuan}` : String(it.qty));
+                    const hargaStr = isJasaWithoutQty ? '-' : Number(it.harga).toLocaleString('id-ID');
+                    const subtotal = Number(it.subtotal || (it.qty * it.harga));
+                    return `
+                      <tr style="background: ${i % 2 === 0 ? '#ffffff' : '#fefdfa'};">
+                        <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; color: #475569;">${i + 1}</td>
+                        <td style="padding: 4px 8px; border: 1px solid #cbd5e1; color: #0f172a;">
+                          ${it.nama}
+                          ${it.isJasa ? '<span style="font-size: 9px; color: #b45309; font-weight: 700; margin-left: 4px;">(Jasa)</span>' : ''}
+                        </td>
+                        <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">${qtyStr}</td>
+                        <td style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-family: monospace;">${hargaStr}</td>
+                        <td style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a; font-weight: 700; font-family: monospace;">${subtotal.toLocaleString('id-ID')}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                  <tr style="background: #f8fafc; font-weight: 700; color: #334155;">
+                    <td colspan="4" style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: right; font-size: 9.5px;">Subtotal A (Kesepakatan Awal):</td>
+                    <td style="padding: 4px 8px; border: 1px solid #cbd5e1; text-align: right; font-family: monospace;">Rp ${subtotalMain.toLocaleString('id-ID')}</td>
+                  </tr>
+
+                  <!-- BAGIAN B: PEKERJAAN TAMBAH / SUSULAN -->
+                  <tr style="background: #e0e7ff; font-weight: 800; color: #3730a3;">
+                    <td colspan="5" style="padding: 5px 8px; border: 1px solid #c7d2fe; font-size: 10px; letter-spacing: 0.3px;">
+                      B. PEKERJAAN TAMBAH / SUSULAN (ADDITIONAL ITEMS)
+                    </td>
+                  </tr>
+                  ${addItems.map((it, i) => {
+                    const isJasaWithoutQty = (it.isJasa && it.hideQty) || !it.harga || Number(it.harga) <= 0 || !it.qty || Number(it.qty) <= 0;
+                    const qtyStr = isJasaWithoutQty ? '-' : (it.satuan && it.satuan !== 'pcs' ? `${it.qty} ${it.satuan}` : String(it.qty));
+                    const hargaStr = isJasaWithoutQty ? '-' : Number(it.harga).toLocaleString('id-ID');
+                    const subtotal = Number(it.subtotal || (it.qty * it.harga));
+                    return `
+                      <tr style="background: ${i % 2 === 0 ? '#faf5ff' : '#ffffff'};">
+                        <td style="padding: 4px 6px; border: 1px solid #c7d2fe; text-align: center; color: #4338ca; font-weight: 700;">${i + 1}</td>
+                        <td style="padding: 4px 8px; border: 1px solid #c7d2fe; color: #0f172a;">
+                          ${it.nama}
+                          <span style="font-size: 9px; color: #4338ca; font-weight: 800; background: #e0e7ff; border: 1px solid #c7d2fe; border-radius: 3px; padding: 1px 4px; margin-left: 4px;">Tambahan</span>
+                          ${it.isJasa ? '<span style="font-size: 9px; color: #b45309; font-weight: 700; margin-left: 4px;">(Jasa)</span>' : ''}
+                        </td>
+                        <td style="padding: 4px 6px; border: 1px solid #c7d2fe; text-align: center; color: #0f172a;">${qtyStr}</td>
+                        <td style="padding: 4px 8px; border: 1px solid #c7d2fe; text-align: right; color: #0f172a; font-family: monospace;">${hargaStr}</td>
+                        <td style="padding: 4px 8px; border: 1px solid #c7d2fe; text-align: right; color: #4338ca; font-weight: 700; font-family: monospace;">${subtotal.toLocaleString('id-ID')}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                  <tr style="background: #eef2ff; font-weight: 700; color: #3730a3;">
+                    <td colspan="4" style="padding: 4px 8px; border: 1px solid #c7d2fe; text-align: right; font-size: 9.5px;">Subtotal B (Pekerjaan Tambah):</td>
+                    <td style="padding: 4px 8px; border: 1px solid #c7d2fe; text-align: right; font-family: monospace;">Rp ${subtotalAdd.toLocaleString('id-ID')}</td>
+                  </tr>
+                `}
               </tbody>
             </table>
 
@@ -5861,10 +5958,20 @@
               <!-- Kolom Kanan: Total Estimasi Biaya -->
               <div style="width: 300px; border: 1px solid #b45309; border-radius: 6px; overflow: hidden; font-size: 10.5px;">
                 <div style="padding: 6px 10px; background: #fffbeb; font-weight: 700; color: #92400e; font-size: 10px; border-bottom: 1px solid #fde68a;">
-                  ESTIMASI TOTAL ANGGARAN
+                  ${hasAdditions ? 'REKAPITULASI TOTAL ANGGARAN' : 'ESTIMASI TOTAL ANGGARAN'}
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #ffffff; font-weight: 900; color: #b45309;">
-                  <span style="font-size: 10.5px; text-transform: uppercase;">TOTAL RAB</span>
+                ${hasAdditions ? `
+                  <div style="padding: 5px 10px; background: #ffffff; border-bottom: 1px dashed #e2e8f0; font-size: 9.5px; color: #475569; display: flex; justify-content: space-between;">
+                    <span>Subtotal A (Awal):</span>
+                    <span style="font-family: monospace; font-weight: 600;">Rp ${subtotalMain.toLocaleString('id-ID')}</span>
+                  </div>
+                  <div style="padding: 5px 10px; background: #ffffff; border-bottom: 1px solid #fde68a; font-size: 9.5px; color: #4338ca; display: flex; justify-content: space-between;">
+                    <span>Subtotal B (Pekerjaan Tambah):</span>
+                    <span style="font-family: monospace; font-weight: 600;">Rp ${subtotalAdd.toLocaleString('id-ID')}</span>
+                  </div>
+                ` : ''}
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: #ffffff; font-weight: 900; color: #b45309;">
+                  <span style="font-size: 10.5px; text-transform: uppercase;">${hasAdditions ? 'TOTAL (A + B)' : 'TOTAL RAB'}</span>
                   <span style="font-family: monospace; font-size: 15px;">Rp ${total.toLocaleString('id-ID')}</span>
                 </div>
               </div>
@@ -5948,18 +6055,50 @@
         msg += `-------------------------------------------\n`;
         msg += `*RINCIAN ESTIMASI BARANG & JASA:*\n`;
 
-        (rab.items || []).forEach((it, i) => {
-          const subtotal = Number(it.subtotal || (it.qty * it.harga)).toLocaleString('id-ID');
-          const isJasaNoQty = (it.isJasa && it.hideQty) || !it.qty || Number(it.qty) <= 0;
-          if (isJasaNoQty) {
-            msg += `${i + 1}. *${it.nama}*: Rp ${subtotal}\n`;
-          } else {
-            msg += `${i + 1}. *${it.nama}* (${it.qty} ${it.satuan || 'pcs'} @ Rp ${Number(it.harga).toLocaleString('id-ID')}): Rp ${subtotal}\n`;
-          }
-        });
+        const allItems = Array.isArray(rab.items) ? rab.items : [];
+        const mainItems = allItems.filter(it => !it.isAdditional);
+        const addItems = allItems.filter(it => it.isAdditional);
+
+        if (addItems.length > 0) {
+          msg += `*A. KESEPAKATAN AWAL (RAB UTAMA):*\n`;
+          mainItems.forEach((it, i) => {
+            const subtotal = Number(it.subtotal || (it.qty * it.harga)).toLocaleString('id-ID');
+            const isJasaNoQty = (it.isJasa && it.hideQty) || !it.qty || Number(it.qty) <= 0;
+            if (isJasaNoQty) {
+              msg += `${i + 1}. *${it.nama}*: Rp ${subtotal}\n`;
+            } else {
+              msg += `${i + 1}. *${it.nama}* (${it.qty} ${it.satuan || 'pcs'} @ Rp ${Number(it.harga).toLocaleString('id-ID')}): Rp ${subtotal}\n`;
+            }
+          });
+          const subMain = mainItems.reduce((s, it) => s + (Number(it.subtotal) || (it.qty * it.harga)), 0);
+          msg += `_Subtotal Awal: Rp ${subMain.toLocaleString('id-ID')}_\n\n`;
+
+          msg += `*B. PEKERJAAN TAMBAH / SUSULAN:*\n`;
+          addItems.forEach((it, i) => {
+            const subtotal = Number(it.subtotal || (it.qty * it.harga)).toLocaleString('id-ID');
+            const isJasaNoQty = (it.isJasa && it.hideQty) || !it.qty || Number(it.qty) <= 0;
+            if (isJasaNoQty) {
+              msg += `${i + 1}. *[TAMBAHAN]* *${it.nama}*: Rp ${subtotal}\n`;
+            } else {
+              msg += `${i + 1}. *[TAMBAHAN]* *${it.nama}* (${it.qty} ${it.satuan || 'pcs'} @ Rp ${Number(it.harga).toLocaleString('id-ID')}): Rp ${subtotal}\n`;
+            }
+          });
+          const subAdd = addItems.reduce((s, it) => s + (Number(it.subtotal) || (it.qty * it.harga)), 0);
+          msg += `_Subtotal Tambahan: Rp ${subAdd.toLocaleString('id-ID')}_\n`;
+        } else {
+          allItems.forEach((it, i) => {
+            const subtotal = Number(it.subtotal || (it.qty * it.harga)).toLocaleString('id-ID');
+            const isJasaNoQty = (it.isJasa && it.hideQty) || !it.qty || Number(it.qty) <= 0;
+            if (isJasaNoQty) {
+              msg += `${i + 1}. *${it.nama}*: Rp ${subtotal}\n`;
+            } else {
+              msg += `${i + 1}. *${it.nama}* (${it.qty} ${it.satuan || 'pcs'} @ Rp ${Number(it.harga).toLocaleString('id-ID')}): Rp ${subtotal}\n`;
+            }
+          });
+        }
 
         msg += `-------------------------------------------\n`;
-        msg += `*TOTAL ANGGARAN: Rp ${Number(rab.total || 0).toLocaleString('id-ID')}*\n`;
+        msg += `*TOTAL ${addItems.length > 0 ? 'KESELURUHAN (A + B)' : 'ANGGARAN'}: Rp ${Number(rab.total || 0).toLocaleString('id-ID')}*\n`;
         msg += `-------------------------------------------\n`;
         if (rab.notes) {
           msg += `*Ketentuan Penawaran:*\n${rab.notes}\n\n`;
